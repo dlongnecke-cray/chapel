@@ -454,15 +454,13 @@ module Lists {
 
       :arg x: An element to append.
     */
-    proc append(x: eltType) {
+    proc append(pragma "no auto destroy" in x: eltType) {
       //
       // TODO: Use a local copy until this pragma works with formals.
       // See: https://github.com/chapel-lang/chapel/issues/13225
       //
-      pragma "no auto destroy"
-      var cpy = x;
       _enter();
-      _append_by_ref(cpy);
+      _append_by_ref(x);
       _leave();
     }
 
@@ -524,16 +522,12 @@ module Lists {
 
       :throws IllegalArgumentError: If the given index is out of bounds.
     */
-    proc insert(i: int, x: eltType) throws {
+    proc insert(i: int, pragma "no auto destroy" in x: eltType) throws {
       _enter();
-
-      // TODO: Use a local copy until this pragma works with formals.
-      pragma "no auto destroy"
-      var cpy = x;
 
       // Handle special case of `a.insert((a.size + 1), x)` here.
       if i == _size + 1 {
-        _append_by_ref(cpy);
+        _append_by_ref(x);
         _leave();
         return;
       }
@@ -541,7 +535,7 @@ module Lists {
       try _boundsCheckLeaveOnThrow(i);
       // May acquire memory based on size before insert.
       _expand(i);
-      ref src = cpy;
+      ref src = x;
       ref dst = _getRef(i);
       _move(src, dst);
       _size += 1;
