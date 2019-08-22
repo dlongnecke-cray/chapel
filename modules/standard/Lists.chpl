@@ -53,6 +53,8 @@
 */
 module Lists {
 
+  private use Reflection;
+
   pragma "no doc"
   private const _initialCapacity = 8;
 
@@ -60,7 +62,7 @@ module Lists {
   private const _initialArrayCapacity = 16;
 
   pragma "no doc"
-  private param _sanityChecks = true;
+  private param _sanityChecks = false;
 
   //
   // Some asserts are useful while developing, but can be turned off when the
@@ -95,6 +97,11 @@ module Lists {
     inline proc unlock() {
       lock$.unlock();
     }
+  }
+
+  pragma "no doc"
+  proc hasThese(container) param {
+    return canResolveMethod(container, "these");
   }
 
   /*
@@ -141,7 +148,6 @@ module Lists {
     proc init(type eltType, param parSafe=false) {
       this.eltType = eltType;
       this.parSafe = parSafe;
-      this._arrays = nil;
       this.complete();
       this._firstTimeInitializeArrays();
     }
@@ -149,17 +155,150 @@ module Lists {
     /*
       Initializes a list containing elements that are copy initialized from
       the elements contained in another list.
+      
+      Used in `new` expressions.
 
       :arg other: The list to initialize from.
       :arg parSafe: If `true`, this list will use parallel safe operations.
     */
-    proc init=(const ref other: list(?t), param parSafe=other.parSafe) {
+    proc init(const ref other: list(?t), param parSafe=false) {
       this.eltType = t;
-      this.parSafe = other.parSafe;
-      this._arrays = nil;
+      this.parSafe = parSafe;
       this.complete();
+      _commonInitFromIterable(other);
+    }
+
+    /*
+      Initializes a list containing elements that are copy initialized from
+      the elements contained in an array.
+
+      Used in `new` expressions.
+
+      :arg other: The array to initialize from.
+      :arg parSafe: If `true`, this list will use parallel safe operations.
+    */
+    proc init(const ref other: [?d] ?t, param parSafe=false) {
+      this.eltType = t;
+      this.parSafe = parSafe;
+      this.complete();
+      _commonInitFromIterable(other);
+    }
+
+    /*
+      Initializes a list containing elements that are copy initialized from
+      the elements contained in any iterable type. The formal argument
+      "iterable" must have an iterator named "these" defined for its type.
+
+      Used in `new` expressions.
+
+      :arg other: The iterable type to initialize from.
+    */
+    pragma "no doc"
+    proc init(other, param parSafe=false) {
+
+      if !canResolveMethod(other, "these") {
+        param f = other.type:string;
+        compilerError("No method named \"these\" defined for: " + f);
+      }
+
+      this.eltType = iteratorIndexType(other);
+      this.parSafe = parSafe;
+      this.complete();
+      _commonInitFromIterable(other);
+    }
+
+    /*
+      Initializes a list containing elements that are copy initialized from
+      the elements contained in another list.
+
+      :arg other: The list to initialize from.
+    */
+    proc init=(const ref other: list(this.type.eltType)) {
+      this.eltType = this.type.eltType;
+      this.parSafe = this.type.parSafe;
+      this.complete();
+      _commonInitFromIterable(other);
+    }
+
+    /*
+      Initializes a list containing elements that are copy initialized from
+      the elements contained in an array.
+
+      :arg other: The array to initialize from.
+    */
+    proc init=(const ref other: [?d] this.type.eltType) {
+      this.eltType = this.type.eltType;
+      this.parSafe = this.type.parSafe;
+      this.complete();
+      _commonInitFromIterable(other);
+    }
+
+    /*
+      Initializes a list containing elements that are copy initialized from
+      the elements yielded by a range.
+
+      .. note::
+
+        Attempting to initialize a list from an unbounded range will trigger
+        a compiler error.
+
+      :arg other: The range to initialize from.
+    */
+    proc init=(const ref other: range(?t)) {
+      this.eltType = this.type.eltType;
+      this.parSafe = this.type.parSafe;
+
+      if eltType != t {
+        param e = this.type:string;
+        param f = t:string;
+        compilerError("In init of " + e + " - bad range type: " + f);
+      }
+
+      if !isBoundedRange(other) {
+        param f = other.type:string;
+        compilerError("Cannot init list from unbounded range: " + f);
+      }
+
+      this.complete();
+      _commonInitFromIterable(other);
+    }
+
+    /*
+      Initializes a list containing elements that are copy initialized from
+      the elements contained in any iterable type. The formal argument
+      "iterable" must have an iterator named "these" defined for its type.
+
+      :arg other: The iterable type to initialize from.
+    */
+    pragma "no doc"
+    proc init=(other) {
+      this.eltType = this.type.eltType;
+      this.parSafe = this.type.parSafe;
+
+      //
+      // TODO: Can Reflection provide a method like "canResolveIterator"?
+      //
+      if !canResolveMethod(other, "these") {
+        param f = other.type:string;
+        compilerError("No method named \"these\" defined for: " + f);
+      }
+
+      type iterType = iteratorIndexType(other);
+      if iterType != eltType {
+        param e = this.type:string;
+        param f = iterType:string;
+        compilerError("In init of " + e + " - bad iterator type: " + f);
+      }
+
+      this.complete();
+      _commonInitFromIterable(other);
+    }
+
+    pragma "no doc"
+    proc _commonInitFromIterable(iterable) {
       this._firstTimeInitializeArrays();
-      this.extend(other);
+      for x in iterable do
+        append(x);
     }
 
     pragma "no doc"
@@ -187,15 +326,9 @@ module Lists {
       chpl__autoDestroy(item);
     }
 
-    //
-    // Getting weird lifetime errors when using this function over classes,
-    // and I'm not sure quite how to solve them yet. Since this is used in a
-    // managed way internally, try marking "unsafe" for now to circumvent
-    // the errors, and see if we can deal with them later.
-    //
     pragma "no doc"
     pragma "unsafe"
-    inline proc _move(ref src: ?t, ref dst: t) {
+    inline proc _move(ref src: ?t, ref dst: t) lifetime src == dst {
       __primitive("=", dst, src);
     }
 
@@ -232,7 +365,7 @@ module Lists {
     // accesses of list elements should go through this function.
     //
     pragma "no doc"
-    proc _getRef(idx: int) ref {
+    inline proc _getRef(idx: int) ref {
       _sanity(idx >= 1 && idx <= _totalCapacity);
       const zpos = idx - 1;
       const arrayIdx = _getArrayIdx(zpos);
@@ -428,7 +561,7 @@ module Lists {
     // case, fire it twice).
     //
     pragma "no doc"
-    proc _append_by_ref(ref x: eltType) {
+    proc _appendByRef(ref x: eltType) {
       _maybeAcquireMem(1);
       ref src = x;
       ref dst = _getRef(_size + 1);
@@ -443,7 +576,7 @@ module Lists {
     */
     proc append(pragma "no auto destroy" in x: eltType) lifetime this < x {
       _enter();
-      _append_by_ref(x);
+      _appendByRef(x);
       _leave();
     }
 
@@ -458,7 +591,7 @@ module Lists {
       for item in collection {
         pragma "no auto destroy"
         var cpy = item;
-        _append_by_ref(cpy);
+        _appendByRef(cpy);
       }
     }
 
@@ -511,7 +644,7 @@ module Lists {
 
       // Handle special case of `a.insert((a.size + 1), x)` here.
       if i == _size + 1 {
-        _append_by_ref(x);
+        _appendByRef(x);
         _leave();
         return;
       }
