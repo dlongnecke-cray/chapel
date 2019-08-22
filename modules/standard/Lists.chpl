@@ -786,7 +786,7 @@ module Lists {
 
       :yields: A reference to one of the elements contained in this list.
     */
-    iter these() ref {
+    iter these() {
 
       //
       // TODO: I'm not even sure of what the best way to WRITE a threadsafe
@@ -800,6 +800,70 @@ module Lists {
         _leave();
         yield result;
       }
+    }
+
+    pragma "no doc"
+    iter these(param tag) where tag == iterKind.standalone {
+      const osz = _size;
+      const minChunkSize = 32;
+      const hasOneChunk = osz <= minChunkSize;
+      const numTasks = if hasOneChunk then 1 else dataParTasksPerLocale;
+      const chunkSize = floor(osz / numTasks);
+      const trailing = osz - chunkSize * numTasks;
+
+      coforall tid in 0..#numTasks {
+        var chunk = _computeChunk(tid, chunkSize, trailing);
+        for i in chunk do
+          yield this[i + 1];
+      }
+    }
+
+    pragma "no doc"
+    proc _computeChunk(tid, chunkSize, trailing) {
+      var lo, hi = 0;
+
+      if tid <= 0 {
+        lo = 0;
+        hi = chunkSize + trailing;
+      } else {
+        lo = chunkSize * tid;
+        hi = lo + chunkSize;
+      }
+
+      return lo..hi;
+    }
+
+    //
+    // TODO: Should I lock chunks to the same locale as this? I'm still a bit
+    // confused about the structure of leader/follower iterators, let's
+    // continue to read the examples so that we better understand what is
+    // going on and what our responsibilities are.
+    //
+    pragma "no doc"
+    iter these(param tag) where tag == iterKind.leader {
+      const osz = _size;
+      const minChunkSize = 32;
+      const hasOneChunk = osz <= minChunkSize;
+      const numTasks = if hasOneChunk then 1 else dataParTasksPerLocale;
+      const chunkSize = floor(osz / numTasks);
+      const trailing = osz - chunkSize * numTasks;
+
+      coforall tid in 0..#numTasks {
+        var chunk = _computeChunk(tid, chunkSize, trailing);
+        yield chunk; 
+      }
+    }
+
+    pragma "no doc"
+    iter these(param tag, follow) where tag == iterKind.follower {
+      const (lo, hi) = follow;
+
+      //
+      // TODO: A faster scheme would access the _ddata directly to avoid
+      // the penalty of logarithmic indexing over and over again.
+      //
+      for i in follow do
+        yield this[i + 1];
     }
 
     /*
