@@ -861,6 +861,10 @@ module Lists {
       //
       // TODO: A faster scheme would access the _ddata directly to avoid
       // the penalty of logarithmic indexing over and over again.
+      // TODO: We pay the potentialy penalty (boy that's a tongue twister)
+      // of many remote accesses on the _ddata for now (IE, if this
+      // follower is executed on a remote locale), and can fix it later
+      // if it is actually a problem.
       //
       for i in follow do
         yield this[i + 1];
