@@ -62,6 +62,10 @@ else
 # we need to make sure that we are generating position independent code,
 # IE with "-fPIC" on GCC.
 #
+	echo "For host CC..."
+	echo "GEN_CFLAGS are: $(GEN_CFLAGS)"
+	echo "COMP_GEN_CFLAGS are: $(COMP_GEN_CFLAGS)"
+	echo "..."
 	$(CC) $(GEN_CFLAGS) $(COMP_GEN_CFLAGS) $(SHARED_LIB_CFLAGS) \
 		-c -o $(TMPBINNAME)_launcher.o \
 		-DLAUNCHER $(CHPL_LN_INCS) -I. $(LAUNCHER_SRC_NAME)
