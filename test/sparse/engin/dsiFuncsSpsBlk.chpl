@@ -40,3 +40,6 @@ writeln("first:\t\t",SparseDom.first);
 writeln("last:\t\t",SparseDom.last);
 writeln("alignedLow:\t",SparseDom.alignedLow);
 writeln("alignedHigh:\t",SparseDom.alignedHigh);
+
+delete layout;
+
