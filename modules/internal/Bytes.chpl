@@ -92,7 +92,7 @@ To learn more about handling these errors, see the
 :ref:`Error Handling technical note <readme-errorHandling>`.
  */
 module Bytes {
-  use ChapelStandard;
+  private use ChapelStandard;
   use BytesCasts;
   private use ByteBufferHelpers;
   private use BytesStringCommon;
@@ -429,6 +429,16 @@ module Bytes {
       var (buf, size) = bufferCopy(buf=this.buff, off=i-1, len=1,
                                    loc=this.locale_id);
       return createBytesWithOwnedBuffer(buf, length=1, size=size);
+    }
+
+    /*
+      :returns: The value of a single-byte :record:`bytes` as an integer.
+    */
+    proc toByte(): uint(8) {
+      if this.len != 1 {
+        halt("bytes.toByte() only accepts single-byte bytes");
+      }
+      return bufferGetByte(buf=this.buff, off=0, loc=this.locale_id);
     }
 
     /*
@@ -843,8 +853,7 @@ module Bytes {
       :returns: A new :record:`bytes` with `leading` and/or `trailing`
                 occurrences of characters in `chars` removed as appropriate.
     */
-    proc strip(chars: bytes = " \t\r\n":bytes,
-               leading=true, trailing=true) : bytes {
+    proc strip(chars = b" \t\r\n", leading=true, trailing=true) : bytes {
       if this.isEmpty() then return "";
       if chars.isEmpty() then return this;
 
@@ -1311,6 +1320,25 @@ module Bytes {
   pragma "no doc"
   inline proc !=(a: string, b: bytes) : bool {
     return !doEq(a,b);
+  }
+
+  pragma "no doc"
+  inline proc <(a: bytes, b: bytes) : bool {
+    return doLessThan(a, b);
+  }
+
+  pragma "no doc"
+  inline proc >(a: bytes, b: bytes) : bool {
+    return doGreaterThan(a, b);
+  }
+
+  pragma "no doc"
+  inline proc <=(a: bytes, b: bytes) : bool {
+    return doLessThanOrEq(a, b);
+  }
+  pragma "no doc"
+  inline proc >=(a: bytes, b: bytes) : bool {
+    return doGreaterThanOrEq(a, b);
   }
 
   // character-wise operation helpers
