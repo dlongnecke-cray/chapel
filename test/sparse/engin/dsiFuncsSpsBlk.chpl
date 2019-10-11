@@ -6,9 +6,7 @@ const ParentDom = {7..#2*N align 1, 17..#3*N align 5}
   dmapped Block({7..#2*N, 17..#3*N});
 
 config type sparseLayoutType = DefaultDist;
-
-// Try changing to "var/owned" instead of "const/unmanaged".
-var layout = new sparseLayoutType();
+const layout = new unmanaged sparseLayoutType();
 
 var SparseDom: sparse subdomain (ParentDom) dmapped new dmap(layout); 
 var SparseMat: [SparseDom] int;
@@ -42,4 +40,3 @@ writeln("first:\t\t",SparseDom.first);
 writeln("last:\t\t",SparseDom.last);
 writeln("alignedLow:\t",SparseDom.alignedLow);
 writeln("alignedHigh:\t",SparseDom.alignedHigh);
-
