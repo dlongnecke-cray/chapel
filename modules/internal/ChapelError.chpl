@@ -26,6 +26,7 @@
 module ChapelError {
   private use ChapelStandard;
   private use ChapelLocks;
+  private use LinkedLists;
 
   // Base class for errors
   // TODO: should Error include list pointers for TaskErrors?
@@ -40,9 +41,22 @@ module ChapelError {
     pragma "no doc"
     var thrownFileId:int(32);
 
+    type Trace = (c_string, c_string, int);
+    //
+    // Used to hold a stack trace. A "list" might be more efficient, but we
+    // don't want to have to import that in every single compilation (and
+    // we already rely on the LinkedLists module).
+    //
+    pragma "no doc"
+    var _trace: LinkedList(Trace);
+
     /* Construct an Error */
     proc init() {
       _next = nil;
+    }
+
+    proc deinit() {
+      if _trace.size > 0 then _trace.destroy();
     }
 
     /* Override this method to provide an error message
@@ -335,6 +349,28 @@ module ChapelError {
       }
       return false;
     }
+  }
+
+  pragma "no doc"
+  proc chpl_error_trace_build(ref err: borrowed Error): string {
+    writeln("In chpl_error_trace_build");
+    return;
+  }
+
+  pragma "no doc"
+  proc chpl_error_trace_add(ref err: borrowed Error, sig: c_string, fname: c_string, line: int) {
+    var entry = (sig, fname, line);
+    writeln("In chpl_error_trace_add:");
+    writeln("- " + sig:string);
+    writeln("- " + fname:string);
+    writeln("- " + line:string);
+    return;
+  }
+
+  pragma "no doc"
+  proc chpl_error_trace_display(ref err: borrowed Error) {
+    writeln("In chpl_error_trace_display");
+    return;
   }
 
   pragma "no doc"

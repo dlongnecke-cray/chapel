@@ -158,6 +158,7 @@ namespace {
 static bool catchesNotExhaustive(TryStmt* tryStmt);
 static bool shouldEnforceStrict(CallExpr* node, int taskFunctionDepth);
 static AList castToError(Symbol* error, SymExpr* &castedError);
+static Expr* buildStackTraceMessage(VarSymbol* err, CallExpr* call);
 
 class ErrorHandlingVisitor : public AstVisitorTraverse {
 
@@ -371,6 +372,9 @@ bool ErrorHandlingVisitor::enterCallExpr(CallExpr* node) {
           calledFn->hasFlag(FLAG_COBEGIN_OR_COFORALL)) {
         // Don't add errorPolicy block or conditional.
       } else {
+        // Build a stack trace message and append it to the current error.
+        errorPolicy->insertAtTail(buildStackTraceMessage(errorVar, node));
+
         // Regular operation
         insert->insertAfter(new CondStmt(new CallExpr(PRIM_CHECK_ERROR, errorVar), errorPolicy));
       }
@@ -697,6 +701,25 @@ static AList castToError(Symbol* error, SymExpr* &castedError) {
   }
 
   return ret;
+}
+
+static Expr* buildStackTraceMessage(VarSymbol* err, CallExpr* call) {
+  FnSymbol* fn = call->resolvedOrVirtualFunction();
+
+  VarSymbol* sig = new_CStringSymbol(toString(fn));
+  VarSymbol* fname= new_CStringSymbol(call->fname());
+  VarSymbol* line = new_IntSymbol(call->linenum());
+
+  if (fn->hasFlag(FLAG_MODULE_INIT)) {
+    sig = new_CStringSymbol("<module-initializer>");
+  } else if (fn->hasFlag(FLAG_GEN_MAIN_FUNC)) {
+    // TODO: Return a NOP expression in the case that we called main.
+  }
+  
+  CallExpr* result = new CallExpr("chpl_error_trace_add",
+                                  err, sig, fname, line);
+
+  return result;
 }
 
 class ImplicitThrowsVisitor : public AstVisitorTraverse {

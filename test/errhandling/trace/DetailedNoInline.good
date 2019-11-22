@@ -1,0 +1,7 @@
+uncaught IllegalArgumentError: Throwing an error!
+  at 'willThrow() throws' in DetailedNoInline.chpl:22
+  at 'callThrowing3() throws' in DetailedNoInline.chpl:18
+  at 'callThrowing2() throws' in DetailedNoInline.chpl:14
+  at 'callThrowing1() throws' in DetailedNoInline.chpl:10
+  at 'callThrowing0() throws' in DetailedNoInline.chpl:6
+  at <module-initializer> in DetailedNoInline.chpl:27
