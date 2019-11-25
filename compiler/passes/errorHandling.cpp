@@ -373,7 +373,7 @@ bool ErrorHandlingVisitor::enterCallExpr(CallExpr* node) {
         // Don't add errorPolicy block or conditional.
       } else {
         // Build a stack trace message and append it to the current error.
-        errorPolicy->insertAtTail(buildStackTraceMessage(errorVar, node));
+        errorPolicy->insertAtHead(buildStackTraceMessage(errorVar, node));
 
         // Regular operation
         insert->insertAfter(new CondStmt(new CallExpr(PRIM_CHECK_ERROR, errorVar), errorPolicy));
@@ -706,7 +706,9 @@ static AList castToError(Symbol* error, SymExpr* &castedError) {
 static Expr* buildStackTraceMessage(VarSymbol* err, CallExpr* call) {
   FnSymbol* fn = call->resolvedOrVirtualFunction();
 
-  VarSymbol* sig = new_CStringSymbol(toString(fn));
+  INT_ASSERT(fn->throwsError());
+
+  VarSymbol* sig = new_CStringSymbol(toString(fn, false));
   VarSymbol* fname= new_CStringSymbol(call->fname());
   VarSymbol* line = new_IntSymbol(call->linenum());
 
@@ -716,7 +718,7 @@ static Expr* buildStackTraceMessage(VarSymbol* err, CallExpr* call) {
     // TODO: Return a NOP expression in the case that we called main.
   }
   
-  CallExpr* result = new CallExpr("chpl_error_trace_add",
+  CallExpr* result = new CallExpr(gChplTraceLogAdd,
                                   err, sig, fname, line);
 
   return result;

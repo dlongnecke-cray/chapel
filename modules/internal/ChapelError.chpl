@@ -26,7 +26,12 @@
 module ChapelError {
   private use ChapelStandard;
   private use ChapelLocks;
-  private use LinkedLists;
+
+  pragma "no doc"
+  class TraceLogEntry {
+    var data: (c_string, c_string, int);
+    var next: unmanaged TraceLogEntry? = nil;
+  }
 
   // Base class for errors
   // TODO: should Error include list pointers for TaskErrors?
@@ -41,24 +46,27 @@ module ChapelError {
     pragma "no doc"
     var thrownFileId:int(32);
 
-    type Trace = (c_string, c_string, int);
     //
     // Used to hold a stack trace. A "list" might be more efficient, but we
-    // don't want to have to import that in every single compilation (and
-    // we already rely on the LinkedLists module).
+    // don't want to have to import that in every single compilation.
     //
     pragma "no doc"
-    var _trace: LinkedList(Trace);
+    var _trace: unmanaged TraceLogEntry? = nil;
 
     /* Construct an Error */
     proc init() {
       _next = nil;
     }
 
+    pragma "no doc"
     proc deinit() {
-      if _trace.size > 0 then _trace.destroy();
+      while _trace != nil {
+        var dead = _trace!;
+        _trace = dead.next;
+        delete dead;
+      }
     }
-
+        
     /* Override this method to provide an error message
        in case the error is printed out or never caught.
      */
@@ -352,24 +360,11 @@ module ChapelError {
   }
 
   pragma "no doc"
-  proc chpl_error_trace_build(ref err: borrowed Error): string {
-    writeln("In chpl_error_trace_build");
-    return;
-  }
-
-  pragma "no doc"
-  proc chpl_error_trace_add(ref err: borrowed Error, sig: c_string, fname: c_string, line: int) {
-    var entry = (sig, fname, line);
-    writeln("In chpl_error_trace_add:");
-    writeln("- " + sig:string);
-    writeln("- " + fname:string);
-    writeln("- " + line:string);
-    return;
-  }
-
-  pragma "no doc"
-  proc chpl_error_trace_display(ref err: borrowed Error) {
-    writeln("In chpl_error_trace_display");
+  proc chpl_trace_log_add(err: borrowed Error, sig: c_string, fname: c_string, line: int) {
+    var entry = new unmanaged TraceLogEntry();
+    entry.data = (sig, fname, line);
+    entry.next = err._trace;
+    err._trace = entry;
     return;
   }
 
@@ -454,6 +449,66 @@ module ChapelError {
   proc chpl_delete_error(err: unmanaged Error?) {
     if err != nil then delete err;
   }
+
+  pragma "no doc"
+  proc chpl_uncaught_error_classic_fmt(err: unmanaged Error): string {
+    const fname = __primitive("chpl_lookupFilename",
+                              __primitive("_get_user_file"));
+    const line = __primitive("_get_user_line");
+    const thrownFname = __primitive("chpl_lookupFilename",
+                                    err.thrownFileId);
+    const thrownLine = err.thrownLine;
+
+    var result: string;
+
+    result += "uncaught " + chpl_describe_error(err) + "\n ";
+    result += thrownFname:string;
+    result += ":" + thrownLine:string + ": thrown here" + "\n ";
+    result += fname:string;
+    result += ":" + line:string + ": uncaught here";
+
+    return result;
+  }
+
+  pragma "no doc"
+  proc chpl_trace_log_entry(data): string {
+    const (sig, fname, line) = data;
+    const tab = "  ";
+
+    var result: string;
+
+    result += tab + "File \"" + fname:string + "\", line " + line:string;
+    result += ", in " + sig:string;
+
+    return result;
+  }
+
+  pragma "no doc"
+  proc chpl_uncaught_error_trace_fmt(err: unmanaged Error): string {
+    var result: string;
+
+    result += "Traceback (most recent call last):\n";
+
+    var last = err._trace;
+    var head = err._trace;
+
+    // Consume the trace list to build a traceback message.
+    while head != nil {
+      result += chpl_trace_log_entry(head!.data);
+      result += "\n";
+     
+      last = head;
+      head = head!.next;
+      delete last;
+    }
+
+    err._trace = nil;
+
+    result += chpl_describe_error(err);
+
+    return result;
+  }
+
   pragma "no doc"
   pragma "function terminates program"
   pragma "insert line file info"
@@ -461,20 +516,13 @@ module ChapelError {
   proc chpl_uncaught_error(err: unmanaged Error) {
     extern proc chpl_error_preformatted(c_string);
 
-    const myFileC:c_string = __primitive("chpl_lookupFilename",
-                                         __primitive("_get_user_file"));
-    const myFileS = createStringWithNewBuffer(myFileC);
-    const myLine = __primitive("_get_user_line");
+    var msg: string;
 
-    const thrownFileC:c_string = __primitive("chpl_lookupFilename",
-                                             err.thrownFileId);
-    const thrownFileS = createStringWithNewBuffer(thrownFileC);
-    const thrownLine = err.thrownLine;
+    msg = if err._trace != nil
+            then chpl_uncaught_error_trace_fmt(err)
+            else chpl_uncaught_error_classic_fmt(err); 
 
-    var s = "uncaught " + chpl_describe_error(err) +
-            "\n  " + thrownFileS + ":" + thrownLine:string + ": thrown here" +
-            "\n  " + myFileS + ":" + myLine:string + ": uncaught here";
-    chpl_error_preformatted(s.c_str());
+    chpl_error_preformatted(msg.c_str());
   }
   // This is like the above, but it is only ever added by the
   // compiler. In case of iterator inlining (say), this call

@@ -1189,10 +1189,14 @@ const char* FnSymbol::substitutionsToString(const char* sep) const {
 }
 
 const char* toString(FnSymbol* fn) {
+  return toString(fn, developer);
+}
+
+const char* toString(FnSymbol* fn, bool doDisplayFunctionId) {
   const char* retval = NULL;
 
   if (fn->userString != NULL) {
-    if (developer == true) {
+    if (doDisplayFunctionId == true) {
       retval = astr(fn->userString, " [", istr(fn->id), "]");
     } else {
       retval = fn->userString;
@@ -1202,7 +1206,7 @@ const char* toString(FnSymbol* fn) {
     bool first      =  true;
     bool skipParens = false;
 
-    if (developer == true) {
+    if (doDisplayFunctionId == true) {
       // report the name as-is and include all args
       retval = fn->name;
 
@@ -1228,7 +1232,7 @@ const char* toString(FnSymbol* fn) {
       skipParens =  true;
 
     } else if (fn->hasFlag(FLAG_MODULE_INIT)      == true &&
-               developer                          == false) {
+               doDisplayFunctionId                == false) {
       skipParens =  true;
 
     } else {
@@ -1248,7 +1252,7 @@ const char* toString(FnSymbol* fn) {
       // skip _this formal for methods in non-developer mode
       // because in non-developer mode it has already been printed
       // along with the method name (e.g. C.mymethod).
-      if (developer == false && fn->isMethod() && arg == fn->_this)
+      if (doDisplayFunctionId == false && fn->isMethod() && arg == fn->_this)
         continue;
 
       if (first == true) {
@@ -1306,7 +1310,7 @@ const char* toString(FnSymbol* fn) {
       retval = astr(retval, ")");
     }
 
-    if (developer  == true) {
+    if (doDisplayFunctionId  == true) {
       retval = astr(retval, " [", istr(fn->id), "]");
     }
   }

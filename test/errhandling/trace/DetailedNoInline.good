@@ -1,7 +1,8 @@
-uncaught IllegalArgumentError: Throwing an error!
-  at 'willThrow() throws' in DetailedNoInline.chpl:22
-  at 'callThrowing3() throws' in DetailedNoInline.chpl:18
-  at 'callThrowing2() throws' in DetailedNoInline.chpl:14
-  at 'callThrowing1() throws' in DetailedNoInline.chpl:10
-  at 'callThrowing0() throws' in DetailedNoInline.chpl:6
-  at <module-initializer> in DetailedNoInline.chpl:27
+Traceback (most recent call last):
+  File "DetailedNoInline.chpl", line 27, in <init>
+  File "DetailedNoInline.chpl", line 6, in callThrowing0()
+  File "DetailedNoInline.chpl", line 10, in callThrowing1()
+  File "DetailedNoInline.chpl", line 14, in callThrowing2()
+  File "DetailedNoInline.chpl", line 18, in callThrowing3()
+  File "DetailedNoInline.chpl", line 23, in willThrow()
+IllegalArgumentError: Throwing an error!

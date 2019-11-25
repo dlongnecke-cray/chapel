@@ -216,6 +216,9 @@ private:
   bool                       mIsGenericIsValid;
 };
 
+const char*                     toString(FnSymbol* fn,
+                                         bool doDisplayFunctionId);
+
 const char*                     toString(FnSymbol* fn);
 
 const char*                     retTagDescrString(RetTag retTag);

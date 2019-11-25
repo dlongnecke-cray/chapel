@@ -60,6 +60,7 @@ FnSymbol *gChplSaveTaskError;
 FnSymbol *gChplForallError;
 FnSymbol *gAtomicFenceFn;
 FnSymbol *gChplAfterForallFence;
+FnSymbol *gChplTraceLogAdd;
 
 /************************************* | **************************************
 *                                                                             *
@@ -318,6 +319,12 @@ static WellKnownFn sWellKnownFns[] = {
     &gChplAfterForallFence,
     FLAG_UNKNOWN
   },
+
+  {
+    "chpl_trace_log_add",
+    &gChplTraceLogAdd,
+    FLAG_UNKNOWN
+  }
 };
 
 void gatherWellKnownFns() {
