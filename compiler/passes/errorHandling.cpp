@@ -28,11 +28,14 @@
 #include "driver.h"
 #include "resolution.h"
 #include "stmt.h"
+#include "stringutil.h"
 #include "symbol.h"
 #include "TryStmt.h"
 #include "wellknown.h"
 
 #include <stack>
+
+#include "view.h"
 
 /*
 This is a pseudo-code example of what this pass is supposed to do with a
@@ -397,6 +400,9 @@ bool ErrorHandlingVisitor::enterCallExpr(CallExpr* node) {
 
     VarSymbol* fixedError = thrownError;
 
+    // Build the root message of our stack trace.
+    throwBlock->insertAtTail(buildStackTraceMessage(fixedError, node));
+
     if (insideTry) {
       throwBlock->insertAtTail(setOuterErrorAndGotoHandler(fixedError));
     } else if (outError != NULL) {
@@ -704,17 +710,32 @@ static AList castToError(Symbol* error, SymExpr* &castedError) {
 }
 
 static Expr* buildStackTraceMessage(VarSymbol* err, CallExpr* call) {
-  FnSymbol* fn = call->resolvedOrVirtualFunction();
+  // Should be obvious, but, PRIM_THROWs are guaranteed to be throwing...
+  if (!call->isPrimitive(PRIM_THROW)) {
+    INT_ASSERT(call->resolvedOrVirtualFunction()->throwsError());
+  }
 
-  INT_ASSERT(fn->throwsError());
+  FnSymbol* containingFn = NULL;
 
-  VarSymbol* sig = new_CStringSymbol(toString(fn, false));
+  // For some reason PRIM_THROW calls don't have a parentSymbol.
+  if (call->isPrimitive(PRIM_THROW)) {
+    containingFn = toFnSymbol(err->defPoint->parentSymbol);
+  } else {
+    containingFn = toFnSymbol(call->parentSymbol);
+  }
+
+  INT_ASSERT(containingFn != NULL);
+
+  VarSymbol* sig = new_CStringSymbol(toString(containingFn, false));
   VarSymbol* fname= new_CStringSymbol(call->fname());
   VarSymbol* line = new_IntSymbol(call->linenum());
 
-  if (fn->hasFlag(FLAG_MODULE_INIT)) {
-    sig = new_CStringSymbol("<module-initializer>");
-  } else if (fn->hasFlag(FLAG_GEN_MAIN_FUNC)) {
+  if (containingFn->hasFlag(FLAG_MODULE_INIT)) {
+    ModuleSymbol* mod = toModuleSymbol(containingFn->defPoint->parentSymbol);
+    const char* name = (mod == NULL) ? "anonymous module" : mod->name;
+    const char* msg = astr("<init for ", name, ">");
+    sig = new_CStringSymbol(msg);
+  } else if (containingFn->hasFlag(FLAG_GEN_MAIN_FUNC)) {
     // TODO: Return a NOP expression in the case that we called main.
   }
   

@@ -1,8 +1,8 @@
 Traceback (most recent call last):
-  File "DetailedNoInline.chpl", line 27, in <init>
+  File "DetailedNoInline.chpl", line 27, in <init for DetailedNoInline>
   File "DetailedNoInline.chpl", line 6, in callThrowing0()
   File "DetailedNoInline.chpl", line 10, in callThrowing1()
   File "DetailedNoInline.chpl", line 14, in callThrowing2()
   File "DetailedNoInline.chpl", line 18, in callThrowing3()
-  File "DetailedNoInline.chpl", line 23, in willThrow()
+  File "DetailedNoInline.chpl", line 22, in willThrow()
 IllegalArgumentError: Throwing an error!

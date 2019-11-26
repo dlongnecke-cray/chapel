@@ -1,3 +1,0 @@
-uncaught IllegalArgumentError: Throwing an error!
-  DetailedNoInline.chpl:22: thrown here
-  DetailedNoInline.chpl:27: uncaught here
