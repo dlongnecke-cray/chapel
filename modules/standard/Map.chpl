@@ -179,8 +179,13 @@ module Map {
     }
 
     /*
-      Get the value mapped to the given key, or add the mapping if key does not
-      exist.
+      Get the value mapped to the given key, or halt if the given key is not
+      present in this map.
+
+      .. warning::
+
+        If the key to access is not present in this map, then the currently
+        running program will halt.
 
       :arg k: The key to access
       :type k: keyType
@@ -189,23 +194,11 @@ module Map {
     */
     proc this(k: keyType) ref {
       _enter();
-      var (found, slotNum) = myKeys._value._findFilledSlot(k, needLock=false);
-
-      if found {
-        ref result = vals._value.data[slotNum];
-        _leave();
-        return result;
-      } else if slotNum != -1 {
-        const (newSlot, _) = myKeys._value._addWrapper(k, slotNum, needLock=false);
-        ref result = vals._value.data[newSlot];
-        _leave();
-        return result;
-      } else {
-        boundsCheckHalt("map index out of bounds: " + k:string);
-        ref result = vals._value.data[0];
-        _leave();
-        return result;
-      }
+      if !myKeys.contains(k) then
+        boundsCheckHalt("map index " + k:string + " out of bounds");
+      ref result = vals[k];
+      _leave();
+      return result;
     }
 
     pragma "no doc"
