@@ -1,0 +1,5 @@
+-stestMode=TestMode.NoElements        # testThisNonNilableClass.0.good
+-stestMode=TestMode.OneElement        # testThisNonNilableClass.1.good
+-stestMode=TestMode.AssignNil         # testThisNonNilableClass.2.good
+-stestMode=TestMode.BadKey            # testThisNonNilableClass.3.good
+-stestMode=TestMode.Iterate           # testThisNonNilableClass.4.good

@@ -50,20 +50,10 @@ module Map {
 
   private use IO;
 
-  //
-  // #14861 - For now, maps of non-nilable classes are banned. Once we
-  // resolve #13602 and #14861, we can remvoe this check. The check is on
-  // a type method instead of `map.init` because init for associative
-  // arrays (and thus their compiler error) resolves before `map.init`.
-  //
   pragma "no doc"
-  inline proc checkForNonNilableClass(type t) type {
-    if isNonNilableClass(t) {
-      param msg = "Cannot initialize map because element type "
-                + t:string + " is a non-nilable class";
-      compilerError(msg, 2);
-    }
-    return t;
+  proc adjustValType(type valType) type {
+    if isNonNilableClass(valType) then return valType?;
+    return valType;
   }
 
   record map {
@@ -71,7 +61,7 @@ module Map {
     param parSafe = false;
 
     var myKeys: domain(keyType, parSafe=parSafe);
-    var vals: [myKeys] checkForNonNilableClass(valType);
+    var vals: [myKeys] adjustValType(valType);
 
 
     pragma "no doc"
@@ -87,6 +77,21 @@ module Map {
     inline proc _leave() {
       if parSafe then
         _lock$.unlock();
+    }
+
+    pragma "no doc"
+    inline proc _getVal(key: keyType) ref: valType {
+      return vals[key];
+    }
+
+    pragma "no doc"
+    inline proc _getVal(key: keyType): valType
+    where isNonNilableClass(valType) {
+      ref val = vals[key];
+      compilerWarning(val.type:string);
+      var result: valType = val!;
+      compilerWarning(result.type:string);
+      return result;
     }
 
     /*
@@ -203,7 +208,7 @@ module Map {
 
       :returns: Reference to the value mapped to the given key.
     */
-    proc this(k: keyType) ref {
+    proc this(k: keyType) ref: valType {
       _enter();
       var (found, slotNum) = myKeys._value._findFilledSlot(k, needLock=false);
 
@@ -225,24 +230,35 @@ module Map {
     }
 
     pragma "no doc"
-    proc const this(k: keyType) const
+    proc this(k: keyType) ref: valType
+    where !isDefaultInitializable(valType) {
+      _enter();
+      if !myKeys.contains(k) then
+        halt("map index ", k, " out of bounds");
+      const ref result = _getVal(k);
+      _leave();
+      return result;
+    }
+
+    pragma "no doc"
+    proc const this(k: keyType) const: valType
     where shouldReturnRvalueByValue(valType) {
       _enter();
       if !myKeys.contains(k) then
         boundsCheckHalt("map index " + k:string + " out of bounds");
-      const result = vals[k];
+      const result = _getVal(k);
       _leave();
       return result;
     }
 
 
     pragma "no doc"
-    proc const this(k: keyType) const ref
+    proc const this(k: keyType) const ref: valType
     where shouldReturnRvalueByConstRef(valType) {
       _enter();
       if !myKeys.contains(k) then
         halt("map index ", k, " out of bounds");
-      const ref result = vals[k];
+      const ref result = _getVal(k);
       _leave();
       return result;
     }
@@ -253,7 +269,7 @@ module Map {
 
       :yields: A reference to one of the keys contained in this map.
     */
-    iter these() const ref {
+    iter these() const ref: keyType {
       for key in this.keys() {
         yield key;
       }
@@ -264,7 +280,7 @@ module Map {
 
       :yields: A reference to one of the keys contained in this map.
     */
-    iter keys() const ref {
+    iter keys() const ref: keyType {
       for key in myKeys {
         yield key;
       }
@@ -276,9 +292,9 @@ module Map {
       :yields: A tuple of references to one of the key-value pairs contained in
                this map.
     */
-    iter items() const ref {
+    iter items() const ref: (keyType, valType) {
       for key in myKeys {
-        yield (key, vals[key]);
+        yield (key, _getVal(key));
       }
     }
 
@@ -287,10 +303,8 @@ module Map {
 
       :yields: A reference to one of the values contained in this map.
     */
-    iter values() ref {
-      for val in vals {
-        yield val;
-      }
+    iter values() ref: valType {
+      for key in keys do yield _getVal(key);
     }
 
     /*
@@ -313,7 +327,7 @@ module Map {
           } else {
             ch <~> ", ";
           }
-          ch <~> key <~> ": " <~> vals[key];
+          ch <~> key <~> ": " <~> _getVal(key);
         }
         ch <~> "}";
       //}
@@ -406,7 +420,7 @@ module Map {
       _enter();
       var A: [1..myKeys.size] (keyType, valType);
       for (a, key) in zip(A, myKeys) {
-        a = (key, vals[key]);
+        a = (key, _getVal(key));
       }
       _leave();
       return A;
@@ -438,10 +452,7 @@ module Map {
     */
     proc valuesToArray(): [] valType {
       _enter();
-      var A: [1..vals.size] valType;
-      for (a, v) in zip(A, vals) {
-        a = v;
-      }
+      var A: [1..myKeys.size] valType = for k in myKeys do _getVal(k);
       _leave();
       return A;
     }
@@ -481,11 +492,11 @@ module Map {
   */
   proc ==(const ref a: map(?kt, ?vt, ?ps), const ref b: map(kt, vt, ps)): bool {
     for key in a {
-      if !b.contains(key) || a.vals[key] != b.vals[key] then
+      if !b.contains(key) || a._getVal(key) != b._getVal(key) then
         return false;
     }
     for key in b {
-      if !a.contains(key) || a.vals[key] != b.vals[key] then
+      if !a.contains(key) || a._getVal(key) != b._getVal(key) then
         return false;
     }
     return true;
@@ -528,8 +539,8 @@ module Map {
     var newMap = new map(keyType, valueType, parSafe);
     newMap.myKeys = a.myKeys | b.myKeys;
 
-    for k in b do newMap[k] = b.vals[k];
-    for k in a do newMap[k] = a.vals[k];
+    for k in b do newMap[k] = b._getVal(k);
+    for k in a do newMap[k] = a._getVal(k);
     return newMap;
   }
 
@@ -539,7 +550,7 @@ module Map {
   proc |=(ref a: map(?keyType, ?valueType, ?parSafe),
           b: map(keyType, valueType, parSafe)) {
     // add keys/values from b to a if they weren't already in a
-    for k in b do a.add(k, b.vals[k]);
+    for k in b do a.add(k, b._getVal(k));
   }
 
   /* Returns a new map containing the keys that are in both a and b. */
@@ -548,7 +559,7 @@ module Map {
     var newMap = new map(keyType, valueType, parSafe);
     newMap.myKeys = a.myKeys & b.myKeys;
 
-    for k in newMap do newMap[k] = a.vals[k];
+    for k in newMap do newMap[k] = a._getVal(k);
     return newMap;
   }
 
@@ -567,7 +578,7 @@ module Map {
     var newMap = new map(keyType, valueType, parSafe);
     newMap.myKeys = a.myKeys - b.myKeys;
 
-    for k in newMap do newMap[k] = a.vals[k];
+    for k in newMap do newMap[k] = a._getVal(k);
 
     return newMap;
   }
@@ -588,9 +599,9 @@ module Map {
     newMap.myKeys = a.myKeys ^ b.myKeys;
 
     for k in a do
-      if !b.contains(k) then newMap[k] = a.vals[k];
+      if !b.contains(k) then newMap[k] = a._getVal(k);
     for k in b do
-      if !a.contains(k) then newMap[k] = b.vals[k];
+      if !a.contains(k) then newMap[k] = b._getVal(k);
     return newMap;
   }
 
@@ -600,7 +611,7 @@ module Map {
           b: map(keyType, valueType, parSafe)) {
     for k in b {
       if a.contains(k) then a.remove(k);
-      else a[k] = b.vals[k];
+      else a[k] = b._getVal(k);
     }
   }
 }
