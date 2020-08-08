@@ -51,11 +51,22 @@ struct TupleInfo {
   FnSymbol*   init;
 };
 
+namespace {
+  namespace TupleRefLevel {
+    enum K {
+      Mixed,
+      None,
+      All
+    };
+  }
+}
 
 static std::map< std::vector<TypeSymbol*>, TupleInfo > tupleMap;
 
 static
-AggregateType* computeCopyTuple(AggregateType* t, bool valueOnly, const char* copyName, BlockStmt* testBlock);
+AggregateType* computeCopyTuple(AggregateType* t, bool valueOnly,
+                                const char* copyName,
+                                BlockStmt* testBlock);
 
 static
 void makeTupleName(std::vector<TypeSymbol*>& args,
@@ -100,15 +111,28 @@ FnSymbol* makeBuildTupleType(std::vector<ArgSymbol*> typeCtorArgs,
                              TypeSymbol* newTypeSymbol,
                              ModuleSymbol* tupleModule,
                              BlockStmt* instantiationPoint,
-                             bool noref)
-{
+                             TupleRefLevel::K level) {
+
   Type *newType = newTypeSymbol->type;
-  const char* fnName = noref?"_build_tuple_noref":"_build_tuple";
+
+  // Get the appropriate name based on the tuple reference level.
+  const char* fnName = "_build_tuple";
+  switch (level) {
+    case TupleRefLevel::None:
+      fnName = "_build_tuple_noref";
+      break;
+    case TupleRefLevel::All:
+      fnName = "chpl_buildTupleAllRef";
+      break;
+    default: break;
+  }
+
   FnSymbol *buildTupleType = new FnSymbol(fnName);
-  // starts at 1 to skip the size argument
-  for(size_t i = 1; i < typeCtorArgs.size(); i++ ) {
+
+  for (size_t i = 1; i < typeCtorArgs.size(); i++) {
     buildTupleType->insertFormalAtTail(typeCtorArgs[i]->copy());
   }
+
   buildTupleType->addFlag(FLAG_ALLOW_REF);
   buildTupleType->addFlag(FLAG_COMPILER_GENERATED);
   buildTupleType->addFlag(FLAG_LAST_RESORT);
@@ -136,15 +160,28 @@ FnSymbol* makeBuildStarTupleType(std::vector<ArgSymbol*> typeCtorArgs,
                                  TypeSymbol* newTypeSymbol,
                                  ModuleSymbol* tupleModule,
                                  BlockStmt* instantiationPoint,
-                                 bool noref)
-{
+                                 TupleRefLevel::K level) {
+
   Type *newType = newTypeSymbol->type;
-  const char* fnName = noref?"_build_star_tuple_noref":"*";
+
+  const char* fnName = "*";
+  switch (level) {
+    case TupleRefLevel::None:
+      fnName = "_build_start_tuple_noref";
+      break;
+    case TupleRefLevel::All:
+      INT_FATAL("Not supported");
+      break;
+    default: break;
+  }
+
   FnSymbol *buildStarTupleType = new FnSymbol(fnName);
+
   // just to arguments 0 and 1 to get size and element type
   for(int i = 0; i < 2; i++ ) {
     buildStarTupleType->insertFormalAtTail(typeCtorArgs[i]->copy());
   }
+
   buildStarTupleType->addFlag(FLAG_ALLOW_REF);
   buildStarTupleType->addFlag(FLAG_COMPILER_GENERATED);
   buildStarTupleType->addFlag(FLAG_LAST_RESORT);
@@ -173,9 +210,9 @@ FnSymbol* makeConstructTuple(std::vector<TypeSymbol*>& args,
                              TypeSymbol* newTypeSymbol,
                              ModuleSymbol* tupleModule,
                              BlockStmt* instantiationPoint,
-                             bool noref,
-                             Type* sizeType)
-{
+                             TupleRefLevel::K level,
+                             Type* sizeType) {
+
   int size = args.size();
   Type *newType = newTypeSymbol->type;
   FnSymbol *ctor = new FnSymbol(tupleInitName);
@@ -285,15 +322,15 @@ FnSymbol* makeDestructTuple(TypeSymbol* newTypeSymbol,
 static
 TupleInfo getTupleInfo(std::vector<TypeSymbol*>& args,
                        BlockStmt* instantiationPoint,
-                       bool noref)
-{
+                       TupleRefLevel::K level) {
+
   TupleInfo& info = tupleMap[args];
   if (!info.typeSymbol) {
     SET_LINENO(dtTuple);
 
     int size = args.size();
 
-    if (size == 0)
+    if (size <= 0)
       USR_FATAL(instantiationPoint, "tuple must have positive size");
 
     ModuleSymbol* tupleModule =
@@ -392,7 +429,7 @@ TupleInfo getTupleInfo(std::vector<TypeSymbol*>& args,
     // Build the _build_tuple type function
     info.buildTupleType = makeBuildTupleType(typeCtorArgs, newTypeSymbol,
                                              tupleModule, instantiationPoint,
-                                             noref);
+                                             level);
 
     // Build the * type function for star tuples
     if (markStar) {
@@ -400,7 +437,7 @@ TupleInfo getTupleInfo(std::vector<TypeSymbol*>& args,
                                                        newTypeSymbol,
                                                        tupleModule,
                                                        instantiationPoint,
-                                                       noref);
+                                                       level);
     } else {
       info.buildStarTupleType = NULL;
     }
@@ -411,7 +448,7 @@ TupleInfo getTupleInfo(std::vector<TypeSymbol*>& args,
                                    newTypeSymbol,
                                    tupleModule,
                                    instantiationPoint,
-                                   noref,
+                                   level,
                                    sizeType);
 
 
@@ -964,7 +1001,8 @@ static AggregateType* do_computeTupleWithIntent(bool           valueOnly,
         INT_ASSERT(useAt);
 
         useType = do_computeTupleWithIntent(valueOnly, intent, useAt,
-                                            copyWith, testBlock, borrowConvert);
+                                            copyWith, testBlock,
+                                            borrowConvert);
 
         if (valueOnly == false) {
           if (intent == INTENT_BLANK || intent == INTENT_CONST) {
@@ -973,6 +1011,9 @@ static AggregateType* do_computeTupleWithIntent(bool           valueOnly,
               makeRefType(useType);
               useType = useType->getRefType();
             }
+          } else if (intent == INTENT_REF) {
+            makeRefType(useType);
+            useType = useType->getRefType();
           }
         }
 
@@ -985,18 +1026,19 @@ static AggregateType* do_computeTupleWithIntent(bool           valueOnly,
         }
 
         if (valueOnly == false) {
-          // If the tuple is passed with blank intent
-          // *and* the concrete intent for the element type
-          // of the tuple is a type where blank-intent-means-ref,
-          // then the tuple should include a ref field
-          // rather than a value field.
+
+          // The concrete intent for some tuple element types can be ref/
+          // const-ref/ref-if-modified, see the concrete intent table of
+          // the language spec.
           if (intent == INTENT_BLANK || intent == INTENT_CONST) {
             IntentTag concrete = concreteIntent(intent, useType);
-
             if ((concrete & INTENT_FLAG_REF) != 0) {
               makeRefType(useType);
               useType = useType->getRefType();
             }
+          } else if (intent == INTENT_REF) {
+            makeRefType(useType);
+            useType = useType->getRefType();
           }
         }
       }
@@ -1016,7 +1058,8 @@ static AggregateType* do_computeTupleWithIntent(bool           valueOnly,
     retval = at;
 
   } else {
-    TupleInfo info = getTupleInfo(args, instantiationPoint, false);
+    TupleInfo info = getTupleInfo(args, instantiationPoint,
+                                  TupleRefLevel::Mixed);
 
     retval = toAggregateType(info.typeSymbol->type);
   }
@@ -1024,37 +1067,30 @@ static AggregateType* do_computeTupleWithIntent(bool           valueOnly,
   return retval;
 }
 
-
-AggregateType* computeTupleWithIntentForArg(IntentTag intent, AggregateType* t, ArgSymbol* arg)
-{
+AggregateType* computeTupleWithIntent(IntentTag intent, AggregateType* t) {
   return do_computeTupleWithIntent(false, intent, t, NULL, NULL, false);
 }
 
-AggregateType* computeTupleWithIntent(IntentTag intent, AggregateType* t)
-{
-  return do_computeTupleWithIntent(false, intent, t, NULL, NULL, false);
+AggregateType* computeAllRefTuple(AggregateType* t) {
+  return computeTupleWithIntent(INTENT_REF, t);
 }
 
-AggregateType* computeNonRefTuple(AggregateType* t)
-{
+AggregateType* computeNonRefTuple(AggregateType* t) {
   return do_computeTupleWithIntent(true, INTENT_BLANK, t, NULL, NULL, false);
 }
 
-AggregateType* computeCopyTuple(AggregateType* t, bool valueOnly, const char* copyName, BlockStmt* testBlock)
-{
-  return do_computeTupleWithIntent(valueOnly, INTENT_BLANK, t, copyName, testBlock, false);
+AggregateType* computeCopyTuple(AggregateType* t, bool valueOnly,
+                                const char* copyName,
+                                BlockStmt* testBlock) {
+  return do_computeTupleWithIntent(valueOnly, INTENT_BLANK, t, copyName,
+                                   testBlock, false);
 }
 
+bool fixupTupleFunctions(FnSymbol* fn, FnSymbol* newFn,
+                         CallExpr* instantiatedForCall) {
 
-
-bool
-fixupTupleFunctions(FnSymbol* fn,
-                    FnSymbol* newFn,
-                    CallExpr* instantiatedForCall)
-{
   // Note: scopeResolve sets FLAG_TUPLE for the type constructor
   // and the constructor for the tuple record.
-
   if (strcmp(fn->name, "_defaultOf")        == 0 &&
       fn->getFormal(1)->type->symbol->hasFlag(FLAG_TUPLE)) {
     instantiate_tuple_init(newFn);
@@ -1113,8 +1149,7 @@ FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
                              fn->hasFlag(FLAG_INIT_TUPLE)       == true ||
                              isStarTuple;
 
-
-  bool      noRef          = fn && fn->hasFlag(FLAG_DONT_ALLOW_REF);
+  TupleRefLevel::K level   = TupleRefLevel::Mixed;
 
   size_t    actualN        = 0;
 
@@ -1126,6 +1161,16 @@ FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
   if (FnSymbol* inFn = call->getFunction()) {
     if (inFn->hasFlag(FLAG_ALLOW_REF) == true) {
       noChangeTypes = true;
+    }
+  }
+
+  // Detect the appropriate reference level.
+  if (fn != NULL) {
+    if (fn->hasFlag(FLAG_DONT_ALLOW_REF)) {
+      level = TupleRefLevel::None;
+      // TODO: We could make a flag for this as well, if we wanted...
+    } else if (!strcmp(fn->name, "chpl_buildTupleAllRef")) {
+      level = TupleRefLevel::All;
     }
   }
 
@@ -1167,6 +1212,9 @@ FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
               t = t->getRefType();
             }
           }
+        } else if (level == TupleRefLevel::All) {
+          // TODO: What should we do with nested tuple types? Hmmm...
+          t = t->getRefType();
         }
       }
 
@@ -1189,14 +1237,14 @@ FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
     args.resize(actualN);
   }
 
-  if (noRef == true) {
+  if (level == TupleRefLevel::None) {
     for (size_t i = 0; i < args.size(); i++) {
       args[i] = args[i]->getValType()->symbol;
     }
   }
 
   BlockStmt* point = getInstantiationPoint(call);
-  TupleInfo info   = getTupleInfo(args, point, noRef);
+  TupleInfo info   = getTupleInfo(args, point, level);
 
   if (fn == NULL) {
     retval = info.init;

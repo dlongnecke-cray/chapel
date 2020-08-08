@@ -265,7 +265,7 @@ static void updateIfRefFormal(FnSymbol* fn, ArgSymbol* formal) {
         intent = INTENT_BLANK;
       }
 
-      formal->type = computeTupleWithIntentForArg(intent, tupleType, formal);
+      formal->type = computeTupleWithIntent(intent, tupleType);
     }
   }
 }
@@ -1712,6 +1712,13 @@ void resolveReturnTypeAndYieldedType(FnSymbol* fn, Type** yieldedType) {
       USR_FATAL(fn, "unable to resolve return type");
     }
 
+    // If the return type is a tuple, potentially adjust it.
+    if (retType->getValType()->symbol->hasFlag(FLAG_TUPLE) &&
+        !doNotChangeTupleTypeRefLevel(fn, true)) {
+      AggregateType* tupleType = toAggregateType(retType);
+      retType = getReturnedTupleType(fn, tupleType);
+    }
+
     fn->retType = retType;
 
   } else {
@@ -1790,9 +1797,7 @@ Type* getReturnedTupleType(FnSymbol* fn, AggregateType* retType) {
 
   if (fn->returnsRefOrConstRef() == true) {
     retval = computeTupleWithIntent(INTENT_REF, retType);
-
   } else {
-    // Compute the tuple type without any refs
     retval = computeNonRefTuple(retType);
   }
 
@@ -2499,6 +2504,8 @@ static void insertCasts(BaseAST* ast, FnSymbol* fn, Vec<CallExpr*>& casts) {
                   // tuple containing a ref, while the return type
                   // is the tuple with no refs. This code adjusts
                   // the AST to compensate.
+                  // TODO: dlongnecke add overload for updated tuple ref
+                  // return intent e.g. "repack".
                   CallExpr* unref = new CallExpr("chpl__unref", tmp);
                   call->insertAtTail(unref);
                   resolveExpr(unref);

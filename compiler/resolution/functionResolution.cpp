@@ -7260,14 +7260,88 @@ static void resolveMoveForRhsCallExpr(CallExpr* call, Type* rhsType) {
       // Check that the types match
       SymExpr* lhsSe = toSymExpr(call->get(1));
       Symbol* lhs = lhsSe->symbol();
-      INT_ASSERT(lhs->isRef());
 
-      if (lhs->getValType() != rhsType->getValType()) {
-        USR_FATAL_CONT(call, "Initializing a reference with another type");
-        USR_PRINT(lhs, "Reference has type %s", toString(lhs->getValType()));
-        USR_PRINT(call, "Initializing with type %s",
-                        toString(rhsType->getValType()));
-        USR_STOP();
+      // The address of the RVV is taken using PRIM_ADDR_OF during normalize,
+      // but when returning a tuple by reference we're actually returning
+      // a collection of references by value.
+      if (lhs->getValType()->symbol->hasFlag(FLAG_TUPLE) &&
+          lhs->hasFlag(FLAG_RVV)) {
+        FnSymbol* inFn = toFnSymbol(call->parentSymbol);
+        if (inFn != NULL && inFn->returnsRefOrConstRef()) {
+          //
+          //  - We need to remove the call to the PRIM_ADDR_OF.
+          //  - Take the argument of the PRIM_ADDR_OF, and see if we can
+          //    trace it back and find the _build_tuple call.
+          //  - If we find it then we know it was a tuple expression returned
+          //    like so...
+          //        "return (g1, g2);"
+          //  - Then we need to adjust the _build_tuple call so that it is
+          //    "_build_tuple_all_ref".
+          //
+          SymExpr* addrExpr = toSymExpr(rhs->get(1));
+          INT_ASSERT(addrExpr != NULL);
+
+          CallExpr* buildCall = NULL;
+
+          // Loop through uses of the PRIM_ADDR_OF argument and look for a
+          // call to _build_tuple.
+          for_SymbolSymExprs(se, addrExpr->symbol()) {
+            CallExpr* move = toCallExpr(se->parentExpr);
+            if (move == NULL || !move->isPrimitive(PRIM_MOVE)) {
+              continue;
+            }
+
+            CallExpr* rhs = toCallExpr(move->get(2));
+            SymExpr* lhs = toSymExpr(move->get(1));
+            if (rhs == NULL || lhs == NULL) {
+              continue;
+            }
+
+            if (lhs->symbol() != se->symbol()) {
+              continue;
+            }
+
+            FnSymbol* calledFn = rhs->resolvedFunction();
+            if (calledFn == NULL || !calledFn->hasFlag(FLAG_BUILD_TUPLE)) {
+              continue;
+            }
+
+            // Found it.
+            buildCall = rhs;
+          }
+
+          // There are two cases to handle here. If the RHS being moved into
+          // result was made by a _build_tuple call, then we should be fine
+          // if we just translate it into a similar call that captures all
+          // elements by reference. Otherwise, there are two other places
+          // that the tuple can be coming from:
+          //    - The result of a call
+          //    - A value tuple 
+          // If the former, then we are fine because it will already be in
+          // the correct form. So the other case we need to handle is
+          // taking the address of a tuple variable. In that case we need
+          // to construct a new referential tuple where each member is a
+          // reference to an element in the value tuple.
+          if (buildCall != NULL) {
+            const char* name = "chpl_buildTupleAllRef";
+            UnresolvedSymExpr* buildAllRef = new UnresolvedSymExpr(name);
+            buildCall->baseExpr->replace(buildAllRef);
+            resolveExpr(buildCall);
+          } else {
+            INT_FATAL(lhs, "Not handled yet");
+          }
+        }
+      } else {
+        INT_ASSERT(lhs->isRef());
+
+        if (lhs->getValType() != rhsType->getValType()) {
+          USR_FATAL_CONT(call, "Initializing a reference with another type");
+          USR_PRINT(lhs, "Reference has type %s",
+                         toString(lhs->getValType()));
+          USR_PRINT(call, "Initializing with type %s",
+                          toString(rhsType->getValType()));
+          USR_STOP();
+        }
       }
     }
 
