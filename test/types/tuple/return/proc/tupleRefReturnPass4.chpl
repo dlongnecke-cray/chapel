@@ -1,5 +1,5 @@
-// Function returning tuple of references to object fields.
-// Lifetime of references is lifetime of object.
+// Function returning tuple of references to object fields. Captured
+// in a reference, which means updates are visible.
 
 record r { var x: int = 0; var y: int = 0; }
 

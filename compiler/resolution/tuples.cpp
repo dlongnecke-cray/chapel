@@ -116,15 +116,11 @@ FnSymbol* makeBuildTupleType(std::vector<ArgSymbol*> typeCtorArgs,
   Type *newType = newTypeSymbol->type;
 
   // Get the appropriate name based on the tuple reference level.
-  const char* fnName = "_build_tuple";
+  const char* fnName = NULL;
   switch (level) {
-    case TupleRefLevel::None:
-      fnName = "_build_tuple_noref";
-      break;
-    case TupleRefLevel::All:
-      fnName = "chpl_buildTupleAllRef";
-      break;
-    default: break;
+    case TupleRefLevel::Mixed: fnName = "_build_tuple"; break;
+    case TupleRefLevel::None: fnName = "_build_tuple_noref"; break;
+    case TupleRefLevel::All: fnName = "chpl_buildTupleAllRef"; break;
   }
 
   FnSymbol *buildTupleType = new FnSymbol(fnName);
@@ -164,15 +160,11 @@ FnSymbol* makeBuildStarTupleType(std::vector<ArgSymbol*> typeCtorArgs,
 
   Type *newType = newTypeSymbol->type;
 
-  const char* fnName = "*";
+  const char* fnName = NULL;
   switch (level) {
-    case TupleRefLevel::None:
-      fnName = "_build_start_tuple_noref";
-      break;
-    case TupleRefLevel::All:
-      INT_FATAL("Not supported");
-      break;
-    default: break;
+    case TupleRefLevel::Mixed: fnName = "*"; break;
+    case TupleRefLevel::None: fnName = "_build_start_tuple_noref"; break;
+    case TupleRefLevel::All: INT_FATAL("Not supported"); break;
   }
 
   FnSymbol *buildStarTupleType = new FnSymbol(fnName);
@@ -212,6 +204,9 @@ FnSymbol* makeConstructTuple(std::vector<TypeSymbol*>& args,
                              BlockStmt* instantiationPoint,
                              TupleRefLevel::K level,
                              Type* sizeType) {
+  if (newTypeSymbol->id == breakOnID) {
+    gdbShouldBreakHere();
+  }
 
   int size = args.size();
   Type *newType = newTypeSymbol->type;
@@ -419,8 +414,14 @@ TupleInfo getTupleInfo(std::vector<TypeSymbol*>& args,
     newTypeSymbol->addFlag(FLAG_TUPLE);
     newTypeSymbol->addFlag(FLAG_PARTIAL_TUPLE);
     newTypeSymbol->addFlag(FLAG_TYPE_VARIABLE);
-    if (markStar)
+
+    if (markStar) {
       newTypeSymbol->addFlag(FLAG_STAR_TUPLE);
+    }
+
+    if (level == TupleRefLevel::All) {
+      newTypeSymbol->addFlag(FLAG_TUPLE_ALL_REF);
+    }
 
     tupleModule->block->insertAtTail(new DefExpr(newTypeSymbol));
 
@@ -1200,21 +1201,16 @@ FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
       // Subsequent arguments are tuple types.
       Type* t = actual->typeInfo();
 
-      // Args that have blank intent -> ref intent
-      // should be captured as ref, but not in the type function.
-      if (shouldChangeTupleType(t->getValType()) ==  true &&
-          noChangeTypes                          == false) {
+      // If the concrete intent for an arg is ref, then capture it by ref,
+      // but only if we're not in a type function.
+      if (shouldChangeTupleType(t->getValType()) && !noChangeTypes) {
         if (SymExpr* se = toSymExpr(actual)) {
           if (ArgSymbol* arg = toArgSymbol(se->symbol())) {
             IntentTag intent = concreteIntentForArg(arg);
-
             if ((intent & INTENT_FLAG_REF) != 0) {
               t = t->getRefType();
             }
           }
-        } else if (level == TupleRefLevel::All) {
-          // TODO: What should we do with nested tuple types? Hmmm...
-          t = t->getRefType();
         }
       }
 
@@ -1237,10 +1233,27 @@ FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
     args.resize(actualN);
   }
 
-  if (level == TupleRefLevel::None) {
-    for (size_t i = 0; i < args.size(); i++) {
-      args[i] = args[i]->getValType()->symbol;
-    }
+  // If the ref level is mixed, then leave things as is. If the ref level
+  // is all ref, then adjust any value types to be references. If the ref
+  // level is none, then convert every type to a value type.
+  switch (level) {
+    case TupleRefLevel::Mixed: break;
+    case TupleRefLevel::All:
+      for (size_t i = 1; i < args.size(); i++) {
+        if (args[i]->getValType()->symbol->hasFlag(FLAG_TUPLE)) {
+          AggregateType* at = toAggregateType(args[i]->getValType());
+          INT_ASSERT(at != NULL);
+          args[i] = computeAllRefTuple(at)->symbol;
+        } else {
+          args[i] = args[i]->getRefType()->symbol;
+        }
+      }
+      break;
+    case TupleRefLevel::None:
+      for (size_t i = 0; i < args.size(); i++) {
+        args[i] = args[i]->getValType()->symbol;
+      }
+      break;
   }
 
   BlockStmt* point = getInstantiationPoint(call);
@@ -1265,5 +1278,199 @@ FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
   }
 
   return retval;
+}
+
+
+void fixRefTuples(FnSymbol* fn) {
+  if (!fn->returnsRefOrConstRef() || fn->hasFlag(FLAG_FIELD_ACCESSOR)) {
+    return;
+  }
+
+  // All ref tuple types should be marked with FLAG_TUPLE_ALL_REF.
+  Type* ft = fn->retType->getValType();
+  if (!ft->symbol->hasFlag(FLAG_TUPLE_ALL_REF)) {
+    return;
+  }
+
+  if (!fn->isResolved()) {
+    return;
+  }
+
+  // TODO (dlongnecke): Walk all blocks and apply our transformation to
+  // moves on the RVV.
+
+  return;
+}
+
+// Handle tuples that are being returned by 'ref' by detecting when
+// such a tuple is being stored into the RVV.
+//
+// There are four places from where the result tuple can originate:
+//
+//    - The result of building a tuple expression
+//    - A value tuple
+//    - The result of a call
+//    - A tuple formal
+//
+// For tuple expressions, we need to intercept the _build_tuple call
+// and replace it with a new call that captures all elements by
+// reference.
+//
+// For value tuples, we need to replace the PRIM_ADDR_OF expression
+// with a call to "chpl_refTupleFromValTuple", which will take a
+// reference to every element of the value tuple.
+//
+// For the result of calls, we might not need to do anything if the
+// returned tuple stores all references (and is the same type as
+// the return type of the function).
+//
+// For tuple formals, the formal must only contain references (else
+// we must emit an error). TODO (dlongnecke): How to emit a proper
+// user facing error for this case (e.g. pin on the proper line
+// numbers)?
+//
+// TODO (dlongnecke): Do we have to do type checking for this third
+// and fourth case ourselves, or will another part of resolution
+// handle it gracefully?
+//
+void fixRetMoveForTupleReturnedByRef(CallExpr* call) {
+  CallExpr* rhs = toCallExpr(call->get(2));
+  if (!rhs->isPrimitive(PRIM_ADDR_OF)) {
+    return;
+  }
+
+  // Only consider if the containing function returns by ref.
+  FnSymbol* inFn = toFnSymbol(call->parentSymbol);
+  if (inFn == NULL || !inFn->returnsRefOrConstRef()) {
+    return;
+  }
+
+  SymExpr* lhsSe = toSymExpr(call->get(1));
+  Symbol* lhs = lhsSe->symbol();
+
+
+
+  if (!lhs->getValType()->symbol->hasFlag(FLAG_TUPLE) ||
+      !lhs->hasFlag(FLAG_RVV)) {
+    return;
+  }
+
+  SymExpr* addrExpr = toSymExpr(rhs->get(1));
+  INT_ASSERT(addrExpr != NULL);
+  CallExpr* buildCall = NULL;
+
+  // Loop through uses and look for a build tuple call.
+  for_SymbolSymExprs(se, addrExpr->symbol()) {
+    CallExpr* move = toCallExpr(se->parentExpr);
+    if (move == NULL || !move->isPrimitive(PRIM_MOVE)) {
+      continue;
+    }
+
+    CallExpr* rhs = toCallExpr(move->get(2));
+    SymExpr* lhs = toSymExpr(move->get(1));
+    if (rhs == NULL || lhs == NULL) {
+      continue;
+    }
+
+    if (lhs->symbol() != se->symbol()) {
+      continue;
+    }
+
+    FnSymbol* calledFn = rhs->resolvedFunction();
+    if (calledFn == NULL || !calledFn->hasFlag(FLAG_BUILD_TUPLE)) {
+
+
+      continue;
+    }
+
+    // Found it.
+    buildCall = rhs;
+  }
+
+  // It's a tuple expression.
+  if (buildCall != NULL) {
+
+    // Adjust build tuple call to capture all elements by ref.
+    const char* name = "chpl_buildTupleAllRef";
+    UnresolvedSymExpr* buildAllRef = new UnresolvedSymExpr(name);
+    buildCall->baseExpr->replace(buildAllRef);
+
+    // Re-resolve it.
+    resolveExpr(buildCall);
+
+    // Get the resulting tuple type.
+    FnSymbol* buildFn = buildCall->resolvedFunction();
+    INT_ASSERT(buildFn != NULL);
+    Type* tupType = toType(buildFn->retType);
+
+    // Get the LHS storing the result of the build call.
+    CallExpr* oldMove = toCallExpr(buildCall->parentExpr);
+    SymExpr* useOldLhs = toSymExpr(oldMove->get(1));
+    Symbol* oldLhs = useOldLhs->symbol();
+
+    // Insert a new temp before it.
+    VarSymbol* newTmp = newTemp("call_tmp", tupType);
+    oldLhs->defPoint->insertBefore(new DefExpr(newTmp));
+
+    // Move the adjusted build call into the new temp.
+    buildCall->remove();
+    CallExpr* newMove = new CallExpr(PRIM_MOVE, newTmp, buildCall);
+
+    // Replace the old move AST with the new move AST.
+    oldMove->insertBefore(newMove);
+    oldMove->convertToNoop();
+    oldLhs->defPoint->remove();
+
+    // Replace original call with one using our building blocks.
+    SymExpr* useNewTmp = new SymExpr(newTmp);
+    CallExpr* newCall = new CallExpr(PRIM_MOVE, lhs, useNewTmp);
+    call->insertBefore(newCall);
+    call->convertToNoop();
+    call = newCall;
+
+    // Resolve the new call.
+    resolveCall(call);
+
+  } else {
+
+    Type * tupType = addrExpr->getValType();
+
+    // Case: A value tuple (variable or returned tuple).
+    if (!isTupleContainingAnyReferences(tupType)) {
+
+      // Build ref tuple by capturing value tuple elements by ref.
+      const char* name = "chpl_refTupleFromValTuple";
+      UnresolvedSymExpr* refFromVal = new UnresolvedSymExpr(name);
+      CallExpr* build = new CallExpr(refFromVal, addrExpr);
+
+      // Construct a new call moving the build into the RVV.
+      CallExpr* newCall = new CallExpr(PRIM_MOVE, lhs, build);
+
+      // Replace original call.
+      call->replace(newCall);
+
+
+      // Resolve the new call.
+      resolveCall(call);
+    } else {
+
+      // Case: Result of a call (should be fine if types match).
+      if (isTupleContainingOnlyReferences(tupType)) {
+        // OK, it's already in the correct form.
+        // TODO?
+      } else {
+
+        // Case: Formals or other tuples of mixed ref levels.
+        if (ArgSymbol* arg = toArgSymbol(rhs)) {
+          // TODO (dlongnecke): Error message?
+        } else {
+          // TODO: We'll remove this after we iron out edge cases.
+          INT_FATAL(addrExpr, "Tuple with mixed ref level");
+        }
+      }
+    }
+  }
+
+  return;
 }
 

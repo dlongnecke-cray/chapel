@@ -70,14 +70,14 @@ module ChapelTuple {
     return x;
   }
 
-  // Used when returning ref tuples.
+  // Returning all ref tuples or building a ref tuple variable.
   pragma "build tuple"
   inline proc chpl_buildTupleAllRef(x...) {
     return x;
   }
 
-  // TODO: Take a reference to every field in an upscope value tuple.
-  inline proc chpl_tupleRepack(ref tup: _tuple) {
+  // Build a tuple of references from a value tuple.
+  inline proc chpl_refTupleFromValTuple(ref tup: _tuple) {
     return chpl_buildTupleAllRef((...tup));
   }
 

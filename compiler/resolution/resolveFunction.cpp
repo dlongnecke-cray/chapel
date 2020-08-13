@@ -506,6 +506,13 @@ void resolveFunction(FnSymbol* fn, CallExpr* forCall) {
       Type* yieldedType = NULL;
       resolveReturnTypeAndYieldedType(fn, &yieldedType);
 
+      // TODO (dlongnecke):
+      // A ref tuple return type should have already been adjusted by the
+      // call to `resolveReturnType`. Now we have to adjust different
+      // forms of `ref` tuple.
+      //
+      fixRefTuples(fn);
+
       fixPrimInitsAndAddCasts(fn);
 
       if (fn->isIterator() == true && fn->iteratorInfo == NULL) {
@@ -1712,13 +1719,6 @@ void resolveReturnTypeAndYieldedType(FnSymbol* fn, Type** yieldedType) {
       USR_FATAL(fn, "unable to resolve return type");
     }
 
-    // If the return type is a tuple, potentially adjust it.
-    if (retType->getValType()->symbol->hasFlag(FLAG_TUPLE) &&
-        !doNotChangeTupleTypeRefLevel(fn, true)) {
-      AggregateType* tupleType = toAggregateType(retType);
-      retType = getReturnedTupleType(fn, tupleType);
-    }
-
     fn->retType = retType;
 
   } else {
@@ -1733,6 +1733,19 @@ void resolveReturnTypeAndYieldedType(FnSymbol* fn, Type** yieldedType) {
         if (yieldedSym->hasFlag(FLAG_YVV))
           yieldedSym->type = retType;
       }
+    }
+  }
+
+  // Adjust function return type when returning a tuple by ref.
+  if (fn->returnsRefOrConstRef() &&
+      fn->retType->getValType()->symbol->hasFlag(FLAG_TUPLE) &&
+      !doNotChangeTupleTypeRefLevel(fn, true)) {
+
+    // TODO (dlongnecke): It might be possible to adjust these as well but
+    // for right now go ahead and skip field accessors.
+    if (!fn->hasFlag(FLAG_FIELD_ACCESSOR)) {
+      AggregateType* tupleType = toAggregateType(retType->getValType());
+      fn->retType = getReturnedTupleType(fn, tupleType);
     }
   }
 }

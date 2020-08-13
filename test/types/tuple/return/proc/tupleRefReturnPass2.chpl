@@ -1,4 +1,5 @@
-// Function returning tuple of references to globals.
+// Function returning tuple of references to globals. Captured in a
+// reference, which means updates are visible.
 
 record r { var x: int = 0; }
 
