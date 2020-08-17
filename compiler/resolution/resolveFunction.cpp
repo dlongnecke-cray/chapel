@@ -504,15 +504,14 @@ void resolveFunction(FnSymbol* fn, CallExpr* forCall) {
       insertUnrefForArrayOrTupleReturn(fn);
 
       Type* yieldedType = NULL;
+
+      bool isInferredRet = isUnresolvedOrGenericReturnType(fn->retType);
       resolveReturnTypeAndYieldedType(fn, &yieldedType);
 
-      // TODO (dlongnecke):
-      // A ref tuple return type should have already been adjusted by the
-      // call to `resolveReturnType`. Now we have to adjust different
-      // forms of `ref` tuple.
-      //
-      fixRefTuples(fn);
-
+      if (isInferredRet) {
+        fixRefTupleRvvForInferredReturnType(fn);
+      }
+      
       fixPrimInitsAndAddCasts(fn);
 
       if (fn->isIterator() == true && fn->iteratorInfo == NULL) {
@@ -787,6 +786,8 @@ bool doNotChangeTupleTypeRefLevel(FnSymbol* fn, bool forRet) {
                                     //    when not indicated return by ref.
      ) {
     return true;
+  } else if (forRet && fn->returnsRefOrConstRef()) {
+    return fn->retType->symbol->hasFlag(FLAG_TUPLE_ALL_REF);
   } else {
     return false;
   }

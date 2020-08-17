@@ -6855,6 +6855,10 @@ static void resolveMove(CallExpr* call) {
     gdbShouldBreakHere();
   }
 
+  if (call->parentSymbol && call->parentSymbol->id == breakOnResolveID) {
+    gdbShouldBreakHere();
+  }
+
 
   if (moveIsAcceptable(call) == false) {
     // NB: This call will not return
@@ -7260,16 +7264,10 @@ static void resolveMoveForRhsCallExpr(CallExpr* call, Type* rhsType) {
       SymExpr* lhsSe = toSymExpr(call->get(1));
       Symbol* lhs = lhsSe->symbol();
 
-      FnSymbol* inFn = toFnSymbol(call->parentSymbol);
-      if (inFn != NULL && inFn->returnsRefOrConstRef() &&
-          lhs->getValType()->symbol->hasFlag(FLAG_TUPLE) &&
-          lhs->hasFlag(FLAG_RVV)) {
-
-        // May replace the call with a NOP.
-        fixRetMoveForTupleReturnedByRef(call);
+      if (lhs->getValType()->symbol->hasFlag(FLAG_TUPLE)) {
+        fixPrimAddrOfForRefTuple(call);
       } else {
         INT_ASSERT(lhs->isRef());
-
         if (lhs->getValType() != rhsType->getValType()) {
           USR_FATAL_CONT(call, "Initializing a reference with another type");
           USR_PRINT(lhs, "Reference has type %s",
@@ -7281,10 +7279,7 @@ static void resolveMoveForRhsCallExpr(CallExpr* call, Type* rhsType) {
       }
     }
 
-    // TODO (dlongnecke): The ref tuple adjustments can end up removing this
-    // call and replacing it with a NOP. We might want to find a better
-    // place for this new code to live (i.e. could it occur after resolution
-    // instead?).
+    // The call might have been removed, so check to make sure.
     if (call->isPrimitive(PRIM_MOVE)) {
       moveFinalize(call);
     }

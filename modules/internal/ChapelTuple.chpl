@@ -72,7 +72,7 @@ module ChapelTuple {
 
   // Returning all ref tuples or building a ref tuple variable.
   pragma "build tuple"
-  inline proc chpl_buildTupleAllRef(x...) {
+  inline proc chpl_buildTupleAllRef(ref x...) {
     return x;
   }
 

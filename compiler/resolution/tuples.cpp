@@ -204,14 +204,11 @@ FnSymbol* makeConstructTuple(std::vector<TypeSymbol*>& args,
                              BlockStmt* instantiationPoint,
                              TupleRefLevel::K level,
                              Type* sizeType) {
-  if (newTypeSymbol->id == breakOnID) {
-    gdbShouldBreakHere();
-  }
-
   int size = args.size();
   Type *newType = newTypeSymbol->type;
   FnSymbol *ctor = new FnSymbol(tupleInitName);
 
+  // TODO: Switch to a more typical initCopy format for this initializer?
   // Does "_this" even make sense in this situation?
   VarSymbol* _this = new VarSymbol("this", newType);
   _this->addFlag(FLAG_ARG_THIS);
@@ -224,11 +221,15 @@ FnSymbol* makeConstructTuple(std::vector<TypeSymbol*>& args,
 
   for(int i = 0; i < size; i++ ) {
     const char* name = typeCtorArgs[i+1]->name;
-    ArgSymbol* arg = new ArgSymbol(INTENT_BLANK, name, args[i]->type);
+
+    // Use INTENT_REF for all ref tuples, INTENT_BLANK otherwise.
+    IntentTag intent = INTENT_BLANK;
+    if (level == TupleRefLevel::All) {
+      intent = INTENT_REF;
+    }
+
+    ArgSymbol* arg = new ArgSymbol(intent, name, args[i]->type);
     ctor->insertFormalAtTail(arg);
-    // TODO : one would think that the tuple constructor body
-    // should call initCopy vs autoCopy, but these are more
-    // or less the same now.
 
     Symbol* element = NULL;
     if (isReferenceType(args[i]->type)) {
@@ -238,6 +239,8 @@ FnSymbol* makeConstructTuple(std::vector<TypeSymbol*>& args,
       // Otherwise, copy it
       element = new VarSymbol(astr("elt_", name), args[i]->type);
       ctor->insertAtTail(new DefExpr(element));
+
+      // TODO: Switch to using initCopy for consistency?
       CallExpr* copy = new CallExpr(astr_autoCopy, arg);
       ctor->insertAtTail(new CallExpr(PRIM_MOVE, element, copy));
     }
@@ -255,15 +258,15 @@ FnSymbol* makeConstructTuple(std::vector<TypeSymbol*>& args,
   ctor->addFlag(FLAG_INVISIBLE_FN);
   ctor->addFlag(FLAG_INIT_TUPLE);
   ctor->addFlag(FLAG_SUPPRESS_LVALUE_ERRORS);
-
   ctor->addFlag(FLAG_PARTIAL_TUPLE);
 
   ctor->retTag = RET_VALUE;
   ctor->retType = newType;
+
   CallExpr* ret = new CallExpr(PRIM_RETURN, _this);
+
   ctor->insertAtTail(ret);
   ctor->substitutions.copy(newType->substitutions);
-
   ctor->setInstantiationPoint(instantiationPoint);
 
   tupleModule->block->insertAtTail(new DefExpr(ctor));
@@ -1059,9 +1062,14 @@ static AggregateType* do_computeTupleWithIntent(bool           valueOnly,
     retval = at;
 
   } else {
-    TupleInfo info = getTupleInfo(args, instantiationPoint,
-                                  TupleRefLevel::Mixed);
 
+    // TODO (dlongnecke): Adjust this path for each tuple ref level.
+    TupleRefLevel::K level = TupleRefLevel::Mixed;
+    if (intent == INTENT_REF) {
+      level = TupleRefLevel::All;
+    }
+
+    TupleInfo info = getTupleInfo(args, instantiationPoint, level);
     retval = toAggregateType(info.typeSymbol->type);
   }
 
@@ -1281,23 +1289,37 @@ FnSymbol* createTupleSignature(FnSymbol* fn, SymbolMap& subs, CallExpr* call) {
 }
 
 
-void fixRefTuples(FnSymbol* fn) {
-  if (!fn->returnsRefOrConstRef() || fn->hasFlag(FLAG_FIELD_ACCESSOR)) {
+
+void fixRefTupleRvvForInferredReturnType(FnSymbol* fn) {
+  if (!fn->returnsRefOrConstRef() || fn->hasFlag(FLAG_FIELD_ACCESSOR) ||
+      !fn->isResolved()) {
     return;
   }
 
-  // All ref tuple types should be marked with FLAG_TUPLE_ALL_REF.
   Type* ft = fn->retType->getValType();
   if (!ft->symbol->hasFlag(FLAG_TUPLE_ALL_REF)) {
     return;
   }
 
-  if (!fn->isResolved()) {
-    return;
+
+  Symbol* rvv = fn->getReturnSymbol();
+
+  // The RVV might still be ref if the return type is inferred.
+  if (rvv->type->isRef()) {
+    INT_ASSERT(rvv->type->getValType()->symbol->hasFlag(FLAG_TUPLE));
+    rvv->type = fn->retType;
   }
 
-  // TODO (dlongnecke): Walk all blocks and apply our transformation to
-  // moves on the RVV.
+  // Apply our transformation to all moves into the RVV.
+  for_SymbolSymExprs(se, rvv) {
+    CallExpr* call = toCallExpr(se->parentExpr);
+    if (call != NULL && call->isPrimitive(PRIM_MOVE)) {
+      CallExpr* addrOf = toCallExpr(call->get(2));
+      if (addrOf != NULL && addrOf->isPrimitive(PRIM_ADDR_OF)) {
+        fixPrimAddrOfForRefTuple(call);
+      }
+    }
+  }
 
   return;
 }
@@ -1329,11 +1351,12 @@ void fixRefTuples(FnSymbol* fn) {
 // user facing error for this case (e.g. pin on the proper line
 // numbers)?
 //
-// TODO (dlongnecke): Do we have to do type checking for this third
-// and fourth case ourselves, or will another part of resolution
-// handle it gracefully?
+// TODO: How can we generalize this to work for any tuple variable
+// that is being stored by reference? _Can_ we? I think we can,
+// just need to make sure the LHS type is correct and then drop the
+// restriction on the RVV. Then we can move this into `resolveMove`.
 //
-void fixRetMoveForTupleReturnedByRef(CallExpr* call) {
+void fixPrimAddrOfForRefTuple(CallExpr* call) {
   CallExpr* rhs = toCallExpr(call->get(2));
   if (!rhs->isPrimitive(PRIM_ADDR_OF)) {
     return;
@@ -1348,8 +1371,7 @@ void fixRetMoveForTupleReturnedByRef(CallExpr* call) {
   SymExpr* lhsSe = toSymExpr(call->get(1));
   Symbol* lhs = lhsSe->symbol();
 
-
-
+  // TODO: We can try removing this restriction in a bit.
   if (!lhs->getValType()->symbol->hasFlag(FLAG_TUPLE) ||
       !lhs->hasFlag(FLAG_RVV)) {
     return;

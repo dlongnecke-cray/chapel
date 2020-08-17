@@ -278,9 +278,8 @@ AggregateType* computeTupleWithIntent(IntentTag intent, AggregateType* t);
 
 void addTupleCoercion(AggregateType* fromT, AggregateType* toT, Symbol* fromSym, Symbol* toSym, Expr* insertBefore);
 
-void fixRetMoveForTupleReturnedByRef(CallExpr* call);
-
-void fixRefTuples(FnSymbol* fn);
+void fixRefTupleRvvForInferredReturnType(FnSymbol* fn);
+void fixPrimAddrOfForRefTuple(CallExpr* call);
 
 // other resolution functions
 bool evaluateWhereClause(FnSymbol* fn);
