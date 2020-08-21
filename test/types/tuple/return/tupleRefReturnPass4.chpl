@@ -1,5 +1,4 @@
-// Function returning tuple of references to object fields. Captured
-// in a variable, which means updates are not visible.
+// Return a tuple of references to object fields and store it in a ref.
 
 record r { var x: int = 0; var y: int = 0; }
 

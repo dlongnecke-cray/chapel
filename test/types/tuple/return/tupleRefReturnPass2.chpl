@@ -1,5 +1,4 @@
-// Function returning tuple of references to globals. Captured in a
-// variable, which means updates are not visible.
+// Return a tuple of references to globals and store it in a ref.
 
 record r { var x: int = 0; }
 
@@ -17,7 +16,7 @@ proc specifyReturnType() ref: (int, r) {
 // Return type is inferred.
 proc test1() {
   writeln(g1, g2);
-  var tup = inferReturnType();
+  ref tup = inferReturnType();
   tup[0] = 128;
   tup[1] = new r(128);
   writeln(g1, g2);
@@ -27,7 +26,7 @@ test1();
 // Return type is specified.
 proc test2() {
   writeln(g1, g2);
-  var tup = specifyReturnType();
+  ref tup = specifyReturnType();
   tup[0] = 256;
   tup[1] = new r(256);
   writeln(g1, g2);
