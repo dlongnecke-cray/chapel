@@ -1,4 +1,4 @@
-// Return a tuple of references to globals and store it in a var.
+// Return a tuple of references to globals and destructure it.
 
 record r { var x: int = 0; }
 
@@ -17,21 +17,24 @@ proc specifyReturnType() ref: (int, r) {
 proc test1() {
   writeln(g1);
   writeln(g2);
-  var tup = inferReturnType();
-  tup[0] = 128;
-  tup[1] = new r(128);
+  ref (rg1, rg2) = inferReturnType();
+  rg1 = 128;
+  rg2 = new r(128);
   writeln(g1);
   writeln(g2);
 }
 test1();
 
+g1 = 0;
+g2 = new r();
+
 // Return type is specified.
 proc test2() {
   writeln(g1);
   writeln(g2);
-  var tup = specifyReturnType();
-  tup[0] = 256;
-  tup[1] = new r(256);
+  ref (rg1, rg2) = specifyReturnType();
+  rg1 = 256;
+  rg2 = new r(256);
   writeln(g1);
   writeln(g2);
 }

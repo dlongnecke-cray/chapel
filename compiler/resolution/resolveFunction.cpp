@@ -432,9 +432,17 @@ void resolveSpecifiedReturnType(FnSymbol* fn) {
     } else if (fn->returnsRefOrConstRef() == true) {
       makeRefType(retType);
 
-      retType     = retType->refType;
-      fn->retType = retType;
-
+      // TODO: It would be more elegant if we merged this path and above.
+      if (retType->getValType()->symbol->hasFlag(FLAG_TUPLE)) {
+        if (!doNotChangeTupleTypeRefLevel(fn, true) ||
+            fn->hasFlag(FLAG_ITERATOR_FN)) {
+          AggregateType* at = toAggregateType(retType->getValType());
+          retType = computeTupleWithIntent(INTENT_REF, at);
+        }
+      } else {
+        retType     = retType->refType;
+        fn->retType = retType;
+      }
     } else {
       fn->retType = retType;
     }
@@ -1713,6 +1721,30 @@ void resolveReturnTypeAndYieldedType(FnSymbol* fn, Type** yieldedType) {
 
   }
 
+  if (fn->id == 209923) gdbShouldBreakHere();
+
+  // Adjust function return type when returning a tuple by ref.
+  if (retType->isRef() &&
+      retType->getValType()->symbol->hasFlag(FLAG_TUPLE)) {
+
+    // We shouldn't skip adjusting iterator functions in this case.
+    if (!doNotChangeTupleTypeRefLevel(fn, true) ||
+        fn->hasFlag(FLAG_ITERATOR_FN)) {
+
+      // TODO (dlongnecke): It might be possible to adjust these as well but
+      // for right now just skip field accessors.
+      if (!fn->hasFlag(FLAG_FIELD_ACCESSOR)) {
+
+        // Have to compute directly instead of using `getReturnedTupleType`
+        // due to the weirdness of iterator functions.
+        // TODO: Could we adjust `getReturnedTupleType` to deal with
+        // iterator functions?
+        AggregateType* tupleType = toAggregateType(retType->getValType());
+        retType = computeTupleWithIntent(INTENT_REF, tupleType);
+      }
+    }
+  }
+
   if (isIterator == false) {
     ret->type = retType;
 
@@ -1737,18 +1769,7 @@ void resolveReturnTypeAndYieldedType(FnSymbol* fn, Type** yieldedType) {
     }
   }
 
-  // Adjust function return type when returning a tuple by ref.
-  if (fn->returnsRefOrConstRef() &&
-      fn->retType->getValType()->symbol->hasFlag(FLAG_TUPLE) &&
-      !doNotChangeTupleTypeRefLevel(fn, true)) {
 
-    // TODO (dlongnecke): It might be possible to adjust these as well but
-    // for right now go ahead and skip field accessors.
-    if (!fn->hasFlag(FLAG_FIELD_ACCESSOR)) {
-      AggregateType* tupleType = toAggregateType(retType->getValType());
-      fn->retType = getReturnedTupleType(fn, tupleType);
-    }
-  }
 }
 
 void resolveReturnType(FnSymbol* fn) {
@@ -2518,8 +2539,6 @@ static void insertCasts(BaseAST* ast, FnSymbol* fn, Vec<CallExpr*>& casts) {
                   // tuple containing a ref, while the return type
                   // is the tuple with no refs. This code adjusts
                   // the AST to compensate.
-                  // TODO: dlongnecke add overload for updated tuple ref
-                  // return intent e.g. "repack".
                   CallExpr* unref = new CallExpr("chpl__unref", tmp);
                   call->insertAtTail(unref);
                   resolveExpr(unref);

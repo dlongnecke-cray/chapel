@@ -76,8 +76,8 @@ module ChapelTuple {
     return x;
   }
 
-  // Build a tuple of references from a value tuple.
-  inline proc chpl_refTupleFromValTuple(ref tup: _tuple) {
+  // TODO: May have to tweak body further.
+  inline proc chpl_refTupleFromValueTuple(ref tup) ref {
     return chpl_buildTupleAllRef((...tup));
   }
 

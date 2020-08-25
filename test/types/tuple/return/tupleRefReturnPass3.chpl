@@ -1,12 +1,12 @@
-// Return a tuple of references to object fields and store it in a variable.
+// Return a tuple of references to object fields and destructure it.
 
 record r { var x: int = 0; var y: int = 0; }
 
-proc r.refToFields1() ref {
+proc r.refTupleOfFieldsInfer() ref {
   return (x, y);
 }
 
-proc r.refToFields2() ref: (int, int) {
+proc r.refTupleOfFieldsSpecify() ref: (int, int) {
   return (x, y);
 }
 
@@ -14,9 +14,9 @@ proc r.refToFields2() ref: (int, int) {
 proc test1() {
   var foo = new r();
   writeln(foo);
-  var tup = foo.refToFields1();
-  tup[0] = 128;
-  tup[1] = 256;
+  ref (f1, f2) = foo.refTupleOfFieldsInfer();
+  f1 = 128;
+  f2 = 256;
   writeln(foo);
 }
 test1();
@@ -25,9 +25,9 @@ test1();
 proc test2() {
   var foo = new r();
   writeln(foo);
-  var tup = foo.refToFields2();
-  tup[0] = 128;
-  tup[1] = 256;
+  ref (f1, f2) = foo.refTupleOfFieldsSpecify();
+  f1 = 128;
+  f2 = 256;
   writeln(foo);
 }
 test2();

@@ -16,28 +16,25 @@ iter specifyYieldType() ref: (int, r) {
 
 // Return type is inferred.
 proc test1() {
-  writeln(g1, g2);
   for tup in inferYieldType() {
     writeln(g1);
     writeln(g2);
-    // TODO: This kind of pattern consumes the iterator to create an array.
-    // var tup = inferYieldType();
     tup[0] = 128;
     tup[1] = new r(128);
     writeln(g1);
     writeln(g2);
   }
-
 }
 test1();
 
+g1 = 0;
+g2 = new r();
+
 // Return type is specified.
 proc test2() {
-  for tup in inferYieldType() {
+  for tup in specifyYieldType() {
     writeln(g1);
     writeln(g2);
-    // TODO: This kind of pattern consumes the iterator to create an array.
-    // var tup = specifyYieldType();
     tup[0] = 256;
     tup[1] = new r(256);
     writeln(g1);
