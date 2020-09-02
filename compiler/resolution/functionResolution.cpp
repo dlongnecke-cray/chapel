@@ -6971,6 +6971,14 @@ static void resolveMove(CallExpr* call) {
       // NB: This call will not return
       moveHaltForUnacceptableTypes(call);
 
+    // Move into ref tuple that has not had its type adjusted yet.
+    } else if (lhsType->isRef() &&
+               lhsType->getValType()->symbol->hasFlag(FLAG_TUPLE)) {
+      fixMoveIntoRefTuple(call);
+
+    // Move into ref tuple with type adjusted.
+    } else if (lhsType->symbol->hasFlag(FLAG_TUPLE_ALL_REF)) {
+      fixMoveIntoRefTuple(call);
     } else if (SymExpr* rhsSymExpr = toSymExpr(rhs)) {
       resolveMoveForRhsSymExpr(call, rhsSymExpr);
 
@@ -7352,18 +7360,14 @@ static void resolveMoveForRhsCallExpr(CallExpr* call, Type* rhsType) {
       SymExpr* lhsSe = toSymExpr(call->get(1));
       Symbol* lhs = lhsSe->symbol();
 
-      if (lhs->getValType()->symbol->hasFlag(FLAG_TUPLE)) {
-        fixPrimAddrOfForRefTuple(call);
-      } else {
-        INT_ASSERT(lhs->isRef());
-        if (lhs->getValType() != rhsType->getValType()) {
-          USR_FATAL_CONT(call, "Initializing a reference with another type");
-          USR_PRINT(lhs, "Reference has type %s",
-                         toString(lhs->getValType()));
-          USR_PRINT(call, "Initializing with type %s",
-                          toString(rhsType->getValType()));
-          USR_STOP();
-        }
+      INT_ASSERT(lhs->isRef());
+      if (lhs->getValType() != rhsType->getValType()) {
+        USR_FATAL_CONT(call, "Initializing a reference with another type");
+        USR_PRINT(lhs, "Reference has type %s",
+                       toString(lhs->getValType()));
+        USR_PRINT(call, "Initializing with type %s",
+                        toString(rhsType->getValType()));
+        USR_STOP();
       }
     }
 

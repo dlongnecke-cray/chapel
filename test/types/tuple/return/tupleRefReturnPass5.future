@@ -1,3 +1,0 @@
-The function `chpl_buildTupleAllRef` is not resolving correctly
-(return type is unknown when it should be inferred, cannot get to
-the point where fixups occur).

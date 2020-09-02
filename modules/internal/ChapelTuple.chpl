@@ -76,8 +76,9 @@ module ChapelTuple {
     return x;
   }
 
-  // TODO: May have to tweak body further.
-  inline proc chpl_refTupleFromValueTuple(ref tup) ref {
+  pragma "build tuple"
+  inline proc chpl_refTupleFromValueTuple(ref tup) {
+    // Body is replaced during generic instantiation.
     return chpl_buildTupleAllRef((...tup));
   }
 

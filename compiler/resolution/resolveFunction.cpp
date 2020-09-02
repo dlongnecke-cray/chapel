@@ -437,7 +437,7 @@ void resolveSpecifiedReturnType(FnSymbol* fn) {
         if (!doNotChangeTupleTypeRefLevel(fn, true) ||
             fn->hasFlag(FLAG_ITERATOR_FN)) {
           AggregateType* at = toAggregateType(retType->getValType());
-          retType = computeTupleWithIntent(INTENT_REF, at);
+          retType = computeAllRefTuple(at);
         }
       } else {
         retType     = retType->refType;
@@ -1740,7 +1740,7 @@ void resolveReturnTypeAndYieldedType(FnSymbol* fn, Type** yieldedType) {
         // TODO: Could we adjust `getReturnedTupleType` to deal with
         // iterator functions?
         AggregateType* tupleType = toAggregateType(retType->getValType());
-        retType = computeTupleWithIntent(INTENT_REF, tupleType);
+        retType = computeAllRefTuple(tupleType);
       }
     }
   }
@@ -1831,7 +1831,7 @@ Type* getReturnedTupleType(FnSymbol* fn, AggregateType* retType) {
   INT_ASSERT(retType->symbol->hasFlag(FLAG_TUPLE));
 
   if (fn->returnsRefOrConstRef() == true) {
-    retval = computeTupleWithIntent(INTENT_REF, retType);
+    retval = computeAllRefTuple(retType);
   } else {
     retval = computeNonRefTuple(retType);
   }
