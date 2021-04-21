@@ -323,7 +323,7 @@
 %token TINDEX TINLINE TINOUT TINT TITER TINITEQUALS
 %token TIMPLEMENTS TINTERFACE
 %token TLABEL TLAMBDA TLET TLIFETIME TLOCAL TLOCALE
-%token TMINUSMINUS TMODULE
+%token TMANAGE TMINUSMINUS TMODULE
 %token TNEW TNIL TNOINIT TNONE TNOTHING
 %token TON TONLY TOPERATOR TOTHERWISE TOUT TOVERRIDE TOWNED
 %token TPARAM TPLUSPLUS TPRAGMA TPRIMITIVE TPRIVATE TPROC TPROTOTYPE TPUBLIC
@@ -561,6 +561,8 @@ stmt:
 | TLOCAL expr do_stmt                  { $$ = buildLocalStmt($2, $3); }
 | TLOCAL do_stmt                       { $$ = buildLocalStmt($2); }
 | TON expr do_stmt                     { $$ = buildOnStmt($2, $3); }
+| TMANAGE expr block_stmt              { $$ = buildManageStmt($2, NULL, $3); }
+| TMANAGE expr TAS ident_def block_stmt { $$ = buildManageStmt($2, $4, $5); }
 | TSERIAL expr do_stmt                 { $$ = buildSerialStmt($2, $3); }
 | TSERIAL do_stmt                      { $$ = buildSerialStmt(new SymExpr(gTrue), $2); }
 | TSYNC stmt                           { $$ = buildSyncStmt($2); }

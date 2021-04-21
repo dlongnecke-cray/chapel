@@ -1,0 +1,6 @@
+default-init: (ptr = {x = 0})
+entering
+in block
+foo
+leaving
+deinit: (ptr = {x = 0})

@@ -2192,6 +2192,47 @@ BlockStmt* buildLocalStmt(Expr* stmt) {
   }
 }
 
+BlockStmt* buildManageStmt(Expr* expr, const char* alias, BlockStmt* block) {
+
+  // TODO: Attach FLAG_MANAGED_BLOCK to result block?
+  auto result = new BlockStmt();
+
+  // Bind the management expression to a handle at the top of the block.
+  auto managerHandle = newTemp("manager");
+  result->insertAtTail(new DefExpr(managerHandle, expr));
+
+  // Build call to enterThis() (but don't insert into the tree yet)...
+  auto seHandleEnter = new SymExpr(managerHandle);
+  auto enter = new CallExpr("enterThis", gMethodToken, seHandleEnter);
+
+  // manage <expr> as <alias> { ... }
+  // If there is an alias, then the enterThis() method on the manager must
+  // return a value. Create a temp and move the result of enterThis() to it.
+  // Then create a ref <alias> that refers to the temp.
+  if (alias) {
+    auto enterTemp = newTemp();
+    result->insertAtTail(new DefExpr(enterTemp));
+    auto moveInitEnterTemp = new CallExpr(PRIM_MOVE, enterTemp, enter);
+    result->insertAtTail(moveInitEnterTemp);
+    auto enterAlias = new VarSymbol(alias);
+    enterAlias->addFlag(FLAG_REF_VAR);
+    result->insertAtTail(new DefExpr(enterAlias, new SymExpr(enterTemp)));
+  } else {
+
+    // Otherwise, just make the call to enterThis().
+    result->insertAtTail(enter);
+  }
+
+  // Insert the managed block.
+  result->insertAtTail(block);
+
+  // Have the manager call leaveThis()...
+  auto seHandleLeave = new SymExpr(managerHandle);
+  auto leave = new CallExpr("leaveThis", gMethodToken, seHandleLeave);
+  result->insertAtTail(leave);
+
+  return result;
+}
 
 static Expr* extractLocaleID(Expr* expr) {
   // If the on <x> expression is a primitive_on_locale_num, we just
