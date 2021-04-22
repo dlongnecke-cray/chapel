@@ -1577,6 +1577,37 @@ module ChapelArray {
     }
 
     pragma "no doc"
+    record unsafeResizeManager {
+      var _instance;
+      var _checks: bool;
+
+      // Do nothing.
+      proc enterThis() {}
+
+      proc leaveThis() {
+        for arr in _instance._arrs {
+          if arr._hasNonNilableElementType() {
+            if _checks then arr._doNonNilableElementChecks();
+            arr._resumeElementManagement();
+          }
+        }
+      }
+    }
+
+    /* Perform an unsafe resize of this array from within the scope of a
+       management block. */
+    proc ref unsafeResize(const ref d: domain, checks=false) {
+        for arr in _value._arrs do
+          if arr._hasNonNilableElementType() then
+            arr._suspendElementManagement(checks);
+
+      // Perform the resize.
+      this = d;
+ 
+      return new unsafeResizeManager(_value, checks);
+    }
+
+    pragma "no doc"
     pragma "no copy return"
     proc buildArray(type eltType, param initElts:bool) {
       if eltType == void {

@@ -435,7 +435,9 @@ module SharedObject {
       if _to_nilable(chpl_t) == chpl_t {
         return chpl_p;
       } else {
-        return chpl_p!;
+        // TODO: Old code did 'return chpl_p!' here, safe to remove? In 99%
+        // of cases this can never be nil...
+        return _to_nonnil(chpl_p);
       }
     }
 

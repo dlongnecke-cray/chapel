@@ -690,6 +690,9 @@ module ChapelDistribution {
     var pid:int = nullPid; // privatized ID, if privatization is supported
     var _decEltRefCounts : bool = false;
 
+    var _isElementManagementSuspended = false;
+    var _shouldDoNonNilableChecks = true;
+
     proc chpl__rvfMe() param {
       return false;
     }
@@ -747,6 +750,25 @@ module ChapelDistribution {
 
     proc dsiElementDeinitializationComplete() {
       halt("dsiElementDeinitializationComplete must be defined");
+    }
+
+    proc _hasNonNilableElementType() {
+      halt("_hasNonNilableElementType must be defined");
+      return false;
+    }
+
+    proc _doNonNilableElementChecks() {
+      halt("_doNonNilableElementChecks must be defined");
+    }
+
+    proc _suspendElementManagement(checks: bool) {
+      _isElementManagementSuspended = true;
+      _shouldDoNonNilableChecks = checks;
+    }
+
+    proc _resumeElementManagement() {
+      _isElementManagementSuspended = false;
+      _shouldDoNonNilableChecks = false;
     }
 
     proc dsiDestroyArr(deinitElts:bool) {
@@ -900,6 +922,10 @@ module ChapelDistribution {
         // unlink domain referred to by eltType
         chpl_decRefCountsForDomainsInArrayEltTypes(_to_unmanaged(this), eltType);
       }
+    }
+
+    override proc _hasNonNilableElementType() {
+      return !isDefaultInitializable(eltType);
     }
   }
 

@@ -1072,6 +1072,20 @@ module DefaultRectangular {
       deinitElts = true;
     }
 
+    override proc _doNonNilableElementChecks() {
+      if !_shouldDoNonNilableChecks then
+        halt('internal error in _doNonNilableChecks');
+
+      if isNonNilableClass(eltType) {
+        for idx in dom {
+          ref slot = dsiAccess(idx);
+          if slot == nil then
+            halt('One or more elements of a non-nilable array ' +
+                 'remain uninitialized');
+        }
+      }
+    }
+
     override proc dsiElementDeinitializationComplete() {
       deinitElts = false;
     }
@@ -1405,7 +1419,8 @@ module DefaultRectangular {
       if !actuallyResizing then
         return;
 
-      if !isDefaultInitializable(eltType) {
+
+      if !isDefaultInitializable(eltType) && !isNonNilableClass(eltType) {
         halt("Can't resize domains whose arrays' elements don't " +
              "have default values");
       } else if this.locale != here {
@@ -1426,17 +1441,44 @@ module DefaultRectangular {
             writeln("reallocating in-place");
 
           sizesPerDim(0) = reallocD.dsiDim(0).size;
-          data = _ddata_reallocate(data,
-                                   eltType,
-                                   oldSize=dom.dsiNumIndices,
-                                   newSize=reallocD.size);
+
+          if !_isElementManagementSuspended {
+            data = _ddata_reallocate(data,
+                                     eltType,
+                                     oldSize=dom.dsiNumIndices,
+                                     newSize=reallocD.size);
+          } else {
+            data = _ddata_reallocate(data,
+                                     eltType,
+                                     oldSize=dom.dsiNumIndices,
+                                     newSize=reallocD.size,
+                                     initElts=false);
+          }
+
           initShiftedData();
+
+          // TODO: Maybe parallelize this? Maybe move into function?
+          if isNonNilableClass(eltType) {
+            var keep = reallocD((...dom.ranges));
+            if _shouldDoNonNilableChecks {
+              for idx in reallocD {
+                if !dom.dsiMember((idx,)) {
+                  var slot = dsiAccess(idx):c_void_ptr;
+                  slot = nil;
+                }
+              }
+            }
+          }
+
         } else {
           var copy = new unmanaged DefaultRectangularArr(eltType=eltType,
                                                          rank=rank,
                                                          idxType=idxType,
                                                          stridable=reallocD._value.stridable,
                                                          dom=reallocD._value);
+
+          if _isElementManagementSuspended || _shouldDoNonNilableChecks then
+            halt('case not handled yet');
 
           var keep = reallocD((...dom.ranges));
           // Copy the preserved elements
