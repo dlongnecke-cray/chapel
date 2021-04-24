@@ -19,24 +19,32 @@ proc test() {
 
   fillRandom(arr, seed);
 
-  forall x in arr with (ref m1) do
-    if !m1.add(x, 1) then
-      manage m1.guard(x) as ref v { v += 1; }
-
-  // TODO: This could be a FCF, some day.
-  record incrementer {
-    proc this(const ref k, ref v) { v += 1; return none; }
+  // KERNEL: Building up a frequency table using map.guard()
+  {
+    forall x in arr with (ref m1) do
+      if !m1.add(x, 1) then
+        manage m1.guard(x) as ref v do
+          v += 1;
   }
 
-  forall x in arr with (ref m2) {
-    if !m2.add(x, 1) then m2.update(x, new incrementer());
+  // KERNEL: Building up a frequency table using map.update()
+  {
+    record incrementer {
+      proc this(const ref k, ref v) { v += 1; return none; }
+    }
+
+    forall x in arr with (ref m2) {
+      if !m2.add(x, 1) then
+        m2.update(x, new incrementer());
+    }
   }
 
+  // Assert that the two frequency tables are equal.
   var eq = homebrewMapEq(m1, m2);
   assert(eq);
 }
 
-// Run a bunch of times for consistency.
+// Run a bunch of times to check for races.
 for i in 1..#runs {
   test();
 }
