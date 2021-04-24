@@ -31,6 +31,7 @@ module Map {
   import ChapelLocks;
   private use HaltWrappers;
   private use ChapelHashtable;
+  private use CPtr;
 
   // Lock code lifted from modules/standard/List.chpl.
   // Maybe they should be combined into a Locks module.
@@ -334,6 +335,57 @@ module Map {
                       key.type:string + ', ' + val.type:string + ')');
 
       return updater(key, val);
+    }
+
+    pragma "no doc"
+    record mapUpdater {
+      var _isLocked = true;
+      var _mPtr;
+      var _vPtr;
+
+      proc init (ref m, ref v) {
+        _mPtr = c_ptrTo(m);
+        _vPtr = c_ptrTo(v);
+      }
+
+      // Let the destructor unlock if we escape the manager via a throw.
+      proc deinit() {
+        _leaveMapLock();
+      }
+
+      proc _leaveMapLock() {
+        if _isLocked {
+          ref m = _mPtr.deref();
+          _isLocked = false;
+          m._leave();
+        }
+      }
+
+      // TODO: Can this reference escape? Not sure...
+      proc enterThis() ref return _vPtr.deref();
+
+      proc leaveThis() {
+        _leaveMapLock();
+      }
+    }
+
+    /* Update a key in this map within the scope of a context manager. */
+    proc ref guard(const ref k: keyType) {
+        _enter();
+
+        var (isFull, slot) = table.findFullSlot(k);
+
+        // TODO: Once we iron out how context managers interact with throws,
+        // we could have this throw.
+        if !isFull {
+          _leave();
+          boundsCheckHalt('map index ' + k:string + ' out of bounds');
+        }
+
+      ref m = this;
+      ref v = table.table[slot].val;
+
+      return new mapUpdater(m, v);
     }
 
     pragma "no doc"
