@@ -1,6 +1,52 @@
+T1
+Declaring resource alias as 'var'
 default-init: (ptr = {x = 0})
-entering
-in block
+proc enterThis() const ref: r
+init=: (ptr = {x = 0})
+doing something
+foo
+leaving
+deinit: (ptr = {x = 0})
+deinit: (ptr = {x = 0})
+T2
+Declaring resource alias as 'ref'
+default-init: (ptr = {x = 0})
+proc enterThis() ref: r
+doing something
+foo
+leaving
+deinit: (ptr = {x = 0})
+T3
+Declaring resource alias as 'const ref'
+default-init: (ptr = {x = 0})
+proc enterThis() const ref: r
+doing something
+foo
+leaving
+deinit: (ptr = {x = 0})
+T4
+Declaring resource alias as 'var'
+default-init: (ptr = {x = 0})
+proc enterThis() const ref: r
+init=: (ptr = {x = 0})
+doing something
+foo
+leaving
+deinit: (ptr = {x = 0})
+deinit: (ptr = {x = 0})
+T5
+Declaring resource alias as 'ref'
+default-init: (ptr = {x = 0})
+proc enterThis() ref: r
+doing something
+foo
+leaving
+deinit: (ptr = {x = 0})
+T6
+Declaring resource alias as 'const ref'
+default-init: (ptr = {x = 0})
+proc enterThis() const ref: r
+doing something
 foo
 leaving
 deinit: (ptr = {x = 0})

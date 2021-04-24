@@ -2192,34 +2192,57 @@ BlockStmt* buildLocalStmt(Expr* stmt) {
   }
 }
 
-BlockStmt* buildManageStmt(Expr* expr, const char* alias, BlockStmt* block) {
+BlockStmt* buildManageStmt(Expr* expr, std::set<Flag>* flags,
+                           const char* alias, BlockStmt* block) {
 
   // TODO: Attach FLAG_MANAGED_BLOCK to result block?
   auto result = new BlockStmt();
 
-  // Bind the management expression to a handle at the top of the block.
+  // Create a "manager handle"...
   auto managerHandle = newTemp("manager");
-  result->insertAtTail(new DefExpr(managerHandle, expr));
+  managerHandle->addFlag(FLAG_MANAGER_EXPR);
+  result->insertAtTail(new DefExpr(managerHandle));
+
+  // That refers to the management expression.
+  auto addrExpr = new CallExpr(PRIM_ADDR_OF, expr);
+  auto moveIntoHandle = new CallExpr(PRIM_MOVE, managerHandle, addrExpr);
+  result->insertAtTail(moveIntoHandle);
 
   // Build call to enterThis() (but don't insert into the tree yet)...
   auto seHandleEnter = new SymExpr(managerHandle);
   auto enter = new CallExpr("enterThis", gMethodToken, seHandleEnter);
 
-  // manage <expr> as <alias> { ... }
+  // manage <expr> as [storage] <alias> { ... }
   // If there is an alias, then the enterThis() method on the manager must
-  // return a value. Create a temp and move the result of enterThis() to it.
-  // Then create a ref <alias> that refers to the temp.
+  // return a value. Create a VarSymbol and initialize it with the
+  // enterThis() call.
   if (alias) {
-    auto enterTemp = newTemp();
-    result->insertAtTail(new DefExpr(enterTemp));
-    auto moveInitEnterTemp = new CallExpr(PRIM_MOVE, enterTemp, enter);
-    result->insertAtTail(moveInitEnterTemp);
     auto enterAlias = new VarSymbol(alias);
-    enterAlias->addFlag(FLAG_REF_VAR);
-    result->insertAtTail(new DefExpr(enterAlias, new SymExpr(enterTemp)));
-  } else {
 
-    // Otherwise, just make the call to enterThis().
+    // If flags exist, then it means the user specified some combination of
+    // 'var'/'const'/'ref'. In that case, initialize the alias as though
+    // it were a variable declaration with an initializer.
+    if (flags) {
+      for (auto f: *flags) enterAlias->addFlag(f);
+      delete flags;
+
+      result->insertAtTail(new DefExpr(enterAlias, enter));
+
+    // Otherwise, the alias may or may not be ref. Depends on what resolution
+    // finds. If there's only one return intent then prefer that. Otherwise,
+    // ref -> const ref -> val. This will be tweaked later in resolution.
+    // TODO: Do we want to support this form at all? Seems like it would be
+    // nice syntactic sugar.
+    } else {
+      USR_FATAL_CONT(expr, "Manage statement aliases without variable "
+                           "declaration type are not supported");
+      enterAlias->addFlag(FLAG_MAYBE_REF);
+    }
+
+
+
+  // Otherwise, just make the call to enterThis().
+  } else {
     result->insertAtTail(enter);
   }
 

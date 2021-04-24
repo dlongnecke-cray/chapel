@@ -1,0 +1,1 @@
+ContextManagerBoundNoVarDeclType.chpl:23: error: Manage statement aliases without variable declaration type are not supported

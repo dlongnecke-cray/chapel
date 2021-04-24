@@ -561,8 +561,9 @@ stmt:
 | TLOCAL expr do_stmt                  { $$ = buildLocalStmt($2, $3); }
 | TLOCAL do_stmt                       { $$ = buildLocalStmt($2); }
 | TON expr do_stmt                     { $$ = buildOnStmt($2, $3); }
-| TMANAGE expr block_stmt              { $$ = buildManageStmt($2, NULL, $3); }
-| TMANAGE expr TAS ident_def block_stmt { $$ = buildManageStmt($2, $4, $5); }
+| TMANAGE expr block_stmt              { $$ = buildManageStmt($2, NULL, NULL, $3); }
+| TMANAGE expr TAS ident_def block_stmt { $$ = buildManageStmt($2, NULL, $4, $5); }
+| TMANAGE expr TAS var_decl_type ident_def block_stmt { $$ = buildManageStmt($2, $4, $5, $6); }
 | TSERIAL expr do_stmt                 { $$ = buildSerialStmt($2, $3); }
 | TSERIAL do_stmt                      { $$ = buildSerialStmt(new SymExpr(gTrue), $2); }
 | TSYNC stmt                           { $$ = buildSyncStmt($2); }
