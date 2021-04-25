@@ -28,39 +28,11 @@
   mode of its originating map.
 */
 module Map {
-  import ChapelLocks;
-  private use HaltWrappers;
   private use ChapelHashtable;
+  private use ChapelLocks;
   private use CPtr;
-
-  // Lock code lifted from modules/standard/List.chpl.
-  // Maybe they should be combined into a Locks module.
-  pragma "no doc"
-  type _lockType = ChapelLocks.chpl_LocalSpinlock;
-
-  pragma "no doc"
-  class _LockWrapper {
-    var lock$ = new _lockType();
-
-    inline proc lock() {
-      lock$.lock();
-    }
-
-    inline proc unlock() {
-      lock$.unlock();
-    }
-  }
-
+  private use HaltWrappers;
   private use IO;
-
-  pragma "no doc"
-  inline proc checkForNonNilableClass(type t) type {
-    if isNonNilableClass(t) {
-      return t?;
-    } else {
-      return t;
-    }
-  }
 
   record map {
     /* Type of map keys. */
@@ -75,18 +47,20 @@ module Map {
     var table: chpl__hashtable(keyType, valType);
 
     pragma "no doc"
-    var _lock$ = if parSafe then new _LockWrapper() else none;
+    var _lock$ = if parSafe then new chpl_TaskAwareSpinlock() else none;
 
     pragma "no doc"
     inline proc _enter() {
       if parSafe then
-        _lock$.lock();
+        if _lock$.lock() then
+          halt('A task already holding a map\'s lock tried to lock it');
     }
 
     pragma "no doc"
     inline proc _leave() {
       if parSafe then
-        _lock$.unlock();
+        if _lock$.unlock() then
+          halt('A task not holding a map\'s lock tried to unlock it');
     }
 
     /*

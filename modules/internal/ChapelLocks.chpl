@@ -49,4 +49,76 @@ module ChapelLocks {
       l.clear(memoryOrder.release);
     }
   }
+
+  //
+  // An attempt at a spinlock that is aware of the task currently holding it.
+  // The lock() method will return true if the task holding the lock tries
+  // to lock it again, and the unlock() method will return true if a task not
+  // holding the lock tried to unlock it.
+  //
+  // The reason why this behavior is useful is for the implementation of the
+  // map.guard() method. If a task that has called map.guard() tries to call
+  // a method on the same map, it will deadlock. By using this spinlock, the
+  // map can issue a halt instead (or even throw, depending on the method).
+  //
+  class chpl_TaskAwareSpinlock {
+    var flag: atomic bool;
+    var task: atomic uint;
+
+    proc init() {}
+
+    inline proc _getTaskId(): uint {
+      extern proc chpl_task_getId(): uint;
+      return chpl_task_getId();
+    }
+
+    inline proc _getNullTaskId(): uint {
+      extern const chpl_nullTaskID: uint;
+      return chpl_nullTaskID;
+    }
+
+    // TODO: Tune the busy-wait loop number...
+    inline proc ref _acquireLock(): bool {
+      var counter = 16;
+      while counter do
+        if flag.read() || flag.testAndSet(memoryOrder.acquire) {
+          counter -= 1;
+        } else {
+          task.write(_getTaskId());
+          return true;
+        }
+
+      return false;
+    }
+
+    // Returns true if a task already holding the lock tried to lock it.
+    proc ref lock(): bool {
+      var result = false;
+
+      on this do
+        while !_acquireLock() do
+          if task.read() == _getTaskId() {
+            result = true;
+            break;
+          } else {
+            chpl_task_yield();
+          }
+
+      return result;
+    }
+
+    // Returns true if a task not holding the lock tried to unlock it.
+    proc ref unlock(): bool {
+      var result = false;
+      on this do
+        if task.read() != _getTaskId() {
+          result = true;
+        } else {
+          task.write(_getNullTaskId(), memoryOrder.release);
+          flag.clear(memoryOrder.release);
+        }
+
+      return result;
+    }
+  }
 }
