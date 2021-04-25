@@ -312,10 +312,10 @@ module Map {
     }
 
     pragma "no doc"
-    record mapUpdateManager {
-      var _isLocked = true;
+    record mapGuardManager {
       var _mPtr;
       var _vPtr;
+      var _isLocked = true;
 
       proc init (ref m, ref v) {
         _mPtr = c_ptrTo(m);
@@ -328,11 +328,9 @@ module Map {
       }
 
       proc _leaveMapLock() {
-        if _isLocked {
-          ref m = _mPtr.deref();
-          _isLocked = false;
-          m._leave();
-        }
+        if !_isLocked then return else _isLocked = false;
+        ref m = _mPtr.deref();
+        m._leave();
       }
 
       // TODO: Can this reference escape? Not sure...

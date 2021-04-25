@@ -1577,20 +1577,30 @@ module ChapelArray {
     }
 
     pragma "no doc"
-    record unsafeResizeManager {
+    record domainUnsafeResizeManager {
       var _instance;
       var _checks: bool;
+      var _isSuspended = true;
 
-      // Do nothing.
-      proc enterThis() {}
+      proc deinit() {
+        _unsuspend();
+      }
 
-      proc leaveThis() {
+      proc _unsuspend() {
+        if !_isSuspended then return else _isSuspended = false;
         for arr in _instance._arrs {
           if arr._hasNonNilableElementType() {
             if _checks then arr._doNonNilableElementChecks();
             arr._resumeElementManagement();
           }
         }
+      }
+
+      // Do nothing.
+      proc enterThis() {}
+
+      proc leaveThis() {
+        _unsuspend();
       }
     }
 
@@ -1604,7 +1614,7 @@ module ChapelArray {
       // Perform the resize.
       this = d;
  
-      return new unsafeResizeManager(_value, checks);
+      return new domainUnsafeResizeManager(_value, checks);
     }
 
     pragma "no doc"
