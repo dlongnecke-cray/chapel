@@ -1,11 +1,11 @@
-T1: context manager
+Unbound: context manager
 default-init: (ptr = {x = 0})
 entering
 in context manager
 leaving
 deinit: (ptr = {x = 0})
 
-T2: context manager with resource
+Bound: context manager with resource
 default-init: (ptr = {x = 0})
 entering
 in context manager
@@ -13,9 +13,12 @@ in context manager
 leaving
 deinit: (ptr = {x = 0})
 
-T3: resizing non-nilable array with context manager
+Resize: resizing non-nilable array with context manager
 {x = 1}
 {x = 1} {x = 2}
 
-T4: context manager to guard a map key
+Guard: context manager to guard a map key
 {1: 1, 2: 2, 3: 3}
+
+Relock: halt if map method is called in guard
+Demo.chpl:89: error: halt reached - A task already holding a map's lock tried to lock it
