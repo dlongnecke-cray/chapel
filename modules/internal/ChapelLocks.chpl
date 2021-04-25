@@ -80,6 +80,7 @@ module ChapelLocks {
     // TODO: Tune the busy-wait loop number...
     inline proc ref _acquireLock(): bool {
       var counter = 16;
+
       while counter do
         if flag.read() || flag.testAndSet(memoryOrder.acquire) {
           counter -= 1;
@@ -96,13 +97,14 @@ module ChapelLocks {
       var result = false;
 
       on this do
-        while !_acquireLock() do
+        if !_acquireLock() {
           if task.read() == _getTaskId() {
             result = true;
-            break;
           } else {
-            chpl_task_yield();
+            while !_acquireLock() do
+              chpl_task_yield();
           }
+        }
 
       return result;
     }
@@ -110,6 +112,7 @@ module ChapelLocks {
     // Returns true if a task not holding the lock tried to unlock it.
     proc ref unlock(): bool {
       var result = false;
+
       on this do
         if task.read() != _getTaskId() {
           result = true;

@@ -13,6 +13,7 @@ proc test1() {
     writeln('in context manager');
 }
 test1();
+writeln();
 
 // Demonstrate using a context manager that returns a number as a resource.
 proc test2() {
@@ -27,6 +28,7 @@ proc test2() {
   }
 }
 test2();
+writeln();
 
 // Demonstrate using a context manager to resize an array of non-nilable.
 proc test3() {
@@ -45,6 +47,7 @@ proc test3() {
   writeln(A);
 }
 test3();
+writeln();
 
 // Demonstrate using a context manager to guard a key in a map.
 proc test4() {
@@ -61,4 +64,4 @@ proc test4() {
   writeln(m);
 }
 test4();
-  
+

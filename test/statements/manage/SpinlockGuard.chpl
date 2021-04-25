@@ -29,9 +29,8 @@ proc test() {
 
   // TODO: If I remove the task-intent clause the whole thing breaks.
   coforall i in 1..#hi with (ref lockedList) do
-    manage lockedList as ref lst {
+    manage lockedList as ref lst do
       lst.append(i);
-    }
 
   manage lockedList as ref lst {
     lst.sort();

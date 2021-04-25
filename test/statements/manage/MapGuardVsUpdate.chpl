@@ -1,6 +1,7 @@
 use Map;
 use Random;
 
+// TODO: Can remove this once we fix bugs with map equality operator...
 proc homebrewMapEq(m1, m2) {
   if m1.size != m2.size then return false;
   for k in m1.keys() do

@@ -8,6 +8,7 @@ proc test() {
 
   writeln(A);
 
+  // Intentionally skip initializing an element here...
   manage D.unsafeResize({0..1}, checks=true) {}
 
   writeln(A);

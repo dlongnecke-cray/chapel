@@ -1074,7 +1074,7 @@ module DefaultRectangular {
 
     override proc _doNonNilableElementChecks() {
       if !_shouldDoNonNilableChecks then
-        halt('internal error in _doNonNilableChecks');
+        halt('internal error in _doNonNilableElementChecks');
 
       if isNonNilableClass(eltType) {
         for idx in dom {
@@ -1458,9 +1458,9 @@ module DefaultRectangular {
           initShiftedData();
 
           // TODO: Maybe parallelize this? Maybe move into function?
-          if isNonNilableClass(eltType) {
-            var keep = reallocD((...dom.ranges));
-            if _shouldDoNonNilableChecks {
+          if _shouldDoNonNilableChecks {
+            if isNonNilableClass(eltType) {
+              var keep = reallocD((...dom.ranges));
               for idx in reallocD {
                 if !dom.dsiMember((idx,)) {
                   var slot = dsiAccess(idx):c_void_ptr;

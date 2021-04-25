@@ -1,6 +1,5 @@
 use Map;
 
-
 proc test() {
   var m: map(int, int, parSafe=true);
   m.add(0,0);

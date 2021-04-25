@@ -691,7 +691,7 @@ module ChapelDistribution {
     var _decEltRefCounts : bool = false;
 
     var _isElementManagementSuspended = false;
-    var _shouldDoNonNilableChecks = true;
+    var _shouldDoNonNilableChecks = false;
 
     proc chpl__rvfMe() param {
       return false;

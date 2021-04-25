@@ -1,1 +1,1 @@
-MapGuardHalt.chpl:10: error: halt reached - A task already holding a map's lock tried to lock it
+MapGuardHalt.chpl:9: error: halt reached - A task already holding a map's lock tried to lock it

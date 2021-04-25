@@ -2239,8 +2239,6 @@ BlockStmt* buildManageStmt(Expr* expr, std::set<Flag>* flags,
       enterAlias->addFlag(FLAG_MAYBE_REF);
     }
 
-
-
   // Otherwise, just make the call to enterThis().
   } else {
     result->insertAtTail(enter);

@@ -312,7 +312,7 @@ module Map {
     }
 
     pragma "no doc"
-    record mapUpdater {
+    record mapUpdateManager {
       var _isLocked = true;
       var _mPtr;
       var _vPtr;
@@ -359,7 +359,7 @@ module Map {
       ref m = this;
       ref v = table.table[slot].val;
 
-      return new mapUpdater(m, v);
+      return new mapUpdateManager(m, v);
     }
 
     pragma "no doc"

@@ -1,2 +1,2 @@
 {x = 0}
-UnsafeResizeDomainChecksFail.chpl:11: error: halt reached - One or more elements of a non-nilable array remain uninitialized
+UnsafeResizeDomainChecksFail.chpl:12: error: halt reached - One or more elements of a non-nilable array remain uninitialized
