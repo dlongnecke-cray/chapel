@@ -1587,7 +1587,7 @@ module ChapelArray {
       }
 
       proc _unsuspend() {
-        if !_isSuspended then return else _isSuspended = false;
+        if !_isSuspended then return; else _isSuspended = false;
         for arr in _instance._arrs {
           if arr._hasNonNilableElementType() {
             if _checks then arr._doNonNilableElementChecks();

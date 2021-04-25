@@ -97,14 +97,13 @@ module ChapelLocks {
       var result = false;
 
       on this do
-        if !_acquireLock() {
+        if !_acquireLock() then
           if task.read() == _getTaskId() {
             result = true;
           } else {
             while !_acquireLock() do
               chpl_task_yield();
           }
-        }
 
       return result;
     }

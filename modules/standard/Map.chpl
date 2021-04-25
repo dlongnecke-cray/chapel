@@ -328,7 +328,7 @@ module Map {
       }
 
       proc _leaveMapLock() {
-        if !_isLocked then return else _isLocked = false;
+        if !_isLocked then return; else _isLocked = false;
         ref m = _mPtr.deref();
         m._leave();
       }
@@ -357,7 +357,7 @@ module Map {
       ref m = this;
       ref v = table.table[slot].val;
 
-      return new mapUpdateManager(m, v);
+      return new mapGuardManager(m, v);
     }
 
     pragma "no doc"
