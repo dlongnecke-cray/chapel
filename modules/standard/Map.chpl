@@ -34,6 +34,28 @@ module Map {
   private use HaltWrappers;
   private use IO;
 
+  pragma "no doc"
+  class _LockWrapperFast {
+    var _lock = new chpl_LocalSpinlock();
+    proc lock() { _lock.lock(); return false; }
+    proc unlock() { _lock.unlock(); }
+  }
+
+  pragma "no doc"
+  class _LockWrapperSafe {
+    var _lock = new chpl_TaskAwareSpinlock();
+    proc lock() { return _lock.lock(); }
+    proc unlock() { _lock.unlock(); }
+  }
+
+  // TODO: Is a 2x lock overhead worth same-thread-deadlock detection?
+  // It seems like the map.guard() pattern is too easy to get wrong,
+  // otherwise. We swap to simple spinlocks when going --fast, though.
+  pragma "no doc"
+  type _LockWrapper = if boundsChecking
+    then _LockWrapperSafe
+    else _LockWrapperFast;
+
   record map {
     /* Type of map keys. */
     type keyType;
@@ -47,20 +69,21 @@ module Map {
     var table: chpl__hashtable(keyType, valType);
 
     pragma "no doc"
-    var _lock$ = if parSafe then new chpl_TaskAwareSpinlock() else none;
+    var _lock$ = if parSafe then new _LockWrapper() else none;
 
     pragma "no doc"
     inline proc _enter() {
       if parSafe then
-        if _lock$.lock() then
-          halt('A task already holding a map\'s lock tried to lock it');
+        on this do
+          if _lock$.lock() then
+            halt('A task already holding a map\'s lock tried to lock it');
     }
 
     pragma "no doc"
     inline proc _leave() {
       if parSafe then
-        if _lock$.unlock() then
-          halt('A task not holding a map\'s lock tried to unlock it');
+        on this do
+          _lock$.unlock();
     }
 
     /*
@@ -311,15 +334,35 @@ module Map {
       return updater(key, val);
     }
 
+
+
     pragma "no doc"
     record mapGuardManager {
-      var _mPtr;
-      var _vPtr;
-      var _isLocked = true;
+      type M;
+      type K;
+      var _mPtr: c_ptr(M);
+      var _kPtr: c_ptr(K);
+      var _isLocked = false;
 
-      proc init (ref m, ref v) {
+      // TODO: When we support const references within records, this can be
+      // replaced with a const reference, instead of just straight up
+      // breaking the type system.
+      pragma "no doc"
+      proc _getPtrConstBreaking(const ref x: ?t): c_ptr(t) {
+        extern proc c_pointer_return(const ref x: t): c_ptr(t);
+        return c_pointer_return(x);
+      }
+
+      // The implementation of map.guard() should already ensure that the
+      // lifetime of the key is greater than the map. So now we just ensure
+      // that the lifetime of the manager is less than the map.
+      proc init (ref m, const ref k) lifetime this < m {
+        this.M = m.type;
+        this.K = k.type;
+        this.complete();
+
         _mPtr = c_ptrTo(m);
-        _vPtr = c_ptrTo(v);
+        _kPtr = _getPtrConstBreaking(k);
       }
 
       // Let the destructor unlock if we escape the manager via a throw.
@@ -334,7 +377,28 @@ module Map {
       }
 
       // TODO: Can this reference escape? Not sure...
-      proc enterThis() ref return _vPtr.deref();
+      proc enterThis() ref {
+        ref m = _mPtr.deref();
+        ref k = _kPtr.deref();
+
+        // Enter critical section.
+        m._enter();
+
+        var (isFull, slot) = m.table.findFullSlot(k);
+
+        // TODO: Once we iron out how context managers interact with throws,
+        // we could have this throw.
+        if !isFull {
+          m._leave();
+          boundsCheckHalt('map index ' + k:string + ' out of bounds');
+        }
+
+        ref result = m.table.table[slot].val;
+
+        _isLocked = true;
+
+        return result;
+      }
 
       proc leaveThis() {
         _leaveMapLock();
@@ -342,22 +406,8 @@ module Map {
     }
 
     /* Update a key in this map within the scope of a context manager. */
-    proc ref guard(const ref k: keyType) {
-        _enter();
-
-        var (isFull, slot) = table.findFullSlot(k);
-
-        // TODO: Once we iron out how context managers interact with throws,
-        // we could have this throw.
-        if !isFull {
-          _leave();
-          boundsCheckHalt('map index ' + k:string + ' out of bounds');
-        }
-
-      ref m = this;
-      ref v = table.table[slot].val;
-
-      return new mapGuardManager(m, v);
+    proc ref guard(const ref k: keyType) lifetime k > this {
+      return new mapGuardManager(this, k);
     }
 
     pragma "no doc"
