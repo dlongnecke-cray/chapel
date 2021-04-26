@@ -1578,9 +1578,12 @@ module ChapelArray {
 
     pragma "no doc"
     record domainUnsafeResizeManager {
-      var _instance;
+      var _instanceLhs;
+      var _pidLhs: int;
+      var _instanceRhs;
+      var _pidRhs: int;
       var _checks: bool;
-      var _isSuspended = true;
+      var _isSuspended = false;
 
       proc deinit() {
         _unsuspend();
@@ -1588,7 +1591,8 @@ module ChapelArray {
 
       proc _unsuspend() {
         if !_isSuspended then return; else _isSuspended = false;
-        for arr in _instance._arrs {
+
+        for arr in _instanceLhs._arrs {
           if arr._hasNonNilableElementType() {
             if _checks then arr._doNonNilableElementChecks();
             arr._resumeElementManagement();
@@ -1596,8 +1600,20 @@ module ChapelArray {
         }
       }
 
-      // Do nothing.
-      proc enterThis() {}
+      proc enterThis() {
+        if _isSuspended then return; else _isSuspended = true;
+
+        for arr in _instanceLhs._arrs do
+          if arr._hasNonNilableElementType() then
+            arr._suspendElementManagement(_checks);
+
+        // TODO: Is this OK? No memory leaks/corruption?
+        var lhs = new _domain(_pidLhs, _instanceLhs, _unowned=true);
+        var rhs = new _domain(_pidRhs, _instanceRhs, _unowned=true);
+
+        // Perform the resize.
+        lhs = rhs;
+      }
 
       proc leaveThis() {
         _unsuspend();
@@ -1607,14 +1623,8 @@ module ChapelArray {
     /* Perform an unsafe resize of this array from within the scope of a
        management block. */
     proc ref unsafeResize(const ref d: domain, checks=false) {
-        for arr in _value._arrs do
-          if arr._hasNonNilableElementType() then
-            arr._suspendElementManagement(checks);
-
-      // Perform the resize.
-      this = d;
- 
-      return new domainUnsafeResizeManager(_value, checks);
+      return new domainUnsafeResizeManager(_value, _pid, d._value,
+                                           d._pid, checks);
     }
 
     pragma "no doc"
