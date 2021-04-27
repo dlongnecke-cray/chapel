@@ -1,0 +1,24 @@
+Unbound: context manager
+default-init: (ptr = {x = 0})
+entering
+in context manager
+leaving
+deinit: (ptr = {x = 0})
+
+Bound: context manager with resource
+default-init: (ptr = {x = 0})
+entering
+in context manager
+32
+leaving
+deinit: (ptr = {x = 0})
+
+Resize: resizing non-nilable array with context manager
+{x = 1}
+{x = 1} {x = 2}
+
+Guard: context manager to guard a map key
+{1: 1, 2: 2, 3: 3}
+
+Relock: halt if map method is called in guard
+DemoNewSyntax.chpl:89: error: halt reached - A task already holding a map's lock tried to lock it

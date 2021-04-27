@@ -562,6 +562,8 @@ stmt:
 | TLOCAL do_stmt                       { $$ = buildLocalStmt($2); }
 | TON expr do_stmt                     { $$ = buildOnStmt($2, $3); }
 | TMANAGE expr do_stmt                 { $$ = buildManageStmt($2, NULL, NULL, $3); }
+| TMANAGE ident_def TIN expr do_stmt   { $$ = buildManageStmt($4, NULL, $2, $5); }
+| TMANAGE var_decl_type ident_def TIN expr do_stmt { $$ = buildManageStmt($5, $2, $3, $6); }
 | TMANAGE expr TAS ident_def do_stmt   { $$ = buildManageStmt($2, NULL, $4, $5); }
 | TMANAGE expr TAS var_decl_type ident_def do_stmt { $$ = buildManageStmt($2, $4, $5, $6); }
 | TSERIAL expr do_stmt                 { $$ = buildSerialStmt($2, $3); }

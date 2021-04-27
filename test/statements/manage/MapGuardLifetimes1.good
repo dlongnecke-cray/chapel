@@ -1,0 +1,3 @@
+MapGuardLifetimes1.chpl:3: In function 'test':
+MapGuardLifetimes1.chpl:4: error: Scoped variable g reachable after lifetime ends
+MapGuardLifetimes1.chpl:7: note: consider scope of m

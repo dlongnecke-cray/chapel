@@ -69,7 +69,7 @@ module Map {
     var table: chpl__hashtable(keyType, valType);
 
     pragma "no doc"
-    var _lock$ = if parSafe then new _LockWrapper() else none;
+    var _lock$ = if parSafe then new owned _LockWrapper() else none;
 
     pragma "no doc"
     inline proc _enter() {
@@ -344,6 +344,9 @@ module Map {
       var _kPtr: c_ptr(K);
       var _isLocked = false;
 
+      // Force some small measure of borrow checking for this.
+      var _forceBorrowChecking: borrowed _LockWrapper?;
+
       // TODO: When we support const references within records, this can be
       // replaced with a const reference, instead of just straight up
       // breaking the type system.
@@ -356,12 +359,12 @@ module Map {
       // The implementation of map.guard() should already ensure that the
       // lifetime of the key is greater than the map. So now we just ensure
       // that the lifetime of the manager is less than the map.
-      proc init (ref m, const ref k) lifetime this < m {
+      proc init (const ref m, const ref k) lifetime this < m {
         this.M = m.type;
         this.K = k.type;
         this.complete();
 
-        _mPtr = c_ptrTo(m);
+        _mPtr = _getPtrConstBreaking(m);
         _kPtr = _getPtrConstBreaking(k);
       }
 
@@ -406,7 +409,7 @@ module Map {
     }
 
     /* Update a key in this map within the scope of a context manager. */
-    proc ref guard(const ref k: keyType) lifetime k > this {
+    proc const guard(const ref k: keyType) lifetime k > this {
       return new mapGuardManager(this, k);
     }
 
