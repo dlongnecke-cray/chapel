@@ -1,0 +1,137 @@
+T1
+default-init: (ptr = {x = 0})
+entering
+doing something
+leaving
+deinit: (ptr = {x = 0})
+T2
+default-init: (ptr = {x = 0})
+entering
+doing something
+leaving
+deinit: (ptr = {x = 0})
+T3
+default-init: (ptr = {x = 0})
+entering
+doing something
+leaving
+deinit: (ptr = {x = 0})
+T4
+default-init: (ptr = {x = 0})
+entering
+default-init: (ptr = {x = 0})
+entering
+doing something
+leaving
+leaving
+deinit: (ptr = {x = 0})
+deinit: (ptr = {x = 0})
+T5
+default-init: (ptr = {x = 0})
+default-init: (ptr = {x = 0})
+entering
+entering
+doing something
+leaving
+leaving
+deinit: (ptr = {x = 0})
+deinit: (ptr = {x = 0})
+T6
+Resource is var
+default-init: (ptr = {x = 0})
+proc rRes.enterThis() const ref: rRes
+init=: (ptr = {x = 0})
+doing something with resource
+proc rRes.leaveThis()
+deinit: (ptr = {x = 0})
+deinit: (ptr = {x = 0})
+T7
+Resource is ref
+default-init: (ptr = {x = 0})
+proc rRes.enterThis() ref: rRes
+doing something with resource
+proc rRes.leaveThis()
+deinit: (ptr = {x = 0})
+T8
+Resource is const ref
+default-init: (ptr = {x = 0})
+proc rRes.enterThis() const ref: rRes
+doing something with resource
+proc rRes.leaveThis()
+deinit: (ptr = {x = 0})
+T9
+Resource is var
+default-init: (ptr = {x = 0})
+proc rRes.enterThis() const ref: rRes
+init=: (ptr = {x = 0})
+doing something with resource
+proc rRes.leaveThis()
+deinit: (ptr = {x = 0})
+deinit: (ptr = {x = 0})
+T10
+Resource is ref
+default-init: (ptr = {x = 0})
+proc rRes.enterThis() ref: rRes
+doing something with resource
+proc rRes.leaveThis()
+deinit: (ptr = {x = 0})
+T11
+Resource is const ref
+default-init: (ptr = {x = 0})
+proc rRes.enterThis() const ref: rRes
+doing something with resource
+proc rRes.leaveThis()
+deinit: (ptr = {x = 0})
+T12
+Mixed resource storage types, managers are new expressions
+default-init: (ptr = {x = 0})
+proc rRes.enterThis() const ref: rRes
+init=: (ptr = {x = 0})
+default-init: (ptr = {x = 0})
+proc rRes.enterThis() ref: rRes
+default-init: (ptr = {x = 0})
+proc rRes.enterThis() const ref: rRes
+doing something with resource
+doing something with resource
+doing something with resource
+proc rRes.leaveThis()
+proc rRes.leaveThis()
+proc rRes.leaveThis()
+deinit: (ptr = {x = 0})
+deinit: (ptr = {x = 0})
+deinit: (ptr = {x = 0})
+deinit: (ptr = {x = 0})
+T13
+Mixed resource storage types, managers are identifiers
+default-init: (ptr = {x = 0})
+default-init: (ptr = {x = 0})
+default-init: (ptr = {x = 0})
+proc rRes.enterThis() const ref: rRes
+init=: (ptr = {x = 0})
+proc rRes.enterThis() ref: rRes
+proc rRes.enterThis() const ref: rRes
+doing something with resource
+doing something with resource
+doing something with resource
+proc rRes.leaveThis()
+proc rRes.leaveThis()
+proc rRes.leaveThis()
+deinit: (ptr = {x = 0})
+deinit: (ptr = {x = 0})
+deinit: (ptr = {x = 0})
+deinit: (ptr = {x = 0})
+T14
+Mixed resource storage types, use one manager multiple times
+default-init: (ptr = {x = 0})
+proc rRes.enterThis() const ref: rRes
+init=: (ptr = {x = 0})
+proc rRes.enterThis() ref: rRes
+proc rRes.enterThis() const ref: rRes
+doing something with resource
+doing something with resource
+doing something with resource
+proc rRes.leaveThis()
+proc rRes.leaveThis()
+proc rRes.leaveThis()
+deinit: (ptr = {x = 0})
+deinit: (ptr = {x = 0})

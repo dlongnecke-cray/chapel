@@ -2192,15 +2192,15 @@ BlockStmt* buildLocalStmt(Expr* stmt) {
   }
 }
 
-BlockStmt* buildManageStmt(Expr* expr, std::set<Flag>* flags,
-                           const char* alias, BlockStmt* block) {
+BlockStmt* buildManagerEntry(std::set<Flag>* flags, const char* alias,
+                             Expr* expr) {
 
-  // TODO: Attach FLAG_MANAGED_BLOCK to result block?
-  auto result = new BlockStmt();
+  // Scopeless because we'll flatten this into place later.
+  auto result = new BlockStmt(BLOCK_SCOPELESS);
 
   // Create a "manager handle"...
   auto managerHandle = newTemp("manager");
-  managerHandle->addFlag(FLAG_MANAGER_EXPR);
+  managerHandle->addFlag(FLAG_MANAGER_HANDLE);
   result->insertAtTail(new DefExpr(managerHandle));
 
   // That refers to the management expression.
@@ -2212,7 +2212,6 @@ BlockStmt* buildManageStmt(Expr* expr, std::set<Flag>* flags,
   auto seHandleEnter = new SymExpr(managerHandle);
   auto enter = new CallExpr("enterThis", gMethodToken, seHandleEnter);
 
-  // manage <expr> as [storage] <alias> { ... }
   // If there is an alias, then the enterThis() method on the manager must
   // return a value. Create a VarSymbol and initialize it with the
   // enterThis() call.
@@ -2244,13 +2243,55 @@ BlockStmt* buildManageStmt(Expr* expr, std::set<Flag>* flags,
     result->insertAtTail(enter);
   }
 
+  return result;
+}
+
+// Managers contains a list of Expr that can be pulled apart, and block
+// is the managed block.
+BlockStmt* buildManageStmt(BlockStmt* managers, BlockStmt* block) {
+
+  // TODO: Attach FLAG_MANAGED_BLOCK to result block?
+  auto result = new BlockStmt();
+
+  // Find the manager handles from various blocks and hold onto them.
+  std::vector<VarSymbol*> managerHandles;
+
+  for_alist(manager, managers->body) {
+    if (BlockStmt* block = toBlockStmt(manager)) {
+      bool managerFound = false;
+
+      for_alist(expr, block->body) {
+        if (DefExpr* managerDefExpr = toDefExpr(expr)) {
+          if (VarSymbol* var = toVarSymbol(managerDefExpr->sym)) {
+            if (var->hasFlag(FLAG_MANAGER_HANDLE)) {
+              managerHandles.push_back(var);
+              managerFound = true;
+            }
+          }
+        }
+      }
+
+      // Just insert the code for the manager entry and flatten it.
+      if (managerFound) {
+        block->remove();
+        result->insertAtTail(block);
+        block->flattenAndRemove();
+      } else {
+        INT_FATAL(block, "Failed to find manager handle");
+      }
+    } else {
+      INT_FATAL(manager, "Expected block when unpacking manager handles");
+    }
+  }
+
   // Insert the managed block.
   result->insertAtTail(block);
 
-  // Have the manager call leaveThis()...
-  auto seHandleLeave = new SymExpr(managerHandle);
-  auto leave = new CallExpr("leaveThis", gMethodToken, seHandleLeave);
-  result->insertAtTail(leave);
+  // For each manager handle, have the handle call leaveThis()...
+  for (auto vs : managerHandles) {
+    auto leave = new CallExpr("leaveThis", gMethodToken, new SymExpr(vs));
+    result->insertAtTail(leave);
+  }
 
   return result;
 }

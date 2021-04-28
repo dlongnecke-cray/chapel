@@ -1408,7 +1408,7 @@ static void markTempsDeadLastMention(std::set<VarSymbol*>& temps) {
 
             // The manager expr is used to drive context management blocks,
             // and should stay alive until the end of the block.
-            } else if (lhs->hasFlag(FLAG_MANAGER_EXPR)) {
+            } else if (lhs->hasFlag(FLAG_MANAGER_HANDLE)) {
               makeThemEndOfBlock = true;
               break;
             }

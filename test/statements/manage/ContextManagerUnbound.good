@@ -1,5 +1,0 @@
-default-init: (ptr = {x = 0})
-entering
-in block
-leaving
-deinit: (ptr = {x = 0})
