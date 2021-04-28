@@ -54,7 +54,7 @@ module Map {
   pragma "no doc"
   type _LockWrapper = if boundsChecking
     then _LockWrapperSafe
-    else _LockWrapperFast;
+    else _LockWrapperSafe;
 
   record map {
     /* Type of map keys. */

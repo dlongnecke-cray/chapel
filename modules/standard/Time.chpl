@@ -186,6 +186,16 @@ record Timer {
     }
   }
 
+  pragma "no doc"
+  proc enterThis() {
+    start();
+  }
+
+  pragma "no doc"
+  proc leaveThis() {
+    stop();
+  }
+
   /*
      Returns the cumulative elapsed time, in the units specified, between
      all pairs of calls to :proc:`start` and :proc:`stop`

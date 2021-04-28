@@ -59,14 +59,14 @@ module ChapelLocks {
     var t2: atomic T2;
 
     inline proc read(): (T1, T2) {
-      var x1 = t1.read();
-      var x2 = t2.read();
+      var x1 = t1.read(memoryOrder.relaxed);
+      var x2 = t2.read(memoryOrder.relaxed);
       return (x1, x2);
     }
 
     inline proc write(in origin: (T1, T2)) {
-      t1.write(origin[0]);
-      t2.write(origin[1]);
+      t1.write(origin[0], memoryOrder.relaxed);
+      t2.write(origin[1], memoryOrder.relaxed);
     }
   }
 
@@ -81,7 +81,7 @@ module ChapelLocks {
   // a method on the same map, it will deadlock. By using this spinlock, the
   // map can issue a halt instead (or even throw, depending on the method).
   //
-  class chpl_TaskAwareSpinlock {
+  record chpl_TaskAwareSpinlock {
     var owner: chpl_origin(uint, int);
     var flag: atomic bool;
 
@@ -105,7 +105,7 @@ module ChapelLocks {
     }
 
     inline proc ref _acquire(origin): bool {
-      if flag.read() || flag.testAndSet() {
+      if flag.read() || flag.testAndSet(memoryOrder.acquire) {
         chpl_task_yield();
         return false;
       } else {
@@ -140,7 +140,7 @@ module ChapelLocks {
     proc ref unlock() {
       on this {
         owner.write((_getNullTaskId(), -1));
-        flag.clear();
+        flag.clear(memoryOrder.release);
       }
     }
   }
