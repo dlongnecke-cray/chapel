@@ -359,7 +359,7 @@ module Map {
       // The implementation of map.guard() should already ensure that the
       // lifetime of the key is greater than the map. So now we just ensure
       // that the lifetime of the manager is less than the map.
-      proc init (const ref m, const ref k) lifetime this < m {
+      proc init(const ref m, const ref k) lifetime this < m {
         this.M = m.type;
         this.K = k.type;
         this.complete();
