@@ -4,7 +4,7 @@ proc r.enterThis() {
   writeln('entering');
 }
 
-proc r.leaveThis() {
+proc r.leaveThis(e: owned Error?) {
   writeln('leaving');
 }
 
@@ -26,7 +26,7 @@ record rRes {
     return this;
   }
 
-  proc leaveThis() {
+  proc leaveThis(e: owned Error?) {
     writeln('proc rRes.leaveThis()');
   }
 

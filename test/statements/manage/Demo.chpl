@@ -10,7 +10,7 @@ proc demo1() {
 
   // These methods are required for 'r' to be used as a manager.
   proc r.enterThis() { writeln('entering'); }
-  proc r.leaveThis() { writeln('leaving'); }
+  proc r.leaveThis(e: borrowed Error?) { writeln('leaving'); }
 
   // Call r.enterThis(), execute the block, then r.leaveThis():
   manage new r() do
@@ -23,7 +23,7 @@ proc demo2() {
 
   // This time, we have enterThis() return an int as a resource.
   proc r.enterThis() { writeln('entering'); return 32; }
-  proc r.leaveThis() { writeln('leaving'); }
+  proc r.leaveThis(e: borrowed Error?) { writeln('leaving'); }
 
   // We gain access to 'number' within the managed block.
   manage new r() as var number {

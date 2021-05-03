@@ -1,0 +1,15 @@
+default-init: (ptr = {x = 0})
+entering
+resource: 32
+leaving
+deinit: (ptr = {x = 0})
+default-init: (ptr = {x = 0})
+entering
+default-init: (ptr = {x = 0})
+entering
+resource1: 32
+resource2: 32
+leaving
+deinit: (ptr = {x = 0})
+leaving
+deinit: (ptr = {x = 0})

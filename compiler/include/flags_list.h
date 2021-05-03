@@ -188,7 +188,11 @@ symbolFlag( FLAG_INDEX_VAR , npr, "index var" , ncm )
 
 // Used to keep the expression passed to a context manager alive if it is
 // a temporary (e.g. the result of a call).
-symbolFlag( FLAG_MANAGER_HANDLE, npr, "manager handle", ncm)
+symbolFlag( FLAG_MANAGER_HANDLE, npr, "manager handle", ncm )
+
+// When lowering error handling, emit a more specific error if we are in a
+// context manager and the rethrow is not handled outside of the manager.
+symbolFlag( FLAG_MANAGER_RETHROW_CHECK, npr, "manager rethrow check", ncm )
 
 // This can also mark a temp that serves as an intermediate step of
 // destructuring a tuple-typed FLAG_INDEX_OF_INTEREST variable

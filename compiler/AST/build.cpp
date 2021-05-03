@@ -2192,18 +2192,77 @@ BlockStmt* buildLocalStmt(Expr* stmt) {
   }
 }
 
+//
+//  try {
+//    <next manager or user block>
+//  } catch chpl_tmp_err {
+//    errorWasThrown = true;
+//    manager.leaveThis(chpl_tmp_err);
+//  }
+//
+static TryStmt* buildManagerTryCatchBlock(VarSymbol* managerHandle,
+                                          VarSymbol* errorWasThrown) {
+
+  // Use the following name for the error variable since the builders for
+  // try/catch don't seem to support using a temporary.
+  const char* errName = "chpl_tmp_err";
+
+  // Construct the catch block.
+  auto catchBlock = new BlockStmt();
+
+  // BUILD: errorWasThrown = true;
+  catchBlock->insertAtTail(new CallExpr(PRIM_MOVE,
+                                  new SymExpr(errorWasThrown),
+                                  new SymExpr(new_BoolSymbol(true))));
+
+  // BUILD: manager.leaveThis(chpl_tmp_err);
+  auto seManagerHandle = new SymExpr(managerHandle);
+  auto leave = new CallExpr("leaveThis",
+                            gMethodToken,
+                            seManagerHandle,
+                            new UnresolvedSymExpr(errName));
+  catchBlock->insertAtTail(leave);
+
+  // BUILD: catch chpl_tmp_err { ... }
+  auto catchStmt = CatchStmt::build(errName, catchBlock);
+
+  // Build the entire try/catch.
+  auto catchList = new BlockStmt();
+  catchList->insertAtTail(catchStmt);
+  auto result = new TryStmt(false, new BlockStmt(), catchList);
+
+  return result;
+}
+
+//
+//  manage var myResource in myManager() { <next manager or user block> }
+//
+//  Is lowered into:
+//
+//  {
+//    TEMP ref manager = new myManager();
+//    var myResource = manager.enterThis();
+//    TEMP var errorWasThrown = false;
+//    try {
+//      <next manager or user block>
+//    } catch chpl_tmp_err {
+//      errorWasThrown = true;
+//      manager.leaveThis(chpl_tmp_err);
+//    }
+//    if !errorWasThrown then
+//      manager.leaveThis(nil);
+//  }
+//
 BlockStmt* buildManagerEntry(std::set<Flag>* flags, const char* alias,
                              Expr* expr) {
 
-  // Scopeless because we'll flatten this into place later.
-  auto result = new BlockStmt(BLOCK_SCOPELESS);
+  auto result = new BlockStmt();
 
-  // Create a "manager handle"...
+  // BUILD: TEMP ref manager = new myManager();
   auto managerHandle = newTemp("manager");
   managerHandle->addFlag(FLAG_MANAGER_HANDLE);
   result->insertAtTail(new DefExpr(managerHandle));
 
-  // That refers to the management expression.
   auto addrExpr = new CallExpr(PRIM_ADDR_OF, expr);
   auto moveIntoHandle = new CallExpr(PRIM_MOVE, managerHandle, addrExpr);
   result->insertAtTail(moveIntoHandle);
@@ -2212,9 +2271,7 @@ BlockStmt* buildManagerEntry(std::set<Flag>* flags, const char* alias,
   auto seHandleEnter = new SymExpr(managerHandle);
   auto enter = new CallExpr("enterThis", gMethodToken, seHandleEnter);
 
-  // If there is an alias, then the enterThis() method on the manager must
-  // return a value. Create a VarSymbol and initialize it with the
-  // enterThis() call.
+  // BUILD: var myResource = manager.enterThis();
   if (alias) {
     auto enterAlias = new VarSymbol(alias);
 
@@ -2243,55 +2300,67 @@ BlockStmt* buildManagerEntry(std::set<Flag>* flags, const char* alias,
     result->insertAtTail(enter);
   }
 
+  // BUILD: TEMP var errorWasThrown = false;
+  auto errorWasThrown = newTemp("errorWasThrown");
+  result->insertAtTail(new DefExpr(errorWasThrown, new_BoolSymbol(false)));
+
+  // Construct the try/catch block.
+  auto tryCatch = buildManagerTryCatchBlock(managerHandle, errorWasThrown);
+  result->insertAtTail(tryCatch);
+
+  // BUILD: if !errorWasThrown then manager.leaveThis(nil);
+  auto ifCond = new CallExpr(PRIM_UNARY_LNOT, new SymExpr(errorWasThrown));
+  auto ifBranch = new CallExpr("leaveThis",
+                          gMethodToken,
+                          new SymExpr(managerHandle),
+                          gNil);
+  auto ifStmt = new CondStmt(ifCond, ifBranch);
+  result->insertAtTail(ifStmt);
+
   return result;
 }
 
-// Managers contains a list of Expr that can be pulled apart, and block
-// is the managed block.
+//
+// Managers is a list of individual context manager blocks that are already
+// lowered (see the desugaring in buildManagerEntry). If there are multiple
+// managers, we nest them into each other from left to right. Finally, we
+// nest the user block into the last nested context manager. To perform
+// the nesting, we scroll through each context manager block until we hit
+// the try block, and then use the try block as our insertion point.
+//
 BlockStmt* buildManageStmt(BlockStmt* managers, BlockStmt* block) {
-
-  // TODO: Attach FLAG_MANAGED_BLOCK to result block?
   auto result = new BlockStmt();
 
-  // Find the manager handles from various blocks and hold onto them.
-  std::vector<VarSymbol*> managerHandles;
-
+  // Loop through and nest all context managers.
+  BlockStmt* insertionPoint = result;
   for_alist(manager, managers->body) {
     if (BlockStmt* block = toBlockStmt(manager)) {
-      bool managerFound = false;
+      bool hasFoundTryStmt = false;
 
-      for_alist(expr, block->body) {
-        if (DefExpr* managerDefExpr = toDefExpr(expr)) {
-          if (VarSymbol* var = toVarSymbol(managerDefExpr->sym)) {
-            if (var->hasFlag(FLAG_MANAGER_HANDLE)) {
-              managerHandles.push_back(var);
-              managerFound = true;
-            }
-          }
+      for_alist(stmt, block->body) {
+        if (TryStmt* tryStmt = toTryStmt(stmt)) {
+          hasFoundTryStmt = true;
+
+          // Insert the context manager at the appropriate point.
+          block->remove();
+          insertionPoint->insertAtTail(block);
+          block->flattenAndRemove();
+
+          // The manager's try body is empty, insert there next.
+          insertionPoint = tryStmt->body();
         }
       }
 
-      // Just insert the code for the manager entry and flatten it.
-      if (managerFound) {
-        block->remove();
-        result->insertAtTail(block);
-        block->flattenAndRemove();
-      } else {
-        INT_FATAL(block, "Failed to find manager handle");
-      }
+      INT_ASSERT(hasFoundTryStmt);
+
     } else {
-      INT_FATAL(manager, "Expected block when unpacking manager handles");
+      INT_FATAL(manager, "Expected block when nesting context managers");
     }
   }
 
   // Insert the managed block.
-  result->insertAtTail(block);
-
-  // For each manager handle, have the handle call leaveThis()...
-  for (auto vs : managerHandles) {
-    auto leave = new CallExpr("leaveThis", gMethodToken, new SymExpr(vs));
-    result->insertAtTail(leave);
-  }
+  insertionPoint->insertAtTail(block);
+  block->flattenAndRemove();
 
   return result;
 }
