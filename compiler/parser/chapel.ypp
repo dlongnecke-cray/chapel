@@ -31,6 +31,7 @@
 //
 
 %code requires {
+  #include <cassert>
   #include <string>
   extern int         captureTokens;
   extern std::string captureString;
@@ -2176,12 +2177,14 @@ new_expr:
                         new NamedExpr(astr_chpl_manager,
                                       new SymExpr(dtOwned->symbol)),
                         new CallExpr($4, $7));
+      assert(false);
     }
 | TNEW TSHARED TLP expr TRP TLP opt_actual_ls TRP %prec TNOELSE
     { $$ = new CallExpr(PRIM_NEW,
                         new NamedExpr(astr_chpl_manager,
                                       new SymExpr(dtShared->symbol)),
                         new CallExpr($4, $7));
+      assert(false);
     }
 | TNEW TOWNED TLP expr TRP TLP opt_actual_ls TRP TQUESTION
     { $$ = new CallExpr(PRIM_NEW,
@@ -2189,6 +2192,7 @@ new_expr:
                                       new SymExpr(dtOwned->symbol)),
                         new CallExpr(PRIM_TO_NILABLE_CLASS_CHECKED,
                                      new CallExpr($4, $7)));
+      assert(false);
     }
 | TNEW TSHARED TLP expr TRP TLP opt_actual_ls TRP TQUESTION
     { $$ = new CallExpr(PRIM_NEW,
@@ -2196,6 +2200,7 @@ new_expr:
                                       new SymExpr(dtShared->symbol)),
                         new CallExpr(PRIM_TO_NILABLE_CLASS_CHECKED,
                                      new CallExpr($4, $7)));
+      assert(false);
     }
 ;
 
