@@ -1061,14 +1061,14 @@ loop_stmt:
 | TLSBR expr_ls TRSBR stmt
     {
       if ($2->argList.length > 1)
-        $$ = ForallStmt::build(NULL, new CallExpr("chpl__ensureDomainExpr", $2), NULL, new BlockStmt($4), false, true);
+        USR_FATAL($2, "invalid index expression list");
       else
         $$ = ForallStmt::build(NULL, $2->get(1)->remove(),                       NULL, new BlockStmt($4), false, true);
     }
 | TLSBR expr_ls forall_intent_clause TRSBR stmt
     {
       if ($2->argList.length > 1)
-        $$ = ForallStmt::build(NULL, new CallExpr("chpl__ensureDomainExpr", $2), $3, new BlockStmt($5), false, true);
+        USR_FATAL($2, "invalid index expression list");
       else
         $$ = ForallStmt::build(NULL, $2->get(1)->remove(),                       $3, new BlockStmt($5), false, true);
     }
@@ -2030,7 +2030,7 @@ for_expr:
 | TLSBR expr_ls TRSBR expr %prec TFOR
     {
       if ($2->argList.length > 1)
-        $$ = buildForallLoopExpr(NULL, new CallExpr("chpl__ensureDomainExpr", $2), $4, NULL, true);
+        USR_FATAL($2, "invalid index expression list");
       else
         $$ = buildForallLoopExpr(NULL, $2->get(1)->remove(), $4, NULL, true);
     }
