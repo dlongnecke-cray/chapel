@@ -22,6 +22,12 @@
 
 include $(CHPL_MAKE_HOME)/runtime/etc/Makefile.mli-common
 
+# Use the C++ compiler as a linker to handle the `-shared ` flag.
+# TODO: Select a flag that makes LD happy on OSX.
+ifeq ($(CHPL_MAKE_PLATFORM),darwin)
+  LD=$(CXX)
+endif
+
 .PHONY: all
 all: checkRtLibDir buildServer buildClientAsHost runTagsCommand FORCE
 
