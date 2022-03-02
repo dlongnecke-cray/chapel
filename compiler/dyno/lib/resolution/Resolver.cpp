@@ -687,6 +687,7 @@ void Resolver::exit(const NamedDecl* decl) {
 bool Resolver::enter(const Call* call) {
   return true;
 }
+
 void Resolver::exit(const Call* call) {
   assert(scopeStack.size() > 0);
   const Scope* scope = scopeStack.back();
@@ -695,24 +696,59 @@ void Resolver::exit(const Call* call) {
   // context and call?
   // Generate a CallInfo for the call
   UniqueString name;
+  QualifiedType calledType;
+  bool hasQuestionArg = false;
+  bool isMethod = false;
+  std::vector<CallInfoActual> actuals;
 
+  // Get the name of the call.
   if (auto op = call->toOpCall()) {
     name = op->op();
   } else if (auto called = call->calledExpression()) {
     if (auto calledIdent = called->toIdentifier()) {
       name = calledIdent->name();
+    } else if (auto calledDot = called->toDot()) {
+      name = calledDot->field();
+    } else if (auto calledNew = called->toNew()) {
+      name = USTR("init");
     } else {
-      assert(false && "TODO: method calls with Dot called");
+      assert(false && "Unhandled called expression");
     }
   }
 
-  const FnCall* fnCall = call->toFnCall();
-  bool hasQuestionArg = false;
-  std::vector<CallInfoActual> actuals;
+  // Check for method call, maybe construct a receiver.
+  if (!call->isOpCall()) {
+    if (auto called = call->calledExpression()) {
 
-  int i = 0;
-  for (auto actual : call->actuals()) {
+      // Handle a normal method call.
+      if (auto calledDot = called->toDot()) {
+        const Expression* receiver = calledDot->receiver();
+        ResolvedExpression& r = byPostorder.byAst(receiver);
+        QualifiedType qt = r.type();
+        auto receiverInfo = CallInfoActual(qt, USTR("this"));
+        actuals.push_back(std::move(receiverInfo));
+        isMethod = true;
+
+      // TODO: My hacky approach doesn't work - I think we have to resolve
+      // new expressions and then get the QualifiedType from them. So we
+      // need to have a 'enter' for 'new'.
+      } else if (auto calledNew = called->toNew()) {
+        assert(false && "Need to build receiver info for new expression");
+      }
+    }
+  }
+
+  if (auto calledExpr = call->calledExpression()) {
+    ResolvedExpression& r = byPostorder.byAst(calledExpr);
+    calledType = r.type();
+  }
+
+  const FnCall* fnCall = call->toFnCall();
+
+  for (int i = 0; i < call->numActuals(); i++) {
+    auto actual = call->actual(i);
     bool isQuestionMark = false;
+
     if (auto id = actual->toIdentifier())
       if (id->name() == USTR("?"))
         isQuestionMark = true;
@@ -729,17 +765,10 @@ void Resolver::exit(const Call* call) {
         byName = fnCall->actualName(i);
       }
       actuals.push_back(CallInfoActual(r.type(), byName));
-      i++;
     }
   }
 
-  QualifiedType calledType;
-  if (auto calledExpr = call->calledExpression()) {
-    ResolvedExpression& r = byPostorder.byAst(calledExpr);
-    calledType = r.type();
-  }
-
-  CallInfo ci(name, calledType, hasQuestionArg, actuals);
+  CallInfo ci(name, calledType, hasQuestionArg, isMethod, actuals);
   CallResolutionResult c = resolveCall(context, call, ci, scope, poiScope);
 
   // save the most specific candidates in the resolution result for the id

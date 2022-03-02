@@ -1701,6 +1701,7 @@ static std::vector<BorrowedIdsWithName>
 lookupCalledExpr(Context* context,
                  const Scope* scope,
                  const Call* call,
+                 const CallInfo& ci,
                  std::unordered_set<const Scope*>& visited) {
 
   std::vector<BorrowedIdsWithName> ret;
@@ -1714,9 +1715,43 @@ lookupCalledExpr(Context* context,
                                         visited);
     ret.swap(vec);
   } else if (const Expression* called = call->calledExpression()) {
-    auto vec = lookupInScopeWithSet(context, scope, called, config,
-                                    visited);
-    ret.swap(vec);
+    if (ci.isMethod()) {
+      assert(ci.numActuals() >= 1);
+
+      auto& receiver = ci.actuals(0);
+      auto& receiverQualType = receiver.type();
+      const Scope* scopeForReceiverType = nullptr;
+
+      if (auto compType = receiverQualType.type()->getCompositeType()) {
+        scopeForReceiverType = scopeForId(context, compType->id());
+      } else {
+        assert(false && "Not handled yet");
+      }
+
+      assert(scopeForReceiverType);
+
+      // Look up in the scope of the receiver's type, if not done already.
+      if (!visited.count(scopeForReceiverType)) {
+        auto vec1 = lookupNameInScopeWithSet(context, scopeForReceiverType,
+                                             ci.name(),
+                                             config,
+                                             visited);
+        ret.swap(vec1);
+      }
+
+      // Look up in the original scope as well.
+      auto vec2 = lookupInScopeWithSet(context, scope, called, config,
+                                       visited);
+      if (vec2.size() != 0) {
+        ret.insert(ret.end(), vec2.begin(), vec2.end());
+      }
+
+    // Let a single scope query handle everything.
+    } else {
+      auto vec = lookupInScopeWithSet(context, scope, called, config,
+                                      visited);
+      ret.swap(vec);
+    }
   }
 
   return ret;
@@ -1989,10 +2024,9 @@ resolveFnCallFilterAndFindMostSpecific(Context* context,
   std::unordered_set<const Scope*> visited;
 
   // first, look for candidates without using POI.
-
   {
     // compute the potential functions that it could resolve to
-    auto v = lookupCalledExpr(context, inScope, call, visited);
+    auto v = lookupCalledExpr(context, inScope, call, ci, visited);
 
     // filter without instantiating yet
     const auto& initialCandidates = filterCandidatesInitial(context, v, ci);
@@ -2019,7 +2053,7 @@ resolveFnCallFilterAndFindMostSpecific(Context* context,
     }
 
     // compute the potential functions that it could resolve to
-    auto v = lookupCalledExpr(context, curPoi->inScope(), call, visited);
+    auto v = lookupCalledExpr(context, curPoi->inScope(), call, ci, visited);
 
     // filter without instantiating yet
     const auto& initialCandidates = filterCandidatesInitial(context, v, ci);
