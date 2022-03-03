@@ -95,6 +95,7 @@ class UntypedFnSignature {
   bool idIsFunction_; // whether the ID is of a function
   bool idIsClass_; // whether the ID is of a class
   bool isTypeConstructor_;
+  // TODO: bool isCompilerGenerated_;
   uast::Function::Kind kind_;
   std::vector<FormalDetail> formals_;
 
@@ -875,6 +876,9 @@ class ResolvedExpression {
   // The choice between these needs to happen
   // later than the main function resolution.
   MostSpecificCandidates mostSpecific_;
+
+  // TODO: Does this need to be MostSpecificCandidates? Something even more general?
+  std::vector<TypedFnSignature*> alsoCalled_; // TODO: name
   // What point of instantiation scope should be used when
   // resolving functions in mostSpecific?
   const PoiScope *poiScope_ = nullptr;

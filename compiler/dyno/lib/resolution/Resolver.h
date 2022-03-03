@@ -181,6 +181,9 @@ struct Resolver {
   bool enter(const uast::Dot* dot);
   void exit(const uast::Dot* dot);
 
+  bool enter(const uast::New* nw);
+  void exit(const uast::New* nw);
+
   // if none of the above is called, fall back on this one
   bool enter(const uast::ASTNode* ast);
   void exit(const uast::ASTNode* ast);

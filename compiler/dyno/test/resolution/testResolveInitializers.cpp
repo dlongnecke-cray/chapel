@@ -72,6 +72,7 @@ static void test1() {
   assert(newCall);
   auto newExpr = newCall->calledExpression()->toNew();
   assert(newExpr);
+  assert(newExpr->management() == New::DEFAULT_MANAGEMENT);
 
   // Resolve the module.
   const ResolutionResultByPostorderID& rr = resolveModule(context, m->id());
@@ -80,6 +81,12 @@ static void test1() {
   // Get the type of 'r'.
   auto& qtR = typeForModuleLevelSymbol(context, r->id());
   (void) qtR;
+
+  // Remember that 'new r' is the base expression of the call.
+  auto& reNewExpr = rr.byAst(newExpr);
+  auto& qtNewExpr = reNewExpr.type();
+  assert(qtNewExpr.kind() == QualifiedType::VAR);
+  assert(qtNewExpr.type() == qtR.type());
 
   //
   // TODO: Fill in the rest of the details.

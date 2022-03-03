@@ -2023,6 +2023,21 @@ resolveFnCallFilterAndFindMostSpecific(Context* context,
   size_t firstPoiCandidate = 0;
   std::unordered_set<const Scope*> visited;
 
+  if (subjectToCompilerGeneratedDefault(ci)) {
+    QualifiedType relevantType = ...; // For initializers, the recv
+    // See typeConstructorInitial : 800
+    auto tfs = getCompilerGeneratedDefault(ci.name(), relevantType);
+    // TODO: doIsCandidateApplicableInitial that works with compiler-generated tfs
+    // Can't just call it
+    if (isApplicable) {
+      // TODO: TRy just calling filterCandidatesInstantiating
+      if (needToInstantiate) {
+        tfs = doIsCandidateApplicableInstantiating(ci, tfs);
+      }
+      candidates.push_back(tfs);
+    }
+  }
+
   // first, look for candidates without using POI.
   {
     // compute the potential functions that it could resolve to
@@ -2089,6 +2104,51 @@ resolveFnCallFilterAndFindMostSpecific(Context* context,
   return mostSpecific;
 }
 
+static MostSpecificCandidates
+resolveFnCallInitializer(Context* context, const Call* call,
+                         const CallInfo& ci,
+                         const Scope* inScope,
+                         const PoiScope* inPoiScope,
+                         PoiInfo& poiInfo) {
+  assert(ci.isMethod() && ci.name() == USTR("init"));
+
+  // Start by looking up user-defined initializers.
+  auto ret = resolveFnCallFilterAndFindMostSpecific(context,
+                                                    call,
+                                                    ci,
+                                                    inScope,
+                                                    inPoiScope,
+                                                    poiInfo);
+
+  // Analyze the initial lookup to determine if we need to instantiate.
+  bool isGeneratedInitializerRequired = false;
+  bool isError = false;
+
+  // We found a matching candidate, so just return the results.
+  if (auto tfs = ret.only()) {
+    return ret;
+
+  // Found no applicable candidates, so attempt to generate.
+  } else if (ret.isEmpty()) {
+    isGeneratedInitializerRequired = true;
+
+  } else if (ret.isAmbiguous()) {
+    assert(false && "Not handled yet");
+    isError = true;
+
+  } else {
+    assert(false && "Not handled yet");
+    isError = true;
+  }
+
+  // TODO: Would it be better to put this into 'filterAndDisambiguate'?
+  // TODO: How does POI work for compiler-generated init?
+  if (isGeneratedInitializerRequired && !isError) {
+    assert(false && "Need to create compiler-generated initializers");
+  }
+
+  return ret;
+}
 
 static
 CallResolutionResult resolveFnCall(Context* context,
@@ -2096,7 +2156,6 @@ CallResolutionResult resolveFnCall(Context* context,
                                    const CallInfo& ci,
                                    const Scope* inScope,
                                    const PoiScope* inPoiScope) {
-
   PoiInfo poiInfo;
   MostSpecificCandidates mostSpecific;
 
@@ -2106,6 +2165,13 @@ CallResolutionResult resolveFnCall(Context* context,
     mostSpecific = resolveFnCallForTypeCtor(context, call, ci,
                                             inScope, inPoiScope,
                                             poiInfo);
+
+  } else if (ci.isMethod() && ci.name() == USTR("init")) {
+    mostSpecific = resolveFnCallInitializer(context, call, ci,
+                                            inScope,
+                                            inPoiScope,
+                                            poiInfo);
+
   } else {
     // * search for candidates at each POI until we have found a candidate
     // * filter and instantiate
@@ -2275,9 +2341,11 @@ CallResolutionResult resolveCall(Context* context,
     QualifiedType tmpRetType;
     if (resolveFnCallSpecial(context, call, ci, tmpRetType)) {
       return CallResolutionResult(std::move(tmpRetType));
-    }
+
     // otherwise do regular call resolution
-    return resolveFnCall(context, call, ci, inScope, inPoiScope);
+    } else {
+      return resolveFnCall(context, call, ci, inScope, inPoiScope);
+    }
   } else if (auto prim = call->toPrimCall()) {
     return resolvePrimCall(context, prim, ci, inScope, inPoiScope);
   } else if (auto tuple = call->toTuple()) {

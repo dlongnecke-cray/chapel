@@ -723,17 +723,21 @@ void Resolver::exit(const Call* call) {
       // Handle a normal method call.
       if (auto calledDot = called->toDot()) {
         const Expression* receiver = calledDot->receiver();
+
+        // TODO: What about if the 'dot' expression is an error?
         ResolvedExpression& r = byPostorder.byAst(receiver);
-        QualifiedType qt = r.type();
-        auto receiverInfo = CallInfoActual(qt, USTR("this"));
+        auto receiverInfo = CallInfoActual(r.type(), USTR("this"));
         actuals.push_back(std::move(receiverInfo));
         isMethod = true;
 
-      // TODO: My hacky approach doesn't work - I think we have to resolve
-      // new expressions and then get the QualifiedType from them. So we
-      // need to have a 'enter' for 'new'.
+      // Handle a 'new' expression.
       } else if (auto calledNew = called->toNew()) {
-        assert(false && "Need to build receiver info for new expression");
+
+        // TODO: What about if the 'new' call is an error?
+        ResolvedExpression& r = byPostorder.byAst(calledNew);
+        auto receiverInfo = CallInfoActual(r.type(), USTR("this"));
+        actuals.push_back(std::move(receiverInfo));
+        isMethod = true;
       }
     }
   }
@@ -819,6 +823,114 @@ void Resolver::exit(const Dot* dot) {
   }
 
   // TODO: resolve field accessors / parenless methods
+}
+
+bool Resolver::enter(const uast::New* nw) {
+  return true;
+}
+
+static
+void resolveNewForBasicClass(Context* context, const uast::New* node,
+                             const QualifiedType& qtTypeExpr,
+                             const types::BasicClassType* basicClassType,
+                             ResolvedExpression& re) {
+  bool isNilable = false;
+  auto management = node->management() != New::DEFAULT_MANAGEMENT
+      ? node->management()
+      : New::OWNED;
+  (void) isNilable;
+  (void) management;
+
+  //
+  // TODO: Make a BasicClassType then decorate it to get a ClassType.
+  // TODO: Need to set POI?
+  // TODO: Do I need to make a TypeConstructor call?
+  //
+
+  assert(false && "Not handled yet!");
+}
+
+static void resolveNewForClass(Context* context, const uast::New* node,
+                               const QualifiedType& qtTypeExpr,
+                               const types::ClassType* classType,
+                               ResolvedExpression& re) {
+  assert(false && "Not handled yet!");
+
+  /*
+  const auto decorator = classType->decorator();
+  const bool isUnknownManagement = decorator->isUnknownManagement();
+  const bool isUnknownNilability = decorator->isUnknownNilability();
+
+  // We have duplicate decorators.
+  if (nw->management() != New::DEFAULT_MANAGEMENT &&
+      !isUnknownManagement) {
+    
+  }
+  */
+}
+
+static void resolveNewForRecord(Context* context, const uast::New* node,
+                                const QualifiedType& qtTypeExpr,
+                                const types::RecordType* recordType,
+                                ResolvedExpression& re) {
+  if (node->management() != New::DEFAULT_MANAGEMENT) {
+    auto managementStr = New::managementToString(node->management());
+    auto recordNameStr = recordType->name().c_str();
+    context->error(node, "Cannot use new %s with record %s",
+                         managementStr,
+                         recordNameStr);
+  } else {
+
+    // TODO: Is 'VAR' right? Should this be 'CONST_VAR'?
+    auto qt = QualifiedType(QualifiedType::VAR, recordType);
+    re.setType(qt);
+  }
+}
+
+void Resolver::exit(const uast::New* node) {
+  ResolvedExpression& re = byPostorder.byAst(node);
+
+  // Fetch the pieces of the type expression.
+  const Expression* typeExpr = node->typeExpression();
+  ResolvedExpression& reTypeExpr = byPostorder.byAst(typeExpr);
+  auto& qtTypeExpr = reTypeExpr.type();
+
+  // TODO: What about if the thing doesn't make sense/is 'UNKNOWN'?
+  if (qtTypeExpr.kind() != QualifiedType::TYPE) {
+    context->error(node, "'new' must be followed by a type expression");
+  }
+
+  // TODO: Just propagate the unknown type upwards?
+  if (qtTypeExpr.type()->isUnknownType()) {
+    return;
+  }
+
+  if (auto basicClassType = qtTypeExpr.type()->toBasicClassType()) {
+    resolveNewForBasicClass(context, node, qtTypeExpr, basicClassType, re);
+
+  } else if (auto classType = qtTypeExpr.type()->toClassType()) {
+    resolveNewForClass(context, node, qtTypeExpr, classType, re);
+
+  } else if (auto recordType = qtTypeExpr.type()->toRecordType()) {
+    resolveNewForRecord(context, node, qtTypeExpr, recordType, re);
+
+  } else {
+
+    // TODO: Need to also print the type.
+    if (node->management() != New::DEFAULT_MANAGEMENT) {
+      auto managementStr = New::managementToString(node->management());
+      context->error(node, "cannot use management %s on non-class",
+                           managementStr);
+    }
+
+    // TODO: Specialize this error to more types.
+    if (auto primType = qtTypeExpr.type()->toPrimitiveType()) {
+      context->error(node, "invalid use of 'new' on primitive %s",
+                           primType->c_str());
+    } else {
+      context->error(node, "invalid use of 'new'");
+    }
+  }
 }
 
 bool Resolver::enter(const ASTNode* ast) {
