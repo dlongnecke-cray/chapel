@@ -16,7 +16,8 @@ endif
 default: all
 
 all: test-venv chpldoc-venv \
-     gasnet gmp hwloc jemalloc libfabric libunwind qthread llvm
+     gasnet gmp hwloc jemalloc libfabric libunwind qthread llvm \
+     antlr4
 
 clean: FORCE
 	cd chpl-venv && $(MAKE) clean
@@ -30,6 +31,7 @@ clean: FORCE
 	cd qthread && $(MAKE) clean
 	cd re2 && $(MAKE) clean
 	cd fltk && $(MAKE) clean
+	cd antlr && $(MAKE) clean
 
 cleanall: FORCE
 	cd chpl-venv && $(MAKE) cleanall
@@ -43,6 +45,7 @@ cleanall: FORCE
 	cd qthread && $(MAKE) cleanall
 	cd re2 && $(MAKE) cleanall
 	cd fltk && $(MAKE) cleanall
+	cd antlr && $(MAKE) cleanall
 
 clobber: FORCE
 	cd chpl-venv && $(MAKE) clobber
@@ -56,6 +59,7 @@ clobber: FORCE
 	cd qthread && $(MAKE) clobber
 	cd re2 && $(MAKE) clobber
 	cd fltk && $(MAKE) clobber
+	cd antlr && $(MAKE) clobber
 
 depend:
 
@@ -79,6 +83,7 @@ LIBUNWIND_DEPEND      := $(call find_3p_depend, $(LIBUNWIND_DIR))
 LLVM_DEPEND           := $(call find_3p_depend, $(LLVM_DIR))
 QTHREAD_DEPEND        := $(call find_3p_depend, $(QTHREAD_DIR))
 RE2_DEPEND            := $(call find_3p_depend, $(RE2_DIR))
+ANTLR_DEPEND          := $(call find_3p_depend, $(ANTLR_DIR))
 
 
 test-venv: FORCE
@@ -175,6 +180,11 @@ re2: $(RE2_H_FILE)
 $(RE2_H_FILE): $(RE2_DEPEND)
 	rm -rf $(RE2_INSTALL_DIR) && rm -rf $(RE2_BUILD_DIR)
 	cd re2 && $(MAKE)
+
+antlr: $(ANTLR_INSTALL_DIR)
+$(ANTLR_INSTALL_DIR): $(ANTLR_DEPEND)
+	rm -rf $(ANTLR_INSTALL_DIR) && rm -rf $(ANTLR_BUILD_DIR)
+	cd antlr && $(MAKE)
 
 -include Makefile.devel
 

@@ -40,6 +40,8 @@ SUBDIRS = \
 	main \
 	dyno/lib/immediates \
 	dyno/lib/parsing \
+	dyno/lib/parsing/antlr \
+	dyno/lib/parsing/bison \
 	dyno/lib/framework \
 	dyno/lib/resolution \
 	dyno/lib/types \
@@ -80,6 +82,8 @@ include llvm/Makefile.include
 include main/Makefile.include
 include dyno/lib/immediates/Makefile.include
 include dyno/lib/parsing/Makefile.include
+include dyno/lib/parsing/antlr/Makefile.include
+include dyno/lib/parsing/bison/Makefile.include
 include dyno/lib/framework/Makefile.include
 include dyno/lib/resolution/Makefile.include
 include dyno/lib/types/Makefile.include
@@ -109,6 +113,8 @@ CHPL_OBJS = \
 	$(UTIL_OBJS) \
 	$(DYNO_IMMEDIATES_OBJS) \
 	$(DYNO_PARSING_OBJS) \
+	$(DYNO_PARSING_ANTLR_OBJS) \
+	$(DYNO_PARSING_BISON_OBJS) \
 	$(DYNO_FRAMEWORK_OBJS) \
 	$(DYNO_RESOLUTION_OBJS) \
 	$(DYNO_TYPES_OBJS) \
@@ -121,7 +127,7 @@ EXECS = $(CHPL) $(CHPLDOC)
 PRETARGETS = $(BUILD_VERSION_FILE) $(CONFIGURED_PREFIX_FILE)
 TARGETS = $(CHPL)
 
-LIBS = -lm
+LIBS = -lm -L$(ANTLR_INSTALL_DIR)/lib -lantlr4-runtime
 
 #
 # main rules

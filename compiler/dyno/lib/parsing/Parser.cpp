@@ -20,23 +20,20 @@
 
 #include "chpl/parsing/Parser.h"
 
-#include "../util/filesystem_help.h"
-
+#include "chpl/framework/compiler-configuration.h"
+#include "chpl/framework/CompilerFlags.h"
 #include "chpl/framework/ErrorMessage.h"
 #include "chpl/uast/AstNode.h"
 #include "chpl/uast/Comment.h"
 
-#include "./bison-chpl-lib.h"
-#include "./flex-chpl-lib.h"
+#include "antlr/AntlrParser.h"
+#include "bison/BisonParser.h"
 
 #include <cstdlib>
 #include <cstring>
 
-#define DEBUG_PARSER 0
-
 namespace chpl {
 namespace parsing {
-
 
 using namespace chpl::uast;
 
@@ -54,207 +51,27 @@ Parser Parser::createForIncludedModule(Context* context,
   return Parser(context, parentSymbolPath);
 }
 
-static void updateParseResult(ParserContext* parserContext) {
-
-  Builder* builder = parserContext->builder;
-
-  // Save the top-level exprs
-  if (parserContext->topLevelStatements != nullptr) {
-    for (AstNode* stmt : *parserContext->topLevelStatements) {
-      builder->addToplevelExpression(toOwned(stmt));
-    }
-    delete parserContext->topLevelStatements;
-  }
-  // Save any remaining top-level comments
-  if (parserContext->comments != nullptr) {
-    for (ParserComment parserComment : *parserContext->comments) {
-      builder->addToplevelExpression(toOwned(parserComment.comment));
-    }
-    delete parserContext->comments;
-  }
-
-  // Save the parse errors
-  for (ParserError & parserError : parserContext->errors) {
-    // Need to convert the error to a regular ErrorMessage
-    Location loc = parserContext->convertLocation(parserError.location);
-    auto errMsg = ErrorMessage(parserError.kind, loc, parserError.message);
-    builder->addError(std::move(errMsg));
-  }
-}
-
-
-BuilderResult Parser::parseFile(const char* path, ParserStats* parseStats) {
-  owned<Builder> builder;
-  if (parentSymbolPath_.isEmpty()) {
-    builder = Builder::createForTopLevelModule(this->context(), path);
+BuilderResult
+Parser::parseFile(const char* path, ParserStats* parseStats) {
+  if (chpl::isCompilerFlagSet(context_, CompilerFlags::ANTLR_PARSER)) {
+    AntlrParser p = { context_, parentSymbolPath_ };
+    return p.parseFile(path, parseStats);
   } else {
-    builder = Builder::createForIncludedModule(this->context(), path,
-                                               parentSymbolPath_);
+    BisonParser p = { context_, parentSymbolPath_ };
+    return p.parseFile(path, parseStats);
   }
-  ErrorMessage fileError;
-
-  FILE* fp = openfile(path, "r", fileError);
-  if (fp == NULL) {
-    builder->addError(fileError);
-    return builder->result();
-  }
-
-  // Otherwise, we have successfully opened the file.
-
-  // Set the (global) parser debug state
-  if (DEBUG_PARSER)
-    yychpl_debug = DEBUG_PARSER;
-
-  // State for the lexer
-  int           lexerStatus  = 100;
-
-  // State for the parser
-  yychpl_pstate* parser = yychpl_pstate_new();
-  int           parserStatus = YYPUSH_MORE;
-  YYLTYPE       my_yylloc;
-  ParserContext parserContext(path, builder.get(), parseStats);
-
-  my_yylloc.first_line             = 1;
-  my_yylloc.first_column           = 1;
-  my_yylloc.last_line              = 1;
-  my_yylloc.last_column            = 1;
-
-  yychpl_lex_init_extra(&parserContext, &parserContext.scanner);
-
-  yychpl_set_in(fp, parserContext.scanner);
-
-  while (parserStatus == YYPUSH_MORE) {
-    YYSTYPE my_yylval;
-
-    // In some situations, the parser context may have set 'atEOF' before
-    // the parser has seen EOF. The lexer will have already produced the
-    // EOF token in this case. The below check prevents the lexer from
-    // trying to swap to a nonexistent buffer.
-    if (!parserContext.atEOF) {
-      lexerStatus = yychpl_lex(&my_yylval, &my_yylloc, parserContext.scanner);
-    } else {
-      lexerStatus = 0;
-    }
-
-    if (lexerStatus >= 0) {
-      parserStatus          = yychpl_push_parse(parser,
-                                                lexerStatus,
-                                                &my_yylval,
-                                                &my_yylloc,
-                                                &parserContext);
-
-    } else if (lexerStatus == YYLEX_BLOCK_COMMENT) {
-      // comment should already be noted in processBlockComment
-    } else if (lexerStatus == YYLEX_SINGLE_LINE_COMMENT) {
-      // comment should already be noted in processSingleLineComment
-
-      // Single line comments may cause the parser context to set 'atEOF'
-      // before the parser has registered that EOF occurred (e.g. for a
-      // single line comment followed immediately by EOF). In this case,
-      // complete one more iteration of the loop instead of breaking.
-      if (parserContext.atEOF) continue;
-    }
-
-    if (lexerStatus == 0 || parserContext.atEOF)
-      break;
-  }
-
-  // Cleanup after the parser
-  yychpl_pstate_delete(parser);
-
-  // Cleanup after the lexer
-  yychpl_lex_destroy(parserContext.scanner);
-
-  if (closefile(fp, path, fileError)) {
-    builder->addError(fileError);
-  }
-
-  updateParseResult(&parserContext);
-
-  // compute the result from the builder
-  return builder->result();
 }
 
 
 BuilderResult Parser::parseString(const char* path, const char* str,
                                   ParserStats* parseStats) {
-  owned<Builder> builder;
-  if (parentSymbolPath_.isEmpty()) {
-    builder = Builder::createForTopLevelModule(this->context(), path);
+  if (chpl::isCompilerFlagSet(context_, CompilerFlags::ANTLR_PARSER)) {
+    AntlrParser p = { context_, parentSymbolPath_ };
+    return p.parseString(path, str, parseStats);
   } else {
-    builder = Builder::createForIncludedModule(this->context(), path,
-                                               parentSymbolPath_);
+    BisonParser p = { context_, parentSymbolPath_ };
+    return p.parseString(path, str, parseStats);
   }
-
-  // Set the (global) parser debug state
-  if (DEBUG_PARSER)
-    yychpl_debug = DEBUG_PARSER;
-
-  // State for the lexer
-  YY_BUFFER_STATE handle       =   0;
-  int             lexerStatus  = 100;
-  YYLTYPE         my_yylloc;
-
-  // State for the parser
-  yychpl_pstate* parser = yychpl_pstate_new();
-  int           parserStatus = YYPUSH_MORE;
-  ParserContext parserContext(path, builder.get(), parseStats);
-
-  yychpl_lex_init_extra(&parserContext, &parserContext.scanner);
-
-  handle = yychpl__scan_string(str, parserContext.scanner);
-
-  my_yylloc.first_line   = 1;
-  my_yylloc.first_column = 1;
-  my_yylloc.last_line    = 1;
-  my_yylloc.last_column  = 1;
-
-  while (parserStatus == YYPUSH_MORE) {
-    YYSTYPE my_yylval;
-
-    // In some situations, the parser context may have set 'atEOF' before
-    // the parser has seen EOF. The lexer will have already produced the
-    // EOF token in this case. The below check prevents the lexer from
-    // trying to swap to a nonexistent buffer.
-    if (!parserContext.atEOF) {
-      lexerStatus = yychpl_lex(&my_yylval, &my_yylloc, parserContext.scanner);
-    } else {
-      lexerStatus = 0;
-    }
-
-    if (lexerStatus >= 0) {
-      parserStatus          = yychpl_push_parse(parser,
-                                                lexerStatus,
-                                                &my_yylval,
-                                                &my_yylloc,
-                                                &parserContext);
-
-    } else if (lexerStatus == YYLEX_BLOCK_COMMENT) {
-      // comment should already be noted in processBlockComment
-    } else if (lexerStatus == YYLEX_SINGLE_LINE_COMMENT) {
-      // comment should already be noted in processSingleLineComment
-
-      // Single line comments may cause the parser context to set 'atEOF'
-      // before the parser has registered that EOF occurred (e.g. for a
-      // single line comment followed immediately by EOF). In this case,
-      // complete one more iteration of the loop instead of breaking.
-      if (parserContext.atEOF) continue;
-    }
-
-    if (lexerStatus == 0 || parserContext.atEOF)
-      break;
-  }
-
-  // Cleanup after the parser
-  yychpl_pstate_delete(parser);
-
-  // Cleanup after the lexer
-  yychpl__delete_buffer(handle, parserContext.scanner);
-  yychpl_lex_destroy(parserContext.scanner);
-
-  updateParseResult(&parserContext);
-
-  return builder->result();
 }
 
 

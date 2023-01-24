@@ -68,6 +68,7 @@ INCL_CFLAGS = -I. \
               -I$(RUNTIME_ROOT)/include/encoding \
               -I$(THIRD_PARTY_DIR)/utf8-decoder \
               -I$(COMPILER_ROOT)/dyno/include \
+              -I$(ANTLR_INSTALL_DIR)/include/antlr4-runtime\
 
 
 COMP_CXXFLAGS += $(INCL_CFLAGS)

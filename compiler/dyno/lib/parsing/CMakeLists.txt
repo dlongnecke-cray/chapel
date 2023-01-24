@@ -27,30 +27,14 @@
 #  ADD_FLEX_BISON_DEPENDENCY(MyScanner MyParser)
 #ENDIF(BISON_FOUND AND FLEX_FOUND)
 
+add_subdirectory(antlr)
+add_subdirectory(bison)
+
 target_sources(libdyno-obj
                PRIVATE
 
-               # these are generated
-               bison-chpl-lib.cpp
-               bison-chpl-lib.h
-               flex-chpl-lib.cpp
-               flex-chpl-lib.h
-
-               # these are included from the generated files
-               ParserContext.h
-               ParserContextImpl.h
-               lexer-help.h
-               parser-dependencies.h
-               parser-help.h
                parser-stats.cpp
-               # these are implementing the public interface
-               Parser.cpp
                parsing-queries.cpp
+               Parser.cpp
               )
 
-add_custom_target(parser
-                  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-                  COMMAND bison chpl.ypp
-                  COMMAND flex chpl.lex
-                  COMMAND rm -f bison-chpl-lib.output
-                  COMMENT "generating flex/bison parser")

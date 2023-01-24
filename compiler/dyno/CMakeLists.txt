@@ -39,8 +39,8 @@ configure_file(${CHPL_MAIN_INCLUDE_DIR}/chpl/config/config.h.cmake
                ${CHPL_INCLUDE_DIR}/chpl/config/config.h)
 
 
-# request C++14
-set(CMAKE_CXX_STANDARD 14)
+# request C++17 (was 14 but now 17 for ANTLR)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # request C11

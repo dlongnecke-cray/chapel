@@ -155,3 +155,13 @@ whereami/
   Website: https://github.com/gpakosz/whereami
 
   See also: whereami/README
+
+antlr/
+  Summary: the runtime for the ANTLR4 parser generator, used
+           in combination with the parser generated within
+           the compiler source tree
+
+  License: BSD 3-clause license (see antlr-4-cpp-runtime-*/LICENSE.txt)
+
+  Website: https://www.antlr.org/download.html
+

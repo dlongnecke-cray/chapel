@@ -18,6 +18,8 @@
  */
 
 #include "chpl/parsing/parsing-queries.h"
+#include "chpl/framework/compiler-configuration.h"
+#include "chpl/framework/CompilerFlags.h"
 #include "chpl/framework/query-impl.h"
 #include "chpl/resolution/resolution-queries.h"
 #include "chpl/resolution/scope-queries.h"
@@ -219,7 +221,8 @@ static void usage(int argc, char** argv) {
          "  --std enables the standard library\n"
          "  --scope only performs scope resolution\n"
          "  --trace enables query tracing\n"
-         "  --searchPath <path> adds to the module search path\n",
+         "  --searchPath <path> adds to the module search path\n"
+         "  --antlr activates the antlr parser\n",
          argv[0]);
 }
 
@@ -257,9 +260,12 @@ int main(int argc, char** argv) {
   std::vector<std::string> cmdLinePaths;
   std::vector<std::string> files;
   bool enableStdLib = false;
+  bool useAntlrParser = false;
   for (int i = 1; i < argc; i++) {
     if (0 == strcmp(argv[i], "--std")) {
       enableStdLib = true;
+    } else if (0 == strcmp(argv[i], "--antlr")) {
+      useAntlrParser = true;
     } else if (0 == strcmp(argv[i], "--search")) {
       if (i+1 >= argc) {
         usage(argc, argv);
@@ -286,6 +292,9 @@ int main(int argc, char** argv) {
     }
   }
 
+  CompilerFlags flags;
+  flags.set(CompilerFlags::ANTLR_PARSER, useAntlrParser);
+
   if (files.size() == 0) {
     usage(argc, argv);
     return 0; // need this to return 0 for testing to be happy
@@ -293,6 +302,9 @@ int main(int argc, char** argv) {
 
   while (true) {
     ctx->advanceToNextRevision(gc);
+
+    // Reset the flags.
+    chpl::setCompilerFlags(ctx, flags);
 
     // Run this query first to make the other output more understandable
     ctx->setDebugTraceFlag(false);

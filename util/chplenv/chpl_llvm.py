@@ -742,7 +742,8 @@ def get_host_compile_args():
         # tested on that system after installing
         #   llvm-3.7-dev llvm-3.7 clang-3.7 libclang-3.7-dev libedit-dev
         # TODO: is this still needed?
-        system.append('-fno-rtti')
+        # --->: Full speed ahead!
+        # system.append('-fno-rtti')
 
         # Note, the cxxflags should include the -I for the include dir
         cxxflags = run_command([llvm_config, '--cxxflags'])

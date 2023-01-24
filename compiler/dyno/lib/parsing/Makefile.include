@@ -21,11 +21,9 @@ DYNO_PARSING_OBJDIR = $(COMPILER_BUILD)/dyno/lib/parsing
 ALL_SRCS += dyno/lib/parsing/*.cpp
 
 DYNO_PARSING_SRCS =                                 \
-           bison-chpl-lib.cpp                       \
-           flex-chpl-lib.cpp                        \
            parsing-queries.cpp                      \
-           Parser.cpp                               \
            parser-stats.cpp                         \
+           Parser.cpp                               \
 
 
 SRCS = $(DYNO_PARSING_SRCS)

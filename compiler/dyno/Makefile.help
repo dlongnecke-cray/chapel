@@ -70,10 +70,16 @@ $(LIBCOMPILER_BUILD_DIR):
 	    -DDYNO_LLVM_COMP_ARGS='$(CHPL_MAKE_HOST_BUNDLED_COMPILE_ARGS) $(CHPL_MAKE_HOST_SYSTEM_COMPILE_ARGS)' \
 	    -DDYNO_LLVM_LINK_ARGS='$(CHPL_MAKE_HOST_BUNDLED_LINK_ARGS) $(CHPL_MAKE_HOST_SYSTEM_LINK_ARGS)' \
 	    -DDYNO_LINTERS_CLANG_CMAKE_PATH='$(CLANG_CMAKE_DIR)' \
+>-    -DDYNO_ANTLR_INSTALL_DIR='$(ANTLR_INSTALL_DIR)'
 	    -DBUILD_SHARED_LIBS=OFF
 
 dyno-parser: $(LIBCOMPILER_BUILD_DIR) FORCE
-	cd $(LIBCOMPILER_BUILD_DIR)/lib/parsing && $(CMAKE) --build . --target parser
+	cd $(LIBCOMPILER_BUILD_DIR)/lib/parsing/bison && \
+	  $(CMAKE) --build . --target bison-parser
+
+dyno-antlr-parser: $(LIBCOMPILER_BUILD_DIR) FORCE
+	cd $(LIBCOMPILER_BUILD_DIR)/lib/parsing/antlr && \
+	  $(CMAKE) --build . --target antlr-parser
 
 dyno-chpldoc: $(LIBCOMPILER_BUILD_DIR) FORCE
 	+cd $(LIBCOMPILER_BUILD_DIR)/tools/chpldoc && $(CMAKE) --build . --target chpldoc

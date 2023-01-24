@@ -37,6 +37,7 @@ class CompilerFlags final {
 public:
   enum Name {
     UNKNOWN,
+    ANTLR_PARSER,
     WARN_UNSTABLE,
     NUM_FLAGS
   };

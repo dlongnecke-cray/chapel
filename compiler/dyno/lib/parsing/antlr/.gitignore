@@ -1,0 +1,6 @@
+ChapelLexer.*
+ChapelParser.*
+ChapelParserBaseVisitor.*
+ChapelParserVisitor.*
+!ChapelLexer.g4
+!ChapelParser.g4

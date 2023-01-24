@@ -1,0 +1,29 @@
+=======================
+antlr README for Chapel
+=======================
+
+This copy of antlr 4.10.1 is being released with Chapel for
+convenience and was obtained from:
+
+  https://www.antlr.org/download.html
+
+Any Chapel issues that seem to be related to antlr should be directed
+to the Chapel team at https://chapel-lang.org/bugs.html.
+
+
+Upgrading antlr versions
+========================
+
+The directory of $CHPL_HOME/third-party/antlr/ contains the source
+folder for ANTLR4 as it was downloaded from the above URL. Version
+updates should be done as follows:
+
+1. download and untar the latest runtime from the 'C++ Target' section
+2. `cd $CHPL_HOME/third-party/antlr && rm -rf antlr4-cpp-runtime-*`
+3. `mv <download-dir> .`
+4. TODO: `git add --force <download-dir>` (--force to ignore our .gitignore)
+5. update the version number mentioned above
+6. TODO: update the okversions whitelist in ???
+7. check that the compiler builds with antlr
+8. commit, PR, merge, etc
+

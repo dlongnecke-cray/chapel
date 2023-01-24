@@ -50,3 +50,8 @@ target_include_directories(libdyno PUBLIC
                            ${CHPL_MAIN_INCLUDE_DIR}
                            ${CHPL_INCLUDE_DIR})
 target_link_libraries(libdyno PUBLIC ${DYNO_LLVM_LINK_ARGS})
+
+find_library(ANTLR_LIB libantlr4-runtime.a
+             antlr4-runtime
+             HINTS ${DYNO_ANTLR_INSTALL_DIR}/lib)
+target_link_libraries(libdyno PRIVATE ${ANTLR_LIB})
