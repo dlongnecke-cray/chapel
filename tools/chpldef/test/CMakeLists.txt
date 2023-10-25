@@ -41,3 +41,4 @@ endfunction(chpldef_compile_test)
 
 chpldef_compile_test(test-lifecycle)
 chpldef_compile_test(test-declaration)
+chpldef_compile_test(test-diagnostics)

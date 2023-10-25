@@ -23,8 +23,21 @@
 
 void TestClient::breakpoint() {}
 
-Server TestClient::createServerInstance() {
+void TestClient::SentMessageInterceptor::handle(const Message* msg) {
+  auto clone = msg->clone();
+  std::swap(last_, clone);
+}
+
+chpl::owned<Message> TestClient::SentMessageInterceptor::take() {
+  chpl::owned<Message> ret = nullptr;
+  std::swap(last_, ret);
+  return ret;
+}
+
+Server
+TestClient::createServerInstance(chpl::owned<SentMessageInterceptor> t) {
   Server::Configuration conf;
+  conf.sentMessageInterceptor = std::move(t);
   conf.transport = nullptr;
   return { std::move(conf) };
 }
@@ -32,6 +45,13 @@ Server TestClient::createServerInstance() {
 chpl::Context TestClient::createChapelCompilerInstance() {
   chpl::Context::Configuration conf;
   return { std::move(conf) };
+}
+
+TestClient TestClient::create() {
+  auto interceptor = chpl::toOwned(new TestClient::SentMessageInterceptor());
+  auto ptr = interceptor.get();
+  auto server = createServerInstance(std::move(interceptor));
+  return { std::move(server), ptr };
 }
 
 int64_t TestClient::bumpVersionForUri(const std::string& uri) {
@@ -47,7 +67,7 @@ JsonValue TestClient::createUniqueMessageId() {
 
 opt<InitializeResult> TestClient::sendInitialize() {
   Initialize::Params p;
-  auto msg = Initialize::create(createUniqueMessageId(), std::move(p));
+  auto msg = Initialize::create(std::move(p), createUniqueMessageId());
   msg->handle(ctx_);
   if (auto r = msg->result()) return *r;
   return {};
@@ -55,7 +75,7 @@ opt<InitializeResult> TestClient::sendInitialize() {
 
 void TestClient::sendInitialized() {
   Initialized::Params p;
-  auto msg = Initialized::create(createUniqueMessageId(), std::move(p));
+  auto msg = Initialized::create(std::move(p), createUniqueMessageId());
   msg->handle(ctx_);
 }
 
@@ -84,7 +104,7 @@ void TestClient::sendDidOpen(const std::string& uri,
   auto ver = bumpVersionForUri(uri);
   TextDocumentItem tdi { uri, "chapel", ver, text };
   DidOpen::Params p { std::move(tdi) };
-  auto msg = DidOpen::create(nullptr, std::move(p));
+  auto msg = DidOpen::create(std::move(p), nullptr);
   msg->handle(ctx_);
 }
 
@@ -217,7 +237,7 @@ TestClient::sendDeclaration(const std::string& uri, Position cursor) {
 
   // Create and handle the message directly rather than enqueue it for
   // processing by the server main loop.
-  auto msg = Declaration::create(createUniqueMessageId(), std::move(p));
+  auto msg = Declaration::create(std::move(p), createUniqueMessageId());
   msg->handle(ctx_);
 
   // TODO: This is absurd, we need to flatten 'DeclarationResult'.
@@ -246,4 +266,47 @@ std::string TestClient::Mention::toString() const {
   ss << target.range.end.line << ":" << target.range.end.character;
   ss << ")";
   return ss.str();
+}
+
+std::map<std::string, std::vector<Diagnostic>>
+TestClient::collectDiagnosticMessages(const std::string& uri,
+                                      const std::string& text) {
+  auto chapelContext = createChapelCompilerInstance();
+  auto chapel = &chapelContext;
+  auto handler = installErrorHandler(chapel);
+
+  auto ustr = chpl::UniqueString::get(chapel, uri);
+  chpl::parsing::setFileText(chapel, ustr, text);
+  auto& br = parseFromUri(chapel, uri);
+
+  for (auto ast : br.topLevelExpressions()) {
+    if (auto mod = ast->toModule()) {
+      // TODO: Is this sufficient to report all errors?
+      std::ignore = chpl::resolution::resolveModule(chapel, mod->id());
+    }
+  }
+
+  std::map<std::string, std::vector<Diagnostic>> ret;
+  for (const chpl::owned<chpl::ErrorBase>& e : *handler) {
+    assert(e.get());
+    auto loc = e->location(chapel);
+    auto uri = std::string(loc.path().c_str());
+    Diagnostic d(chapel, e.get());
+    ret[uri].push_back(std::move(d));
+  }
+
+  return ret;
+}
+
+void AggregateErrorHandler::
+report(chpl::Context* chapel, const chpl::ErrorBase* e) {
+  errors_.push_back(e->clone());
+}
+
+AggregateErrorHandler*
+TestClient::installErrorHandler(chpl::Context* chapel) {
+  auto handler = chpl::toOwned(new AggregateErrorHandler());
+  auto ret = handler.get();
+  chapel->installErrorHandler(std::move(handler));
+  return ret;
 }

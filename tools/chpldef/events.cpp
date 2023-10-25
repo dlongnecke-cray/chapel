@@ -27,7 +27,9 @@ namespace chpldef {
 namespace events {
 
 /** Always run this - we need to be reading messages. */
-bool ReadMessage::canRun(Server* ctx) const { return true; }
+bool ReadMessage::canRun(const Server* ctx, MessageTag tag, When when) const {
+  return true;
+}
 
 void ReadMessage::run(Server* ctx, const Message* msg, When when) {
   CHPL_ASSERT(!msg && when == Event::LOOP_START);
@@ -70,43 +72,80 @@ void ReadMessage::run(Server* ctx, const Message* msg, When when) {
   ctx->enqueue(std::move(work));
 }
 
-static bool resolveModulesForMessageTag(MessageTag tag) {
-  return tag == MessageTag::DidOpen;
+bool ResolveModules::canRun(const Server* ctx, MessageTag tag,
+                            When when) const {
+  CHPL_ASSERT(when = AFTER_HANDLE);
+  if (!Event::canRun(ctx, tag, when)) return false;
+  if (!Message::isSynchronizationMessage(tag)) return false;
+  int64_t rev = ctx->textRegistry().latestRevisionAnyUriResolved();
+  return rev < ctx->revision();
 }
 
 void ResolveModules::run(Server* ctx, const Message* msg, When when) {
-  if (when == Event::PRIOR_HANDLE) {
-    CHPL_ASSERT(msg);
-    resolveModulesAfterHandle_ = resolveModulesForMessageTag(msg->tag());
-    return;
-  }
-
   CHPL_ASSERT(!msg && when == AFTER_HANDLE);
 
-  if (!resolveModulesAfterHandle_) return;
-  if (lastRevisionResolved_ == ctx->revision()) return;
+  auto tr = ctx->mutableTextRegistry();
+  const int64_t rev = ctx->revision();
+  int numResolved = 0;
 
-  // Commit to resolving.
-  lastRevisionResolved_ = ctx->revision();
+  for (const auto& uri : tr) {
+    if (!tr.isOpen(uri)) continue;
 
-  for (const auto& p : ctx->textRegistry()) {
-    const auto& uri = p.first;
-    const auto& entry = p.second;
-    if (!entry.isOpen) continue;
+    // Loop through and resolve each top-level module.
     ctx->withChapel([&](auto chapel) {
       auto& br = parseFromUri(chapel, uri);
+
       for (auto ast : br.topLevelExpressions()) {
-        if (!ast->isModule()) continue;
-        auto& rr = chpl::resolution::resolveModule(chapel, ast->id());
-        std::ignore = rr;
+        if (auto mod = ast->toModule()) {
+          auto& rr = chpl::resolution::resolveModule(chapel, mod->id());
+          std::ignore = rr;
+          ctx->trace("Resolved '%s' at '%s'\n", ctx->fmt(mod).c_str(),
+                     uri.c_str());
+        }
       }
     });
+
+    tr.setLastRevisionResolved(uri, rev);
+    numResolved++;
   }
+
+  // Revision for all files
+  if (numResolved) {
+    for (auto& uri : tr) {
+      if (tr.isOpen(uri)) CHPL_ASSERT(tr.lastRevisionResolved(uri) == rev);
+    }
+  }
+}
+
+bool PreparePublishDiagnostics::canRun(const Server* ctx, MessageTag tag,
+                                       When when) const {
+  if (!Event::defaultCanRun(ctx, tag, when)) return false;
+  return ctx->errorHandler()->revisionReported() > lastRevisionPrepared_;
 }
 
 void PreparePublishDiagnostics::run(Server* ctx, const Message* msg,
                                     When when) {
-  std::ignore = ctx;
+  auto handler = ctx->errorHandler();
+  CHPL_ASSERT(!handler->isEmpty());
+
+  for (auto& uri : *handler) {
+    std::vector<Diagnostic> diags;
+
+    for (auto e : *handler->errorsForUri(uri)) {
+      ctx->withChapel([&](auto chapel) {
+        Diagnostic d(chapel, e, ctx->config().useBriefErrors);
+        diags.push_back(std::move(d));
+      });
+
+      int64_t ver = ctx->textRegistry().version(uri);
+      PublishDiagnosticsParams p;
+      p.uri = uri;
+      p.version = ver;
+      p.diagnostics = std::move(diags);
+      auto msg = PublishDiagnostics::create(std::move(p));
+      ctx->enqueue(std::move(msg));
+    }
+  }
 }
 
 } // end namespace 'events'

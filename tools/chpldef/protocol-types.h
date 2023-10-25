@@ -38,6 +38,8 @@
 */
 namespace chpldef {
 
+class Server;
+
 /** Forward declare request params/result types, even if they may not all
     be defined (e.g., a notification does not have a result). */
 #define CHPLDEF_MESSAGE(name__, x1__, x2__, x3__) \
@@ -128,6 +130,7 @@ struct InitializeParams : ProtocolTypeRecv {
   opt<TraceLevel> trace;
   opt<std::vector<WorkspaceFolder>> workspaceFolders;
 
+  InitializeParams() = default;
   virtual bool fromJson(const JsonValue& j, JsonPath p) override;
 };
 
@@ -341,6 +344,53 @@ struct DeclarationResult : ProtocolTypeSend {
 
 struct DefinitionResult : ProtocolTypeSend {
   opt<std::variant<LocationArray, LocationLinkArray>> result;
+
+  virtual JsonValue toJson() const override;
+};
+
+struct Diagnostic : ProtocolTypeSend {
+  enum Severity {
+    Error         = 1,
+    Warning       = 2,
+    Information   = 3,
+    Hint          = 4,
+  };
+  enum Tag {
+    Unnecessary   = 1,    /** This would probably be emitted by a linter. */
+    Deprecated    = 2,    /** We can emit this for deprecation errors. */
+  };
+
+  Range range;                        /** Range at which message applies. */
+  opt<Severity> severity;             /** Warning, error, etc. */
+  std::string code;                   /** Chapel-decided error code. */
+  OPT_TODO_TYPE codeDescription;      /** Description of code. */
+  opt<std::string> source;            /** What is emitting this error? */
+  std::string message;                /** Error message. */
+  opt<std::vector<Tag>> tags;         /** Additional metadata (not much). */
+  OPT_TODO_TYPE relatedInformation;   /** Insert additional notes here. */
+  OPT_TODO_TYPE data;
+
+  Diagnostic() = default;
+  Diagnostic(chpl::Context* ctx, const chpl::ErrorBase* e,
+             bool useBriefErrors=false);
+
+  /** Factories for extracting pieces of a diagnostic from Chapel errors. */
+  static Range rangeFromError(chpl::Context* chapel, const chpl::ErrorBase* e);
+  static Severity severityFromError(const chpl::ErrorBase* e);
+  static std::string codeFromError(const chpl::ErrorBase* e);
+  static opt<std::string> sourceFromError(const chpl::ErrorBase* e);
+  static std::string messageFromError(chpl::Context* chapel,
+                                      const chpl::ErrorBase* e,
+                                      bool useBriefErrors);
+  static opt<std::vector<Tag>> tagsFromError(const chpl::ErrorBase* e);
+
+  virtual JsonValue toJson() const override;
+};
+
+struct PublishDiagnosticsParams : ProtocolTypeSend {
+  std::string uri;
+  opt<int64_t> version;
+  std::vector<Diagnostic> diagnostics;
 
   virtual JsonValue toJson() const override;
 };

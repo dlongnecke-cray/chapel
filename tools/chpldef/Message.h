@@ -280,6 +280,33 @@ public:
 
   /** For outbound requests, compute using a response sent by the client. */
   virtual void handle(Server* ctx, Response* rsp) = 0;
+
+  /** Returns 'true' if a message tag is in the lifecycle category. */
+  static bool isLifecycleMessage(Tag tag);
+
+  /** Returns 'true' if this message is in the lifecycle category. */
+  inline bool isLifecycleMessage() const {
+    return isLifecycleMessage(tag_);
+  }
+
+  /** Returns 'true' if a message tag is in the synchronization category. */
+  static bool isSynchronizationMessage(Tag tag);
+
+  /** Returns 'true' if this message is in the synchronization category. */
+  inline bool isSynchronizationMessage() const {
+    return isSynchronizationMessage(tag_);
+  }
+
+  /** Returns 'true' if a message tag is in the language category. */
+  static bool isLanguageMessage(Tag tag);
+
+  /** Returns 'true' if this message is in the language category. */
+  inline bool isLanguageMessage() const {
+    return isLanguageMessage(tag_);
+  }
+
+  /** Create a copy of this message. */
+  virtual chpl::owned<Message> clone() const = 0;
 };
 
 namespace detail {
@@ -393,9 +420,11 @@ protected:
 
   TemplatedMessage(Message::Tag tag, JsonValue id, Message::Error error,
                    std::string note,
-                   Params p)
+                   Params p,
+                   Result r={})
       : Message(tag, std::move(id), error, std::move(note)),
-        p(std::move(p)) {}
+        p(std::move(p)),
+        r(std::move(r)) {}
 
   static Message::Error unpack(JsonValue j, Params& p, std::string& note);
   static Message::Error unpack(JsonValue j, Result& r, std::string& note);
@@ -416,11 +445,13 @@ public:
   // Cannot use 'default' because of a conflict with specialization on GCC.
   virtual ~TemplatedMessage() override {}
 
-  /** Create a message using a JSON id and parameters. */
-  static chpl::owned<Self> create(JsonValue id, Params p);
+  /** Create a message using parameters and a JSON id. If the message is a
+      notification then 'id' is ignored. */
+  static chpl::owned<Self> create(Params p, JsonValue id=nullptr);
 
-  /** Create a message using a JSON id, error code and optional note. */
-  static chpl::owned<Self> createFromJson(JsonValue id, JsonValue j);
+  /** Create a message using a JSON value and id. If the message is a
+      notification then 'id' is ignored. */
+  static chpl::owned<Self> createFromJson(JsonValue j, JsonValue id=nullptr);
 
   /** Pack this request into a JSON value. The contents of the JSON value
       depend on the behavior of this message. There are four modes:
@@ -466,6 +497,9 @@ public:
 
   /** This function performs the actual computation. */
   static ComputeResult compute(Server* ctx, ComputeParams p);
+
+  /** Create a copy of this message. */
+  virtual chpl::owned<Message> clone() const final override;
 };
 
 /** Create aliases for each specialization over a message tag. */
@@ -531,6 +565,9 @@ public:
 
   /** Handling a response does nothing. */
   virtual void handle(Server* ctx, Response* rsp) override {}
+
+  /** Create a copy of this response. */
+  virtual chpl::owned<Message> clone() const final override;
 };
 
 /** Define visitor dispatch now that all subclasses have been defined. */

@@ -18,11 +18,15 @@
  * limitations under the License.
  */
 
-#include "./protocol-types.h"
-#include "./misc.h"
+#include "protocol-types.h"
+#include "misc.h"
+#include "Server.h"
+#include "chpl/framework/ErrorBase.h"
+#include "chpl/framework/ErrorWriter.h"
 #include "llvm/Support/JSON.h"
 #include <cstdlib>
 #include <iostream>
+#include <sstream>
 
 template <typename T>
 static void doAddField(chpldef::JsonObject& obj, const char* name,
@@ -325,6 +329,89 @@ JsonValue DefinitionResult::toJson() const {
   if (auto v = std::get_if<std::vector<Location>>(&*result)) return *v;
   if (auto v = std::get_if<std::vector<LocationLink>>(&*result)) return *v;
   return nullptr;
+}
+
+Range
+Diagnostic::rangeFromError(chpl::Context* chapel, const chpl::ErrorBase* e) {
+  return e->location(chapel);
+}
+
+Diagnostic::Severity Diagnostic::severityFromError(const chpl::ErrorBase* e) {
+  using namespace chpl;
+  switch (e->kind()) {
+    case ErrorBase::NOTE: return Information;
+    case ErrorBase::WARNING: return Warning;
+    case ErrorBase::SYNTAX: return Error;
+    case ErrorBase::ERROR: return Error;
+    default: return Error;
+  }
+}
+
+std::string Diagnostic::codeFromError(const chpl::ErrorBase* e) {
+  return chpl::ErrorBase::getTypeName(e->type());
+}
+
+opt<std::string> Diagnostic::sourceFromError(const chpl::ErrorBase* e) {
+  if (e->kind() == chpl::ErrorBase::SYNTAX) return std::string("parser");
+  return std::string("compiler");
+}
+
+std::string
+Diagnostic::messageFromError(chpl::Context* chapel, const chpl::ErrorBase* e,
+                             bool useBriefErrors) {
+  std::stringstream ss;
+  const auto outputFormat = useBriefErrors
+      ? chpl::ErrorWriter::DETAILED
+      : chpl::ErrorWriter::BRIEF;
+  const bool useColor = false;
+  chpl::ErrorWriter ew(chapel, ss, outputFormat, useColor);
+  e->write(ew);
+  return ss.str();
+}
+
+opt<std::vector<Diagnostic::Tag>>
+Diagnostic::tagsFromError(const chpl::ErrorBase* e) {
+  if (e->type() == chpl::Deprecation) {
+    return {{ Diagnostic::Deprecated }};
+  }
+  return {};
+}
+
+Diagnostic::Diagnostic(chpl::Context* chapel, const chpl::ErrorBase* e,
+                       bool useBriefErrors)
+    : range(rangeFromError(chapel, e)),
+      severity(severityFromError(e)),
+      code(codeFromError(e)),
+      source(sourceFromError(e)),
+      message(messageFromError(chapel, e, useBriefErrors)),
+      tags(tagsFromError(e)) {
+}
+
+JsonValue Diagnostic::toJson() const {
+  JsonObject ret;
+  FIELD_(ret, range);
+  if (severity) ret["severity"] = static_cast<int64_t>(*severity);
+  FIELD_(ret, code);
+  FIELD_(ret, codeDescription);
+  FIELD_(ret, source);
+  FIELD_(ret, message);
+  // TODO: Some sort of macro or template to handle this case.
+  if (tags) {
+    std::vector<int64_t> v;
+    for (auto t : *tags) v.push_back(static_cast<int64_t>(t));
+    doAddField(ret, "tags", v);
+  }
+  FIELD_(ret, relatedInformation);
+  FIELD_(ret, data);
+  return ret;
+}
+
+JsonValue PublishDiagnosticsParams::toJson() const {
+  JsonObject ret;
+  FIELD_(ret, uri);
+  FIELD_(ret, version);
+  FIELD_(ret, diagnostics);
+  return ret;
 }
 
 } // end namespace 'chpldef'

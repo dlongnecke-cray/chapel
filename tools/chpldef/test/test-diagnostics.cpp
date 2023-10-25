@@ -18,22 +18,30 @@
  * limitations under the License.
  */
 
-#include "TestClient.h"
+#include "./TestClient.h"
 
-static void test0() {
+static void testDiagnostics(const std::string& uri,
+                            const std::string& text) {
   auto client = TestClient::create();
-  auto& server = client.server();
-  assert(server.state() == Server::UNINITIALIZED);
-  auto r1 = client.sendInitialize();
-  assert(server.state() == Server::SETUP);
-  client.sendInitialized();
-  assert(server.state() == Server::READY);
-  // TODO: Need to check for error code in the message, and wire up a few
-  // more state changes before we can check for 'Shutdown' and 'Exit'.
-  /**
-  client.sendShutdown();
-  assert(server.state() == Server::SHUTDOWN);
-  */
+
+  client.advanceServerToReady();
+
+  /** Send 'DidOpen' to communicate text open in the editor. */
+  client.sendDidOpen(uri, text);
+
+  /** Collect the Diagnostic messages we should expect to see. */
+  const auto diags = TestClient::collectDiagnosticMessages(uri, text);
+}
+
+static void test0(void) {
+  const auto uri = "test0.chpl";
+  const auto text = R"""(
+  a;
+  b;
+  c;
+  )""";
+
+  testDiagnostics(uri, text);
 }
 
 int main(int argc, char** argv) {

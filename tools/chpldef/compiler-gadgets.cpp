@@ -100,12 +100,10 @@ const chpl::uast::FnCall*
 parentCallIfBaseExpression(chpl::Context* chapel,
                            const chpl::uast::AstNode* ast) {
   if (!ast) return nullptr;
-  auto p = chpl::parsing::parentAst(chapel, ast);
-  if (!p) return nullptr;
-
-  if (auto call = p->toFnCall())
-    if (auto ce = call->calledExpression())
-      if (ce == ast) return call;
+  if (auto p = chpl::parsing::parentAst(chapel, ast))
+    if (auto call = p->toFnCall())
+      if (auto ce = call->calledExpression())
+        if (ce == ast) return call;
   return nullptr;
 }
 

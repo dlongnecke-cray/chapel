@@ -23,8 +23,10 @@
 
 #include "Format.h"
 #include "Logger.h"
+#include "IterAdapter.h"
 #include "Message.h"
 #include "misc.h"
+#include "TextRegistry.h"
 #include "Transport.h"
 #include "chpl/framework/Context.h"
 #include "chpl/framework/ErrorBase.h"
@@ -37,8 +39,11 @@
 #include <iostream>
 #include <queue>
 #include <thread>
+#include <unordered_map>
 
 namespace chpldef {
+
+namespace events { class ResolveModules; }
 
 class Server {
 public:
@@ -53,43 +58,86 @@ public:
     SHUTDOWN            /** Client has sent us 'Shutdown'. */
   };
 
+  /** The server will invoke this handler before sending a message. */
+  class SentMessageInterceptor {
+  public:
+    virtual void handle(const Message* msg) = 0;
+    virtual ~SentMessageInterceptor() = default;
+  };
+
   /** This can be used to configure a server when creating it. */
   struct Configuration {
     std::string logFile;
     Logger::Level logLevel = Logger::OFF;
     std::string chplHome;
     int garbageCollectionFrequency = DEFAULT_GC_FREQUENCY;
+    chpl::owned<Transport> transport = nullptr;
+    chpl::owned<SentMessageInterceptor> sentMessageInterceptor = nullptr;
+    bool useBriefErrors = false; 
     bool warnUnstable = false;
     bool enableStandardLibrary = false;
     bool compilerDebugTrace = false;
-    chpl::owned<Transport> transport = nullptr;
   };
 
-  /** Document synchronization messages will mutate text entries. */
-  struct TextEntry {
-    int64_t version = -1;
-    int64_t lastRevisionContentsUpdated = -1;
-    bool isOpen = false;
-  };
+  /** This error handler is installed into the Chapel frontend. This handler
+      associates all currently reported errors with a Chapel context
+      revision number. The first time an error is reported during a different
+      revision number, all errors currently stored in the handler are
+      invalidated and removed from the handler. This is because the Chapel
+      context should re-report any still relevant errors when its revision
+      is bumped.
 
-  using TextRegistry = std::map<std::string, TextEntry>;
-
-  /** This error handler is installed into the Chapel frontend. */
+      Additionally, this error handler stores all errors associated with a
+      given URI in reported order. This makes it convenient to implement
+      either push or pull diagnostics. */
   class ErrorHandler : public chpl::Context::ErrorHandler {
   public:
     using Error = chpl::ErrorBase;
-    using ErrorAndRevision = std::pair<chpl::owned<Error>, int64_t>;
-    using ErrorList = std::vector<ErrorAndRevision>;
+    using ErrorList = std::vector<chpl::owned<Error>>;
+    using ErrorPtrList = std::vector<const Error*>;
+    using UriToErrorMap = std::unordered_map<std::string, ErrorPtrList>;
+    using iter = ConstIterAdapter<std::string, UriToErrorMap, IterMode::KEY>;
   private:
     ErrorList errors_;
     Server* ctx_ = nullptr;
+    int64_t revisionReported_ = -1;
+    UriToErrorMap uriToErrors_;
+
   public:
     ErrorHandler(Server* ctx) : ctx_(ctx) {}
    ~ErrorHandler() = default;
+
+    /** Begin iterating over the different URIs in this error handler. */
+    inline iter begin() const { return iter(uriToErrors_.begin()); }
+
+    /** Stop iterating over the different URIs in this error handler. */
+    inline iter end() const { return iter(uriToErrors_.end()); }
+
+    /** This is called by the Chapel context to report an error. */
     virtual void report(chpl::Context* chapel, const Error* err) override;
-    inline const ErrorList& errors() const { return errors_; }
-    inline void clear() { errors_.clear(); }
-    inline size_t numErrors() { return errors_.size(); }
+
+    /** Get all errors in the order reported by the Chapel context. */
+    inline const ErrorList& allErrorsInReportOrder() const { return errors_; }
+
+    /** Get all errors for a given URI, or 'nullptr' if none were found. */
+    inline const ErrorPtrList* errorsForUri(const std::string& uri) const {
+      auto it = uriToErrors_.find(uri);
+      return it != uriToErrors_.end() ? &it->second : nullptr;
+    }
+
+    /** Get the total number of errors that were reported. */
+    inline size_t numErrors() const { return errors_.size(); }
+
+    /** Get the number of errors reported for a given URI. */
+    inline size_t numErrorsForUri(const std::string& uri) {
+      return errorsForUri(uri) ? errorsForUri(uri)->size() : 0;
+    }
+
+    /** Returns 'true' if no errors were reported. */
+    inline bool isEmpty() const { return numErrors() == 0; }
+
+    /** Return the revision errors were reported. */
+    inline int64_t revisionReported() const { return revisionReported_; }
   };
 
   /** The server runs an event during each cycle of the event loop. */
@@ -97,7 +145,7 @@ public:
   public:
     enum When {
       NEVER             = 0,
-      ALWAYS            = 1,  /** Before and after message handling. */
+      ALWAYS            = 1,  /** Run at every possible trigger point. */
       LOOP_START        = 2,  /** Start of server loop iteration. */
       PRIOR_HANDLE      = 4,  /** Before a message is handled. */
       AFTER_HANDLE      = 8,  /** After a message is handled. */
@@ -115,11 +163,17 @@ public:
     inline int mask() const { return mask_; }
 
     /** By default, events will not run until server state is 'READY'. */
-    virtual bool canRun(Server* ctx) const;
+    static bool defaultCanRun(const Server* ctx, MessageTag tag, When when);
+
+    /** The base class calls the static 'defaultCanRun' above. */
+    virtual bool
+    canRun(const Server* ctx, MessageTag tag, When when) const;
 
     /** Run the event at the current stage, indicated by 'when'. */
     virtual void run(Server* ctx, const Message* msg, When when) = 0;
   };
+
+
 
   /** Note that below we list the compiler instance before the server
       configuration so that the server initializer can use the config
@@ -127,38 +181,46 @@ public:
 private:
   State state_ = UNINITIALIZED;
   Logger logger_;
-  chpl::Context chapel_;
+  // Take this by owned pointer because of deleted move constructor.
+  chpl::owned<chpl::Context> chapel_ = nullptr;
   Configuration config_;
   TextRegistry textRegistry_;
   int64_t revision_ = 0;
   ErrorHandler* errorHandler_ = nullptr;
   std::queue<chpl::owned<Message>> messages_;
-  std::map<std::string, chpl::owned<Message>> idToOutboundRequest_;
+  std::unordered_map<std::string, chpl::owned<Message>> idToOutboundRequest_;
   std::vector<chpl::owned<Event>> events_;
   Transport* transport_ = nullptr;
+  SentMessageInterceptor* sentMessageInterceptor_ = nullptr;
 
   inline bool
   isLogLevel(Logger::Level level) const { return logger_.level() == level; }
+  inline chpl::Context* chapelPtr() const { return chapel_.get(); }
 
-  chpl::Context createCompilerContext(const Configuration& config) const;
+  chpl::owned<chpl::Context>
+  createCompilerContext(const Configuration& config) const;
   bool shouldGarbageCollect() const;
   bool shouldPrepareToGarbageCollect() const;
   void doRegisterEssentialEvents();
-  void doRunEvents(Event::When when, const Message* msg=nullptr);
+  void doRunEvents(Event::When when, MessageTag tag, const Message* msg);
   chpl::owned<Message> dequeueOneMessage();
   void sendMessage(const Message* msg);
 
 protected:
+  /** Use this pattern to minimize outside mutation of server state. */
   friend chpldef::Initialize;
   friend chpldef::Initialized;
   friend chpldef::Shutdown;
   friend chpldef::DidOpen;
+  friend chpldef::events::ResolveModules;
 
   inline void setState(State state) { state_ = state; }
   inline TextRegistry& mutableTextRegistry() { return textRegistry_; }
 
 public:
   Server(Configuration config);
+  Server(const Server& other) = delete;
+  Server(Server&& other) = default;
  ~Server() = default;
 
   /** Event order matters, and events can be registered more than once. */
@@ -208,19 +270,21 @@ public:
   /** Get a handle to the current transport layer. */
   inline Transport* transport() { return transport_; }
 
-  inline ErrorHandler* errorHandler() { return errorHandler_; }
+  inline const ErrorHandler* errorHandler() const { return errorHandler_; }
 
   inline State state() const { return state_; }
 
   inline int64_t revision() const { return revision_; }
 
-  inline const chpl::Context* chapel() const { return &chapel_; }
+  inline const chpl::Context* chapel() const { return chapelPtr(); }
 
   inline const TextRegistry& textRegistry() const { return textRegistry_; }
 
   inline int garbageCollectionFrequency() const {
     return config_.garbageCollectionFrequency;
   }
+
+  inline const Configuration& config() const { return config_; }
 
   void setLogger(Logger&& logger);
   inline Logger& logger() { return logger_; }
@@ -241,9 +305,10 @@ public:
 
 private:
   inline void withChapelPrelude(WithChapelConfig c) {
-    if (shouldGarbageCollect()) chapel_.collectGarbage();
+    auto chapel = chapelPtr();
+    if (shouldGarbageCollect()) chapel->collectGarbage();
     if (c & CHPL_BUMP_REVISION) {
-      chapel_.advanceToNextRevision(shouldPrepareToGarbageCollect());
+      chapel->advanceToNextRevision(shouldPrepareToGarbageCollect());
       ++revision_;
     }
   }
@@ -252,19 +317,19 @@ public:
   /** Execute code with controlled access to the Chapel context. */
   template <typename F, typename ...Ns>
   auto withChapel(WithChapelConfig c, F&& f, Ns&&... ns)
-  -> decltype(f(&chapel_, std::forward<Ns>(ns)...)) {
+  -> decltype(f(chapelPtr(), std::forward<Ns>(ns)...)) {
     withChapelPrelude(c);
-    return f(&chapel_, std::forward<Ns>(ns)...);
+    return f(chapelPtr(), std::forward<Ns>(ns)...);
   }
 
   /** Execute code with controlled access to the Chapel context. */
   template <typename F, typename ...Ns>
   auto withChapel(F&& f, Ns&&... ns)
-  -> decltype(f(&chapel_, std::forward<Ns>(ns)...)) {
+  -> decltype(f(chapelPtr(), std::forward<Ns>(ns)...)) {
 
     // Calling 'withChapel' leads to infinite instantiation under GCC...
     withChapelPrelude(CHPL_NO_MASK);
-    return f(&chapel_, std::forward<Ns>(ns)...);
+    return f(chapelPtr(), std::forward<Ns>(ns)...);
   }
 
   template <typename T>

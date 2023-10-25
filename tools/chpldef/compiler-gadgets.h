@@ -40,6 +40,7 @@
 //
 namespace chpldef {
 
+/** Map from Chapel 1-based integer source lines to Chapel IDs. */
 using LineToIdsMap = std::map<int, std::vector<chpl::ID>>;
 
 /** Parse a top level module given a path. */

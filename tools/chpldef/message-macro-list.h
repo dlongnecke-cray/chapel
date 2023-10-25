@@ -20,6 +20,8 @@
 
 //
 // (name__, outbound__, notification__, rpc__)
+// NOTE: If you add something to a group in this file, make sure to update
+// the 'is<Category>Message statics in 'Message.cpp' as well.
 //
 
 //
@@ -31,6 +33,10 @@ CHPLDEF_MESSAGE(Initialized, 0, 1, initialized)
 CHPLDEF_MESSAGE(Shutdown, 0, 0, shutdown)
 CHPLDEF_MESSAGE(Exit, 0, 1, exit)
 
+//
+// SYCHRONIZATION
+//
+
 /** The document's content is now managed by the client and the server
     MUST NOT try to read the document's content using the document's
     URI. Open in this sense means that it is managed by the client. An
@@ -41,8 +47,13 @@ CHPLDEF_MESSAGE(DidChange, 0, 1, textDocument/didChange)
 CHPLDEF_MESSAGE(DidSave, 0, 1, textDocument/didSave)
 CHPLDEF_MESSAGE(DidClose, 0, 1, textDocument/didClose)
 
+//
+// LANGUAGE
+//
+
 CHPLDEF_MESSAGE(Declaration, 0, 0, textDocument/declaration)
 CHPLDEF_MESSAGE(Definition, 0, 0, textDocument/definition)
+CHPLDEF_MESSAGE(PublishDiagnostics, 1, 1, textDocument/publishDiagnosics)
 
 /*
 CHPLDEF_MESSAGE(RegisterCapability, client/registerCapability)

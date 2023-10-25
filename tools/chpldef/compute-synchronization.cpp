@@ -26,30 +26,33 @@ namespace chpldef {
 
 template<>
 DidOpen::ComputeResult DidOpen::compute(Server* ctx, ComputeParams p) {
+  TextRegistry& tr = ctx->mutableTextRegistry();
   auto& tdi = p.textDocument;
-  auto& e = ctx->mutableTextRegistry()[tdi.uri];
+  auto& uri = tdi.uri;
 
-  if (e.isOpen) {
+  if (tr.isOpen(uri)) {
     CHPLDEF_TODO();
     return {};
   }
 
-  CHPL_ASSERT(tdi.version > e.version);
+  // Open the entry.
+  tr.open(uri);
+
+  CHPL_ASSERT(tdi.version > tr.version(uri));
 
   // NOTE: I think we always have to bump the revision here. This is
-  // because this file may have been implicitly parsed from disk as
-  // as result of resolving a use/import. The contents are considered
-  // to have changed and the "truth of the file's contents" are determined
-  // by the client as long as it has the file open. Cannot implicitly
-  // read from disk, so have to bump the revision to ensure correctness.
+  // because the file may have been implicitly parsed from disk as a result
+  // of resolving a use/import. The contents are considered to have changed
+  // and the "truth of the file's contents" are determined by the client as
+  // long as it has the file open. Cannot implicitly read from disk, so
+  // have to bump the revision to ensure correctness.
   ctx->withChapel(Server::CHPL_BUMP_REVISION, [&](auto chapel) {
-    chpl::parsing::setFileText(chapel, tdi.uri, tdi.text);
-    auto& fc = chpl::parsing::fileText(chapel, tdi.uri);
+    chpl::parsing::setFileText(chapel, uri, std::move(tdi.text));
+    auto& fc = chpl::parsing::fileText(chapel, uri);
     CHPL_ASSERT(!fc.error());
-    CHPL_ASSERT(fc.text() == tdi.text);
-    e.version = tdi.version;
-    e.lastRevisionContentsUpdated = ctx->revision();
-    e.isOpen = true;
+    tr.setVersion(uri, tdi.version);
+    tr.setLastRevisionUpdated(uri, ctx->revision());
+    CHPL_ASSERT(tr.isOpen(uri));
   });
 
   return {};
@@ -60,7 +63,6 @@ DidChange::ComputeResult DidChange::compute(Server* ctx, ComputeParams p) {
   CHPLDEF_TODO();
   return {};
 }
-
 
 template<>
 DidSave::ComputeResult DidSave::compute(Server* ctx, ComputeParams p) {

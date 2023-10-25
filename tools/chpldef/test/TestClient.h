@@ -24,6 +24,7 @@
 #include "compiler-gadgets.h"
 #include "events.h"
 #include "Format.h"
+#include "IterAdapter.h"
 #include "Logger.h"
 #include "Message.h"
 #include "misc.h"
@@ -31,8 +32,33 @@
 #include "Server.h"
 #include "Transport.h"
 #include <ostream>
+#include <queue>
+#include <utility>
+#include <vector>
 
 using namespace chpldef;
+
+/** Install this error handler in the Chapel context when you need to record
+    errors that are emitted during a run. */
+class AggregateErrorHandler : public chpl::Context::ErrorHandler {
+public:
+  using Error = chpl::ErrorBase;
+  using iter = ConstIterAdapter<chpl::owned<Error>,
+                                std::vector<chpl::owned<Error>>,
+                                IterMode::CONTENTS>;
+private:
+  std::vector<chpl::owned<Error>> errors_;
+public:
+  AggregateErrorHandler() = default;
+ ~AggregateErrorHandler() = default;
+  inline iter begin() const { return iter(errors_.begin()); }
+  inline iter end() const { return iter(errors_.end()); }
+  virtual void report(chpl::Context* chapel, const Error* e) final override;
+  inline size_t numErrors() const { return errors_.size(); }
+  inline const Error* error(int i) {
+    return (0 <= i && i < numErrors()) ? errors_[i].get() : nullptr;
+  }
+};
 
 /** This 'TestClient' simulates a LSP client, but issues direct calls to
     server functionality rather than by sending JSON over some sort of
@@ -42,19 +68,46 @@ using namespace chpldef;
     be used to test most language server queries.
 */
 class TestClient {
+public:
+  /** Intercepts server-sent messages so the client can inspect them. */
+  class SentMessageInterceptor : public Server::SentMessageInterceptor {
+    chpl::owned<Message> last_ = nullptr;
+  public:
+    SentMessageInterceptor() = default;
+    virtual ~SentMessageInterceptor() = default;
+    virtual void handle(const Message* msg) final override;
+    chpl::owned<Message> take();
+  };
+
+private:
   Server server_;
   Server* ctx_ = &server_;
   int64_t messageIdCounter_ = 0;
   std::map<std::string, int64_t> uriToVersion_;
   std::ostream& dbg_ = ctx_->transport() ? std::cerr : std::cout;
+  SentMessageInterceptor* interceptor_ = nullptr;
 
-  static Server createServerInstance();
+  TestClient(Server server, SentMessageInterceptor* interceptor)
+    : server_(std::move(server)),
+      interceptor_(interceptor) {}
+
+  static Server createServerInstance(chpl::owned<SentMessageInterceptor> t);
   static chpl::Context createChapelCompilerInstance();
+  static AggregateErrorHandler* installErrorHandler(chpl::Context* chapel);
   int64_t bumpVersionForUri(const std::string& uri);
+  void receiveMessage(const Message* msg);
 
 public:
-  TestClient() : server_(createServerInstance()), ctx_(&server_) {}
  ~TestClient() = default;
+
+  /** Create a new instance of a test client. */
+  static TestClient create();
+
+  /** Get the current message ID counter. */
+  inline int64_t messageIdCounter() const { return messageIdCounter_; }
+
+  /** Get a const handle to the serve instance embedded in the client. */
+  inline const Server& server() const { return server_; }
 
   /** Get a handle to a stream suitable for printing debug infos. */
   inline std::ostream& dbg() { return dbg_; }
@@ -101,6 +154,12 @@ public:
   */
   static std::vector<Mention>
   collectMentions(const std::string& uri, const std::string& text);
+
+  /** Collect diagnostic messages, if any, that occurred as a result of
+      resolving the given program. The messages are computed by running
+      a separate instance of the Chapel compiler. */
+  static std::map<std::string, std::vector<Diagnostic>>
+  collectDiagnosticMessages(const std::string& uri, const std::string& text);
 
   /** Collect line lengths within the file using a separate instance
       of the Chapel compiler. */

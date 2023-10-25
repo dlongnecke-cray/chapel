@@ -45,8 +45,21 @@ namespace chpldef {
 
 void Server::ErrorHandler::report(chpl::Context* chapel,
                                   const chpl::ErrorBase* err) {
-  auto p = std::make_pair(err->clone(), ctx_->revision());
-  errors_.push_back(std::move(p));
+  const auto rev = ctx_->revision();
+  if (rev > revisionReported_) {
+    revisionReported_ = rev;
+    errors_.clear();
+    uriToErrors_.clear();
+  }
+
+  // Preserve a clone of the error in report order.
+  errors_.push_back(err->clone());
+
+  // Map the error's URI to a pointer.
+  auto last = errors_.back().get();
+  auto loc = err->location(chapel);
+  std::string uri = loc.path().c_str();
+  uriToErrors_[uri].push_back(last);
 }
 
 void Server::setLogger(Logger&& logger) {
@@ -70,8 +83,14 @@ void Server::trace(const char* fmt, ...) {
   VPRINTF_FORWARD_(fmt, logger_.vtrace);
 }
 
-bool Server::Event::canRun(Server* ctx) const {
-  return ctx->state() == Server::READY;
+bool
+Server::Event::defaultCanRun(const Server* ctx, MessageTag tag, When when) {
+  return ctx->state() >= READY;
+}
+
+bool
+Server::Event::canRun(const Server* ctx, MessageTag tag, When when) const {
+  return defaultCanRun(ctx, tag, when);
 }
 
 Server::Server(Server::Configuration config)
@@ -79,9 +98,9 @@ Server::Server(Server::Configuration config)
       config_(std::move(config)) {
 
   // Install the server error handler.
-  auto handler = toOwned(new ErrorHandler(this));
-  errorHandler_ = handler.get();
-  chapel_.installErrorHandler(std::move(handler));
+  auto errorHandler = toOwned(new ErrorHandler(this));
+  errorHandler_ = errorHandler.get();
+  chapelPtr()->installErrorHandler(std::move(errorHandler));
 
   // Open the server log.
   Logger logger;
@@ -102,14 +121,18 @@ Server::Server(Server::Configuration config)
   // Set a quick alias for the transport.
   this->transport_ = config_.transport.get();
 
+  // Set a quick alias for the sent message interceptor.
+  this->sentMessageInterceptor_ = config_.sentMessageInterceptor.get();
+
   doRegisterEssentialEvents();
 }
 
-chpl::Context
+chpl::owned<chpl::Context>
 Server::createCompilerContext(const Server::Configuration& config) const {
   chpl::Context::Configuration chplConfig;
   chplConfig.chplHome = config.chplHome;
-  return chpl::Context(std::move(chplConfig));
+  auto ptr = new chpl::Context(std::move(chplConfig));
+  return toOwned(ptr);
 }
 
 bool Server::shouldGarbageCollect() const {
@@ -132,11 +155,12 @@ void Server::doRegisterEssentialEvents() {
   registerEvent(chpl::toOwned(new PreparePublishDiagnostics()));
 }
 
-void Server::doRunEvents(Event::When when, const Message* msg) {
+void
+Server::doRunEvents(Event::When when, MessageTag tag, const Message* msg) {
   for (auto& e : events_) {
     CHPL_ASSERT(e.get());
     const bool run = (e->mask() & when) || (e->mask() & Event::ALWAYS);
-    if (!run || !e->canRun(this)) continue;
+    if (!run || !e->canRun(this, tag, when)) continue;
     this->trace("Running event '%s'\n", e->name());
     e->run(this, msg, when);
   }
@@ -150,6 +174,7 @@ chpl::owned<Message> Server::dequeueOneMessage() {
 }
 
 void Server::sendMessage(const Message* msg) {
+  if (sentMessageInterceptor_) sentMessageInterceptor_->handle(msg);
   if (transport_ == nullptr) return;
 
   if (auto j = msg->pack()) {
@@ -166,13 +191,11 @@ void Server::sendMessage(const Message* msg) {
 }
 
 void Server::registerEvent(chpl::owned<Event> event) {
-  if (!event.get()) return;
-  events_.push_back(std::move(event));
+  if (event.get()) events_.push_back(std::move(event));
 }
 
 void Server::enqueue(chpl::owned<Message> msg) {
-  if (!msg.get()) return;
-  messages_.push(std::move(msg));
+  if (msg.get()) messages_.push(std::move(msg));
 }
 
 bool Server::handle(chpl::owned<Message> msg) {
@@ -186,10 +209,10 @@ bool Server::handle(chpl::owned<Message> msg) {
 
     auto it = idToOutboundRequest_.find(msg->idToString());
     if (it != idToOutboundRequest_.end()) {
-      auto& req = it->second;
+      auto req = std::move(it->second);
+      idToOutboundRequest_.erase(it);
       CHPL_ASSERT(req->behavior() == Message::OUTBOUND_REQUEST);
       req->handle(this, rsp);
-      idToOutboundRequest_.erase(it);
     } else {
       CHPLDEF_TODO();
     }
@@ -212,6 +235,7 @@ bool Server::handle(chpl::owned<Message> msg) {
     case Message::OUTBOUND_REQUEST: {
       if (msg->status() == Message::FAILED) CHPLDEF_TODO();
       CHPL_ASSERT(msg->status() == Message::PENDING);
+
       sendMessage(msg.get());
 
       // Requests are stored for later evaluation.
@@ -235,7 +259,7 @@ bool Server::handle(chpl::owned<Message> msg) {
 
     // Should not have any messages or pending requests in the queue.
     if (!messages_.empty()) CHPLDEF_TODO();
-    if (!idToOutboundRequest_.size()) CHPLDEF_TODO();
+    if (!idToOutboundRequest_.empty()) CHPLDEF_TODO();
     ret = true;
   }
 
@@ -247,13 +271,14 @@ int Server::run() {
   int ret = 0;
 
   while (running) {
-    doRunEvents(Event::LOOP_START, nullptr);
+    doRunEvents(Event::LOOP_START, MessageTag::UNSET, nullptr);
 
     if (auto msg = dequeueOneMessage()) {
-      doRunEvents(Event::PRIOR_HANDLE, msg.get());
+      auto tag = msg->tag();
+      doRunEvents(Event::PRIOR_HANDLE, tag, msg.get());
       const bool isTimeToExit = handle(std::move(msg));
       running = !isTimeToExit;
-      doRunEvents(Event::AFTER_HANDLE, msg.get());
+      doRunEvents(Event::AFTER_HANDLE, tag, nullptr);
     }
 
     logger().flush();

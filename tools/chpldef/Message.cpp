@@ -32,16 +32,17 @@ namespace chpldef {
     linker. */
 #define CHPLDEF_MESSAGE(name__, x1__, x2__, x3__) \
   template chpl::owned<name__> \
-  name__::create(JsonValue id, name__::Params p); \
+  name__::create(name__::Params p, JsonValue id); \
   template chpl::owned<name__> \
-  name__::createFromJson(JsonValue id, JsonValue j); \
+  name__::createFromJson(JsonValue j, JsonValue id); \
   template opt<JsonValue> name__::pack() const; \
   template void name__::handle(Server* ctx); \
   template void name__::handle(Server* ctx, Response* r); \
   template void name__::handle(Server* ctx, name__::Result r); \
   template<> name__::ComputeResult \
   name__::compute(Server* ctx, name__::ComputeParams p); \
-  template name__::~name__();
+  template name__::~name__(); \
+  template chpl::owned<Message> name__::clone() const;
 #include "message-macro-list.h"
 #undef CHPLDEF_MESSAGE
 
@@ -49,6 +50,18 @@ bool Message::isIdValid(const JsonValue& id) {
   return id.kind() == JsonValue::Number ||
          id.kind() == JsonValue::String ||
          id.kind() == JsonValue::Null;
+}
+
+bool Message::isLifecycleMessage(MessageTag tag) {
+  return tag >= MessageTag::Initialize && tag <= MessageTag::Exit; 
+}
+
+bool Message::isSynchronizationMessage(MessageTag tag) {
+  return tag >= MessageTag::DidOpen && tag <= MessageTag::DidClose; 
+}
+
+bool Message::isLanguageMessage(MessageTag tag) {
+  return tag >= MessageTag::Declaration && tag <= MessageTag::Definition; 
 }
 
 Message::Behavior Message::behavior(Tag tag) {
@@ -100,15 +113,19 @@ chpl::owned<Message> Message::create(Server* ctx, JsonValue j) {
     if (Message::isIdValid(*idPtr)) id = *idPtr;
   }
 
-  auto k = id.kind();
-  bool ok = true;
-  ok &= !isNotification(tag) || k == JsonValue::Null;
-  ok &= Message::isIdValid(id);
+  const auto k = id.kind();
+  const bool hasId = id != nullptr;
+  const bool isNotification = Message::isNotification(tag);
+  bool isIdOk = k != JsonValue::Null && Message::isIdValid(id);
 
-  // Error if we failed to get the ID.
-  if (!ok) {
-    ctx->verbose("Invalid message ID type '%s'\n",
+  // TODO: More robust error if we failed to get the ID.
+  if (hasId && !isIdOk) {
+    ctx->verbose("Invalid message id JSON type '%s'\n",
                  jsonKindToString(k));
+    return nullptr;
+  } else if (hasId && isNotification) {
+    ctx->verbose("Notification id '%s' is ignored\n",
+                 jsonToString(id).c_str());
     return nullptr;
   }
 
@@ -128,7 +145,7 @@ chpl::owned<Message> Message::create(Server* ctx, JsonValue j) {
   switch (tag) {
     #define CHPLDEF_MESSAGE(name__, x1__, x2__, x3__) \
       case MessageTag::name__: { \
-        return name__::createFromJson(std::move(id), std::move(params)); \
+        return name__::createFromJson(std::move(params), std::move(id)); \
       } break;
     #include "./message-macro-list.h"
     #undef CHPLDEF_MESSAGE
@@ -289,7 +306,7 @@ TemplatedMessage<K>::unpack(Response* rsp, Result& r, std::string& note) {
 
 template <MessageTag K>
 chpl::owned<TemplatedMessage<K>>
-TemplatedMessage<K>::create(JsonValue id, Params p) {
+TemplatedMessage<K>::create(Params p, JsonValue id) {
   auto msg = new TemplatedMessage<K>(K, std::move(id), Message::OK, {},
                                      std::move(p));
   auto ret = chpl::toOwned<>(msg);
@@ -298,7 +315,7 @@ TemplatedMessage<K>::create(JsonValue id, Params p) {
 
 template <MessageTag K>
 chpl::owned<TemplatedMessage<K>>
-TemplatedMessage<K>::createFromJson(JsonValue id, JsonValue j) {
+TemplatedMessage<K>::createFromJson(JsonValue j, JsonValue id) {
   Params p = {};
   std::string note;
   auto error = unpack(std::move(j), p, note);
@@ -352,6 +369,11 @@ chpl::owned<Message> Response::create(JsonValue id, Message::Error error,
                           std::move(data));
   auto ret = chpl::toOwned(rsp);
   return ret;
+}
+
+chpl::owned<Message> Response::clone() const {
+  auto ptr = new Response(id(), error(), note(), data_);
+  return chpl::toOwned(ptr);
 }
 
 const Response* Message::toResponse() const {
@@ -560,6 +582,12 @@ template <MessageTag K>
 void TemplatedMessage<K>::handle(Server* ctx, Result r) {
   TemplatedMessageHandler<TemplatedMessage<K>> tmh(ctx, this);
   tmh.handle(std::move(r));
+}
+
+template <MessageTag K>
+chpl::owned<Message> TemplatedMessage<K>::clone() const {
+  auto ptr = new TemplatedMessage<K>(tag(), id(), error(), note(), p, r);
+  return chpl::toOwned(ptr);
 }
 
 } // end namespace 'chpldef'

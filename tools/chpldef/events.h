@@ -33,7 +33,8 @@ class ReadMessage : public Server::Event {
 public:
   ReadMessage() : Event(NAME, WHEN) {}
   virtual ~ReadMessage() = default;
-  virtual bool canRun(Server* ctx) const override;
+  virtual bool
+  canRun(const Server* ctx, MessageTag tag, When when) const override;
   virtual void run(Server* ctx, const Message* msg, When when) override;
 };
 
@@ -41,11 +42,11 @@ public:
 class ResolveModules : public Server::Event {
   static constexpr auto NAME = "ResolveModules";
   static constexpr auto WHEN = AFTER_HANDLE;
-  bool resolveModulesAfterHandle_ = false;
-  int64_t lastRevisionResolved_ = -1;
 public:
   ResolveModules() : Event(NAME, WHEN) {}
   virtual ~ResolveModules() = default;
+  virtual bool
+  canRun(const Server* ctx, MessageTag tag, When when) const override;
   virtual void run(Server* ctx, const Message* msg, When when) override;
 };
 
@@ -53,9 +54,12 @@ public:
 class PreparePublishDiagnostics : public Server::Event {
   static constexpr auto NAME = "PreparePublishDiagnostics";
   static constexpr auto WHEN = PRIOR_HANDLE | AFTER_HANDLE;
+  int64_t lastRevisionPrepared_ = -1;
 public:
   PreparePublishDiagnostics() : Event(NAME, WHEN) {}
   virtual ~PreparePublishDiagnostics() = default;
+  virtual bool
+  canRun(const Server* ctx, MessageTag tag, When when) const override;
   virtual void run(Server* ctx, const Message* msg, When when) override;
 };
 

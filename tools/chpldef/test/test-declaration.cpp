@@ -21,7 +21,7 @@
 #include "./TestClient.h"
 
 static void testDeclaration(const std::string& uri, const std::string& text) {
-  TestClient client;
+  auto client = TestClient::create();
 
   client.advanceServerToReady();
 

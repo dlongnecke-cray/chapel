@@ -33,6 +33,7 @@ add_library(chpldef-objects
     misc.cpp
     protocol-types.cpp
     Server.cpp
+    TextRegistry.cpp
     Transport.cpp)
 
 # Link the Chapel frontend to the object blob.
