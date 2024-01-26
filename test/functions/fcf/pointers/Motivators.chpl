@@ -44,6 +44,12 @@ module Motivators {
     globalCounter = 0;
   }
 
+  proc testCallWithWriteln() {
+    const f = proc() { writeln('Hello world!'); };
+    proc call(fn): void { f(); }
+    call(f);
+  }
+
   proc main() {
     testSimpleProcTypeEquivalence();
     testProcTypeFromNamedProcedure();
@@ -51,5 +57,6 @@ module Motivators {
     testEnsureProcTypeIsNotGeneric();
     testPassAndCallAnonProc1();
     testPassAndCallAnonProc2();
+    testCallWithWriteln();
   }
 }

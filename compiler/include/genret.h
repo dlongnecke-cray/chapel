@@ -31,9 +31,9 @@ namespace llvm {
 }
 #endif
 
-#define GEN_VAL      0
-#define GEN_PTR      1
-#define GEN_WIDE_PTR 2
+#define GEN_VAL       0
+#define GEN_PTR       1
+#define GEN_WIDE_PTR  2
 
 class BaseAST;
 class Type;
@@ -54,7 +54,7 @@ extern GenRet baseASTCodegenString(const char* str);
    about
      - if it is GEN_VAL it can only be read (e.g. an integer constant);
      - if it is GEN_PTR it is a local pointer (e.g. to stack variable or array
-       member);i
+       member);
      - if it is GEN_WIDE, it is a wide pointer.
    For example, if we have
      var x:int;
@@ -149,6 +149,7 @@ public:
                            // properly coerce call arguments into the correct
                            // called type, since LLVM native integer types do
                            // not include signed-ness.
+  bool isProcedureTableIndex = false;
 
   GenRet() { }
 
@@ -164,10 +165,9 @@ public:
   }
 
   // Return true if this GenRet is empty
-  bool isEmpty() const {
+  inline bool isEmpty() const {
     return c.empty() && val == NULL && type == NULL;
   }
 };
-
 
 #endif //GENRET_H

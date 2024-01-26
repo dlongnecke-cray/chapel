@@ -99,7 +99,7 @@ module ChapelBase {
 
   // This flag toggles on the new pointer-based implementation.
   // It is unstable and experimental.
-  config param fcfsUsePointerImplementation = false;
+  config param fcfsUsePointerImplementation = true;
 
   //
   // assignment on primitive types

@@ -250,6 +250,9 @@ PRAGMA(FAST_ON_SAFE_EXTERN, ypr,
 PRAGMA(FIELD_ACCESSOR, npr,
        "field accessor",
        "field setter/getter function, user-declared or compiler-generated")
+PRAGMA(FIRST_CLASS_FUNCTION, npr,
+       "first class function",
+       "this function is used as a first-class function")
 PRAGMA(FIRST_CLASS_FUNCTION_INVOCATION, npr,
        "first class function invocation",
        "proxy for first-class function invocation")

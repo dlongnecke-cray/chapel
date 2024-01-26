@@ -166,6 +166,20 @@ static void addNoAliasMetadata(GenRet &ret, Symbol* sym) {
 }
 #endif
 
+static bool shouldProduceProcedureTableIndex(FnSymbol* fn, SymExpr* use) {
+  if (!fn->hasFlag(FLAG_FIRST_CLASS_FUNCTION)) return false;
+  INT_ASSERT(use->symbol() == fn);
+  auto e = use->parentExpr;
+  auto c = e ? toCallExpr(e) : nullptr;
+  bool isDirectCall = c && use == c->baseExpr;
+  if (!isDirectCall) {
+    // This operation should only produce a local pointer.
+    if (c && c->isPrimitive(PRIM_CAST_TO_TYPE)) return false;
+    return true;
+  }
+  return false;
+}
+
 GenRet SymExpr::codegen() {
   GenInfo* info = gGenInfo;
   FILE* outfile = info->cfile;
@@ -190,8 +204,29 @@ GenRet SymExpr::codegen() {
       addNoAliasMetadata(ret, var);
     } else if(isTypeSymbol(var)) {
       ret.type = toTypeSymbol(var)->codegen().type;
-    } else if(isFnSymbol(var) ){
-      ret = toFnSymbol(var)->codegen();
+    } else if (auto fn = toFnSymbol(var)) {
+
+      // If the function is a FCF root that is being used in a FCF sort of
+      // way, then we should generate an index into the procedure table
+      // instead of a function value. This enables the function to be called
+      // on any locale (local pointers will have a different address on
+      // each locale).
+      if (shouldProduceProcedureTableIndex(fn, this)) {
+        gdbShouldBreakHere();
+        INT_ASSERT(fn->type != nullptr);
+        INT_ASSERT(ftableMap.find(fn) != ftableMap.end());
+        ret = new_IntSymbol(ftableMap[fn], INT_SIZE_32);
+        ret.chplType = fn->type;
+        ret.isProcedureTableIndex = true;
+      }
+
+      // If this flag was not set then nothing was converted. Not all
+      // functions used as values will be converted to procedure table
+      // indices. For example, deinit functions are cast to 'void (*)(void)'
+      // pointers and then stored into a whole-program table. In these
+      // cases, just produce the "local" function type.
+      if (!ret.isProcedureTableIndex) ret = toFnSymbol(var)->codegen();
+
     } else {
       ret = info->lvt->getValue(var->cname);
       if( ! ret.val ) {
@@ -4062,10 +4097,14 @@ static GenRet codegenCallIndirect(CallExpr* call) {
   GenRet base = call->baseExpr->codegen();
   GenRet ret;
 
-  auto chplFnType = toFunctionType(call->baseExpr->qualType().type());
+  if (base.isProcedureTableIndex) {
+    gdbShouldBreakHere();
+  }
+
+  auto chplCallType = call->baseExpr->qualType().type();
+  auto chplFnType = toFunctionType(chplCallType);
   INT_ASSERT(chplFnType);
 
-  // TODO: Relax this when we are able.
   INT_ASSERT(call->numActuals() == chplFnType->numFormals());
 
   int idx = 0;
@@ -4111,9 +4150,11 @@ static GenRet codegenCallIndirect(CallExpr* call) {
   return ret;
 }
 
-static GenRet codegenCallStaticAddress(CallExpr* call) {
+static GenRet codegenCallDirect(CallExpr* call) {
   FnSymbol* fn = call->resolvedFunction();
   INT_ASSERT(fn);
+
+  INT_ASSERT(!call->isIndirectCall());
 
   GenRet ret;
   std::vector<GenRet> args(call->numActuals());
@@ -4122,6 +4163,7 @@ static GenRet codegenCallStaticAddress(CallExpr* call) {
 
   for_formals_actuals(formal, actual, call) {
     SymExpr* se = toSymExpr(actual);
+    if (se && isFunctionType(se->getValType())) gdbShouldBreakHere();
     GenRet   arg = actual;
 
     if (se && isFnSymbol(se->symbol())) {
@@ -4253,7 +4295,7 @@ GenRet CallExpr::codegen() {
   } else {
     INT_ASSERT(fn);
     if (!fn->hasFlag(FLAG_NO_CODEGEN)) {
-      ret = codegenCallStaticAddress(this);
+      ret = codegenCallDirect(this);
     }
   }
 

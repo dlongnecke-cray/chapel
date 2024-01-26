@@ -10432,6 +10432,9 @@ static Expr* resolveFunctionCapture(FnSymbol* fn, Expr* use,
 
   fcfs::checkAndResolveSignatureAndBody(fn, use);
 
+  // Preemptively mark the target function.
+  fn->addFlag(FLAG_FIRST_CLASS_FUNCTION);
+
   auto ft = fn->computeAndSetType();
   INT_ASSERT(ft);
 
@@ -10508,6 +10511,7 @@ static Expr* resolveFunctionCapture(FnSymbol* fn, Expr* use,
 
   // Otherwise, perform some last minute lowering based on mode.
   auto ret = finalLoweringForFunctionCapture(fn, use, useClass);
+
   return ret;
 }
 

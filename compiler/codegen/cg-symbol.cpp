@@ -1543,6 +1543,13 @@ void TypeSymbol::codegenMetadata() {
     return;
   }
 
+  // TODO: Should we create something new? Is there a better type to use?
+  if (isFunctionType(type)) {
+    this->llvmTbaaTypeDescriptor = dtCVoidPtr->symbol->llvmTbaaTypeDescriptor;
+    this->llvmTbaaAccessTag = dtCVoidPtr->symbol->llvmTbaaAccessTag;
+    this-> llvmConstTbaaAccessTag = dtCVoidPtr->symbol->llvmConstTbaaAccessTag;
+  }
+
   bool treatAsUnion = isUnion(type) || this->hasFlag(FLAG_EXTERN_UNION);
 
   if (treatAsUnion && !isUnion(type) && isRecord(type))
@@ -2913,11 +2920,9 @@ GenRet FnSymbol::codegen() {
       }
     } else {
       ret.val = getFunctionLLVM(cname);
-      if( ! ret.val ) {
-        if( hasFlag(FLAG_EXTERN) ) {
-          if( isBuiltinExternCFunction(cname) ) {
-            // it's OK.
-          } else {
+      if (!ret.val) {
+        if (hasFlag(FLAG_EXTERN)) {
+          if (!isBuiltinExternCFunction(cname)) {
             USR_FATAL(this->defPoint,
                       "Could not find C function for %s; "
                       " perhaps it is missing or is a macro?", cname);

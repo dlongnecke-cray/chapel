@@ -1883,8 +1883,11 @@ static void codegen_header(std::set<const char*> & cnames,
     // Start with primitive types in case they are referenced by
     // records or classes.
     forv_Vec(TypeSymbol, typeSymbol, gTypeSymbols) {
+      bool isPrimitive = isPrimitiveType(typeSymbol->type);
+      bool isFunction = isFunctionType(typeSymbol->type);
+      bool shouldGenerateFirst = isPrimitive || isFunction;
       if (typeSymbol->defPoint->parentExpr == rootModule->block &&
-          isPrimitiveType(typeSymbol->type) &&
+          shouldGenerateFirst &&
           typeSymbol->getLLVMType()) {
         typeSymbol->codegenMetadata();
       }
@@ -1911,7 +1914,8 @@ static void codegen_header(std::set<const char*> & cnames,
   for_vector(FnSymbol, fn2, functions) {
     if (fn2->hasFlag(FLAG_BEGIN_BLOCK) ||
         fn2->hasFlag(FLAG_COBEGIN_OR_COFORALL_BLOCK) ||
-        fn2->hasFlag(FLAG_ON_BLOCK)) {
+        fn2->hasFlag(FLAG_ON_BLOCK) ||
+        fn2->hasFlag(FLAG_FIRST_CLASS_FUNCTION)) {
       ftableVec.push_back(fn2);
       ftableMap[fn2] = ftableVec.size()-1;
     }
