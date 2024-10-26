@@ -1679,7 +1679,8 @@ bool isClassLikeOrPtr(Type* t) {
                             t->symbol->hasFlag(FLAG_DATA_CLASS) ||
                             t == dtCVoidPtr ||
                             t == dtStringC ||
-                            t == dtCFnPtr);
+                            t == dtCFnPtr) ||
+         (isFunctionType(t) && fcfs::usePointerImplementation());
 }
 
 bool isCPtrConstChar(Type* t) {
