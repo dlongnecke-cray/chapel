@@ -2304,7 +2304,7 @@ void insertFormalTemps(FnSymbol* fn) {
 }
 
 // Returns true if the formal needs an internal temporary, false otherwise.
-// See also ArgSymbol::requiresCPtr
+// See also argRequiresCPtr
 bool formalRequiresTemp(ArgSymbol* formal, FnSymbol* fn) {
   return
     //
