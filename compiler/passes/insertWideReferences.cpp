@@ -233,7 +233,7 @@
       id__ == BREAK_WHEN_VISITING_ID_1 || \
       id__ == BREAK_WHEN_VISITING_ID_2 || \
       id__ == BREAK_WHEN_VISITING_ID_3) { \
-    gdbShouldBreakHere(); \
+    debuggerBreakHere(); \
   } \
 } while (0)
 
