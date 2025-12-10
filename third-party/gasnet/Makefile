@@ -112,7 +112,7 @@ CHPL_GASNET_CFG_OPTIONS += --disable-ibv-odp
 ifeq ($(CHPL_MAKE_TARGET_COMPILER),llvm)
 # If we are using LLVM 15+, it defaults to -fPIE, so use that here as well
 ifeq ($(shell test $(CHPL_MAKE_LLVM_VERSION) -ge 15; echo "$$?"),0)
-GASNET_CFLAGS += -fPIE
+GASNET_CFLAGS += -fPIC
 endif
 endif
 
