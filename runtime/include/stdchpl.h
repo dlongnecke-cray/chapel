@@ -63,6 +63,7 @@
 #include "chplmemtrack.h"
 #include "chpl-prefetch.h"
 #include "chpl-privatization.h"
+#include "chpl-program-registration.h"
 #include "chpl-string.h"
 #include "chplsys.h"
 #include "chpl-tasks.h"
