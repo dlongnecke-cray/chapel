@@ -39,7 +39,6 @@
 #include "arg.h"
 #include "config.h"
 #include "chplcast.h"
-#include "chplcgfns.h"
 #include "chpl-atomics.h"
 #include "chpl-bitops.h"
 #include "chpl-comm.h"

@@ -18,28 +18,31 @@
  * limitations under the License.
  */
 
-#if !defined(CHPL_RT_PROGRAM_INFO_MACRO_DECLARE_ONLY_DONE) && \
-     defined(CHPL_RT_PROGRAM_INFO_MACRO_DECLARE_ONLY)
-  // These must be undefined or else the X-macro list will break compilation.
-  #undef E_CONSTANT
-  #undef E_CALLBACK
-  #define E_CONSTANT(name__, type__)
-  #define E_CALLBACK(name__)
+#if !defined(CHPL_PROGRAM_DATA_MACRO_DECLARE_ONLY_DONE) && \
+     defined(CHPL_PROGRAM_DATA_MACRO_DECLARE_ONLY)
+  #define CHPL_PROGRAM_DATA_MACRO_DECLARE_ONLY_DONE
 
   // These are the headers required to get at the types used below.
+  //
+  // NOTE: If you need to '#include' a type and that header ends up using
+  // 'chpl-program-registration.h' it can cause some funky circular inclusion
+  // problems. In that case, the best thing to do is to forward-declare the
+  // type here if needed...
   #include <inttypes.h>
   #include <stddef.h>
-  #include "chpl-atomics.h"
   #include "chpl-string-support.h"
   #include "chpltypes.h"
-  #include "qio.h"
-  #include "qio_error.h"
 
-  // Defining only the types used by callbacks. To do so, write e.g.,...
-  //
-  // #define CHPL_RT_PROGRAM_INFO_MACRO_DECLARE_TYPES_ONLY
-  // #include "chpl-program-info-macro.h"
-  //
+  #ifndef LAUNCHER
+    #include "qio_error.h"
+  #else
+    typedef void syserr;
+  #endif
+
+  // ...As is done here.
+  struct qio_channel_s;
+  typedef struct qio_channel_s qio_channel_t;
+
   typedef void (*chpl_program_about_type)(void);
   typedef chpl_bool (*chpl_task_getCommDiagsTemporarilyDisabled_type)(void);
   typedef chpl_bool (*chpl_task_setCommDiagsTemporarilyDisabled_type)(chpl_bool);
@@ -84,8 +87,8 @@
   (*chpl_localeModel_sublocToExecutionSubloc_type)(c_sublocid_t full_subloc);
   typedef void (*chpl__heapAllocateGlobals_type)(void);
 
-  #define CHPL_RT_PROGRAM_INFO_MACRO_DECLARE_ONLY_DONE
-  #undef CHPL_RT_PROGRAM_INFO_MACRO_DECLARE_ONLY
+  #define E_CALLBACK(name__)
+  #define E_CONSTANT(name__, type__) typedef type__ name__##_type;
 #endif
 
 /**
@@ -138,6 +141,11 @@ E_CONSTANT(chpl_global_serialize_table, void**)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     A table of local addresses of wide pointers containing global vars.
+
+    // chpl_globals_registry is an array of size chpl_numGlobalsOnHeap
+    // storing ptr_wide_ptr_t, that is, local addresses of wide pointers.
+    // It is filled in and used by chpl_comm_register_global_var() and
+    // chpl_comm_broadcast_global_vars(), respectively, declared below.
 */
 E_CONSTANT(chpl_globals_registry, ptr_wide_ptr_t*)
 
@@ -151,7 +159,7 @@ E_CONSTANT(chpl_numGlobalsOnHeap, int)
 */
 E_CONSTANT(chpl_ftable, chpl_fn_p*)
 
-/** CODE-GENERATED | PER-PROGRAM-CONSTANT | (NOT USED)
+/** CODE-GENERATED | PER-PROGRAM-CONSTANT | (TODO NOT USED)
     Length of the function table.
 */
 E_CONSTANT(chpl_ftableSize, int64_t)
@@ -161,7 +169,7 @@ E_CONSTANT(chpl_ftableSize, int64_t)
 */
 E_CALLBACK(chpl_taskRunningCntInc)
 
-/** MODULE-CODE: ChapelLocale.chpl | PER-PROGRAM-CALLBACK
+/** MODULE-CODE: ChapelLocale.chpl | PER-PROGRAM-CALLBACK (TODO NOT USED)
     Call to decrement the task running count.
 */
 E_CALLBACK(chpl_taskRunningCntDec)
@@ -230,6 +238,12 @@ E_CONSTANT(chpl_filenameTableSize, int32_t)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Contains strings that describe allocation types.
+
+    // The compiler generates a separate array of descriptions for the
+    // allocation types it defines.  Indices into that compiler-generated
+    // array conceptually start after the CHPL_RT_MD_NUM enum value in
+    // chpl-mem.h).  This is that compiler-generated array, and how many
+    // entries it has (also defined in the generated code).
 */
 E_CONSTANT(chpl_mem_descs, const char**)
 
@@ -310,59 +324,12 @@ E_CONSTANT(CHPL_UNWIND, const char*)
 */
 E_CONSTANT(CHPL_INTERLEAVE_MEM, const char*)
 
-/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
-    Performs a 'fsync' operation.
-*/
-E_CALLBACK(chpl_qio_fsync)
-
-/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
-    Get the path to a file.
-*/
-E_CALLBACK(chpl_qio_getpath)
-
-/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
-    Get the length of a file.
-*/
-E_CALLBACK(chpl_qio_filelength)
-
-/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
-    Create a plugin channel to attach to the qio channel.
-*/
-E_CALLBACK(chpl_qio_setup_plugin_channel)
-
-/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
-    Close the channel.
-*/
-E_CALLBACK(chpl_qio_channel_close)
-
-/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
-    Reads 'amt' bytes (or more) into the channel buffer.
-*/
-E_CALLBACK(chpl_qio_read_atleast)
-
-/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
-    Writes 'amt' bytes from the channel buffer.
-*/
-E_CALLBACK(chpl_qio_write)
-
-/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
-    Get the optimal I/O size for the channel.
-*/
-E_CALLBACK(chpl_qio_get_chunk)
-
-/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
-    Get the locales for a region. The 'localeNamesPtr' should be a pointer
-    to an array of 'char*' to set on output.
-*/
-E_CALLBACK(chpl_qio_get_locales_for_region)
-
-/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
-    Close a file.
-*/
-E_CALLBACK(chpl_qio_file_close)
-
 /** MODULE-CODE: LocaleModel.chpl | PER-PROGRAM-CALLBACK
     Convert from a full sublocale to an execution sublocale.
+
+    // These functions are exported from the locale model for use by
+    // the tasking layer to convert between a full sublocale and an
+    // execution sublocale.
 */
 E_CALLBACK(chpl_localeModel_sublocToExecutionSubloc)
 
@@ -406,8 +373,57 @@ E_CONSTANT(CHPL_TARGET_CPU, const char*)
 */
 E_CONSTANT(CHPL_GASNET_SEGMENT, const char*)
 
-#if !defined(CHPL_RT_PROGRAM_INFO_MACRO_DECLARE_ONLY) && \
-     defined(CHPL_RT_PROGRAM_INFO_MACRO_DECLARE_ONLY_DONE)
-  #undef E_CONSTANT
-  #undef E_CALLBACK
-#endif
+/// -------------- ///
+/// QIO Plugin API ///
+/// -------------- ///
+
+/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
+    Create a plugin channel to attach to the qio channel.
+*/
+E_CALLBACK(chpl_qio_setup_plugin_channel)
+
+/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
+    Reads 'amt' bytes (or more) into the channel buffer.
+*/
+E_CALLBACK(chpl_qio_read_atleast)
+
+/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
+    Writes 'amt' bytes from the channel buffer.
+*/
+E_CALLBACK(chpl_qio_write)
+
+/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
+    Close the channel.
+*/
+E_CALLBACK(chpl_qio_channel_close)
+
+/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
+    Get the length of a file.
+*/
+E_CALLBACK(chpl_qio_filelength)
+
+/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
+    Get the path to a file.
+*/
+E_CALLBACK(chpl_qio_getpath)
+
+/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
+    Performs a 'fsync' operation.
+*/
+E_CALLBACK(chpl_qio_fsync)
+
+/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
+    Get the optimal I/O size for the channel.
+*/
+E_CALLBACK(chpl_qio_get_chunk)
+
+/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
+    Get the locales for a region. The 'localeNamesPtr' should be a pointer
+    to an array of 'char*' to set on output.
+*/
+E_CALLBACK(chpl_qio_get_locales_for_region)
+
+/** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
+    Close a file.
+*/
+E_CALLBACK(chpl_qio_file_close)

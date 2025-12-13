@@ -28,7 +28,6 @@
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
-#include "chplcgfns.h"
 #include "chpl-comm-launch.h"
 #include "chpl-comm-locales.h"
 #include "chplexit.h"
@@ -41,16 +40,23 @@
 // used in get_enviro_keys
 extern char** environ;
 
+// This file is only compiled into the launcher, so it is OK to declare/link
+// against symbols from the Chapel program that we need instead of using the
+// program registration path.
+// TODO (dlongnecke): Is this correct...?
+
 // This global variable stores the arguments to main
 // that should be handled by the program.
 chpl_main_argument chpl_gen_main_arg;
-// This variable is normally declared in config.h
-// and comes from the generated code.
-extern const int mainHasArgs;
-extern const int mainPreserveDelimiter;
-extern const int launcher_is_mli;
-extern const char* launcher_mli_real_name;
 
+#ifdef LAUNCHER
+  extern const int mainHasArgs;
+  extern const int mainPreserveDelimiter;
+  extern const int launcher_is_mli;
+  extern const char* launcher_mli_real_name;
+  extern void CreateConfigVarTable(void);
+  extern const char* CHPL_LAUNCHER;
+#endif
 
 //
 // Are we doing a dry run, printing the system launcher command but
@@ -886,6 +892,7 @@ void chpl_launcher_no_colocales_error(const char *name) {
   if (name == NULL) {
     name = CHPL_LAUNCHER;
   }
+
   snprintf(msg, sizeof(msg), "'%s' launcher does not support co-locales.", name);
   chpl_error(msg, 0, 0);
 }
