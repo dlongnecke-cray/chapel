@@ -23,7 +23,6 @@
 #include "arg.h"
 #include "chpl_rt_utils_static.h"
 #include "chplcast.h"
-#include "chplcgfns.h"
 #include "chpl-cache.h"
 #include "chpl-comm.h"
 #include "chplexit.h"
@@ -33,6 +32,7 @@
 #include "chpl-mem.h"
 #include "chplmemtrack.h"
 #include "chpl-privatization.h"
+#include "chpl-program-registration.h"
 #include "chpl-tasks.h"
 #include "chpl-topo.h"
 #include "chpl-linefile-support.h"
@@ -68,6 +68,7 @@ void deallocate_string_literals_buf(void) {
 
 int handleNonstandardArg(int* argc, char* argv[], int argNum,
                          int32_t lineno, int32_t filename) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, mainHasArgs);
 
   if (mainHasArgs) {
     chpl_gen_main_arg.argv[chpl_gen_main_arg.argc] = argv[argNum];
@@ -109,6 +110,9 @@ static void recordExecutionCommand(int argc, char *argv[]) {
 // code.  The call on non-0 locales is made from chpl_main(), above.
 //
 void chpl_rt_preUserCodeHook(void) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_taskRunningCntReset);
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_taskRunningCntInc);
+
   //
   // The module initialization functions have all completed on each
   // node, locally, before we are called.
@@ -208,6 +212,10 @@ void chpl_rt_init(int argc, char* argv[]) {
   int32_t execNumLocales;
   int runInGDB;
   int runInLLDB;
+
+  // TODO: Program data needs to be initialized before this point even?
+  // TODO: Maybe the program needs to be responsible for parsing configs?
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CreateConfigVarTable);
 
   // Check that we can get the page size.
   assert( sys_page_size() > 0 );
@@ -338,6 +346,13 @@ void chpl_rt_init(int argc, char* argv[]) {
 // each locale in order for the Chapel program to function correctly.
 //
 void chpl_std_module_init(void) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl__initStringLiterals);
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl__heapAllocateGlobals);
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl__init_preInit);
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
+                        chpl__init_PrintModuleInitOrder);
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl__init_ChapelStandard);
+
   // chpl__initStringLiterals runs the constructors for all string literals. We
   // need to setup the literals on every locale before any other chapel code is
   // run.
@@ -384,6 +399,8 @@ void chpl_executable_init(void) {
 
   chpl_std_module_init();
   if (chpl_nodeID == 0) {
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_gen_main);
+
     //
     // Call the compiler-generated main() routine
     //

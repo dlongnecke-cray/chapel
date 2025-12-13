@@ -36,7 +36,6 @@
 #include "chpl-tasks.h"
 #include "chpl-topo.h"
 #include "chpltypes.h"
-#include "chplcgfns.h"
 #include "chpl-gen-includes.h"
 #include "chpl-atomics.h"
 #include "chpl-linefile-support.h"
@@ -963,6 +962,7 @@ void chpl_comm_pre_mem_init(void) {
   // of the executable (something that is not true with ASLR)
   //
   if (chpl_nodeID == 0) {
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_numGlobalsOnHeap);
     //
     // Only locale #0 really needs the seginfo_table to store anything since it owns all
     // of the global variable locations; everyone else will just peek at its copy.  So
@@ -1170,6 +1170,9 @@ wide_ptr_t* chpl_comm_broadcast_global_vars_helper(void) {
   // node 0 has filled in that buffer, however.
   //
   if (chpl_nodeID == 0) {
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_numGlobalsOnHeap);
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_globals_registry);
+
     for (int i = 0; i < chpl_numGlobalsOnHeap; i++) {
       ((wide_ptr_t*) seginfo_table[0].addr)[i] = *chpl_globals_registry[i];
     }

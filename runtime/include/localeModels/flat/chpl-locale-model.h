@@ -76,15 +76,7 @@ int chpl_equals_localeID(chpl_localeID_t* loc1, chpl_localeID_t* loc2) {
   return loc1->node == loc2->node;
 }
 
-//
-// These functions are exported from the locale model for use by
-// the tasking layer to convert between a full sublocale and an
-// execution sublocale.
-//
-extern
-c_sublocid_t chpl_localeModel_sublocToExecutionSubloc(
-                  c_sublocid_t full_subloc);
-
+// TODO (dlongnecke): Is this used? I should get linker errors about it?
 extern
 c_sublocid_t chpl_localeModel_sublocMerge(c_sublocid_t full_subloc,
                   c_sublocid_t execution_subloc);
