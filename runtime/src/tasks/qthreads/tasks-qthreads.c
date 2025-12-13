@@ -35,7 +35,6 @@
 
 #include "arg.h"
 #include "error.h"
-#include "chplcgfns.h"
 #include "chpl-arg-bundle.h"
 #include "chpl-comm.h"
 #include "chpl-env.h"
@@ -453,6 +452,9 @@ static void setupAvailableParallelism(int32_t maxThreads) {
     int32_t   hwpar;
     char      newenv_workers[QT_ENV_S] = { 0 };
 
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_COMM);
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_LOCALE_MODEL);
+
     // Experience has shown that Qthreads generally performs best with
     // num_workers = numCores (and thus worker_unit = core) but if the user has
     // explicitly requested more threads through the chapel or Qthread env
@@ -558,6 +560,9 @@ static void setupAvailableParallelism(int32_t maxThreads) {
 }
 
 static chpl_bool setupGuardPages(void) {
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_STACK_CHECKS);
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_TARGET_CPU);
+
     const char *armArch = "arm-thunderx";
     chpl_bool guardPagesEnabled = true;
     // default value set by compiler (--[no-]stack-checks)
@@ -684,6 +689,8 @@ static void setupWorkStealing(void) {
 }
 
 static void setupSpinWaiting(void) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_TARGET_PLATFORM);
+
   const char *crayPlatform = "cray-x";
   if (chpl_topo_isOversubscribed()) {
     chpl_qt_setenv("SPINCOUNT", "300", 0);
@@ -993,6 +1000,11 @@ void chpl_task_addTask(chpl_fn_int_t       fid,
                        int                 lineno,
                        int32_t             filename)
 {
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_ftable);
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_LOCALE_MODEL);
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
+                           chpl_localeModel_sublocToExecutionSubloc);
+
     chpl_fn_p requested_fn = chpl_ftable[fid];
 
     // We allow using c_sublocid_none to represent the CPU in the gpu locale
@@ -1032,6 +1044,9 @@ static inline void taskCallBody(chpl_fn_int_t fid, chpl_fn_p fp,
                                 c_sublocid_t full_subloc,
                                 int lineno, int32_t filename)
 {
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
+                           chpl_localeModel_sublocToExecutionSubloc);
+
     chpl_task_bundle_t *bundle = chpl_argBundleTaskArgBundle(arg);
     c_sublocid_t execution_subloc =
       chpl_localeModel_sublocToExecutionSubloc(full_subloc);
@@ -1064,6 +1079,8 @@ void chpl_task_taskCallFTable(chpl_fn_int_t fid,
                               int lineno, int32_t filename)
 {
     PROFILE_INCR(profile_task_taskCallFTable,1);
+
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_ftable);
 
     taskCallBody(fid, chpl_ftable[fid], arg, arg_size, subloc, lineno, filename);
 }

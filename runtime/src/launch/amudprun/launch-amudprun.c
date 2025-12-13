@@ -24,15 +24,16 @@
 #include "chpl-mem.h"
 #include "error.h"
 
-// To get CHPL_THIRD_PARTY from chpl invocation
-#include "chplcgfns.h"
 
 #define LAUNCH_PATH_HELP WRAP_TO_STR(LAUNCH_PATH)
 #define WRAP_TO_STR(x) TO_STR(x)
 #define TO_STR(x) #x
 
+#ifdef LAUNCHER
+  extern const char* CHPL_THIRD_PARTY;
+  extern char** environ;
+#endif
 
-extern char** environ;
 static void add_env_options(int* argc, char** argv[]) {
   int envc;
   int new_argc;

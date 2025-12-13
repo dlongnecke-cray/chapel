@@ -26,7 +26,6 @@
 #include "chpl-align.h"
 #include "chpl-env.h"
 #include "chpl-env-gen.h"
-#include "chplcgfns.h"
 #include "chplsys.h"
 #include "chpl-topo.h"
 #include "chpl-comm.h"
@@ -188,6 +187,9 @@ void chpl_topo_pre_comm_init(char *accessiblePUsMask) {
   _DBG_P("get_thisthread_last_cpu_location: %d",
          cpubind->get_thisthread_last_cpu_location);
 #endif
+
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_COMM);
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_GASNET_SEGMENT);
 
   //
   // TODO: update comment

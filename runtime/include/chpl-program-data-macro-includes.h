@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2026 Hewlett Packard Enterprise Development LP
+ * Copyright 2020-2025 Hewlett Packard Enterprise Development LP
  * Copyright 2004-2019 Cray Inc.
  * Other additional copyright holders may be indicated within.
  *
@@ -18,15 +18,13 @@
  * limitations under the License.
  */
 
-#include "sys_basic.h"
-#include "qio_error.h"
-#include "bswap.h"
-#include "deque.h"
-#include "qbuffer.h"
-#include "qio.h"
-#include "qio_formatted.h"
-#include "qio_regex.h"
-#include "qio_style.h"
-#include "bulkget.h"
-#include "sys.h"
-#include "qio_popen.h"
+#ifndef CHPL_PROGRAM_DATA_MACRO_INCLUDES_H
+#define CHPL_PROGRAM_DATA_MACRO_INCLUDES_H
+
+#define CHPL_PROGRAM_DATA_MACRO_DECLARE_ONLY 1
+#include "chpl-program-data-macro.h"
+
+#undef E_CONSTANT
+#undef E_CALLBACK
+
+#endif

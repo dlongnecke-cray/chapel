@@ -53,6 +53,7 @@ static int32_t   numColocalesOnNode = 1;
 // Global variable broadcast support.
 //
 void chpl_comm_register_global_var(int i, wide_ptr_t *ptr_to_wide_ptr) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_globals_registry);
   chpl_globals_registry[i] = ptr_to_wide_ptr;
 }
 
@@ -84,6 +85,9 @@ void chpl_comm_broadcast_global_vars(int numGlobals) {
       chpl_mem_free(buf_on_0, 0, 0);
     }
   } else {
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_numGlobalsOnHeap);
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_globals_registry);
+
     wide_ptr_t* buf;
     size_t size = chpl_numGlobalsOnHeap * sizeof(*buf);
     buf = (wide_ptr_t*)
@@ -107,6 +111,9 @@ size_t chpl_rt_priv_bcast_lens[chpl_rt_prv_tab_num_idxs] =
 #undef _RT_PRV_BCAST_M
 
 void chpl_comm_init_prv_bcast_tab(void) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_private_broadcast_table_len);
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_private_broadcast_table);
+
   //
   // Make a copy of chpl_private_broadcast_table[], but with some more of
   // our own entries following the compiler-emitted ones.
@@ -223,6 +230,7 @@ void chpl_comm_regMemHeapTouch(void* start, uintptr_t size) {
 }
 
 void* chpl_get_global_serialize_table(int64_t idx) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_global_serialize_table);
   return chpl_global_serialize_table[idx];
 }
 
