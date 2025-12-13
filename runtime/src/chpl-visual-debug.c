@@ -29,6 +29,7 @@
 #include "chpl-tasks-callbacks.h"
 #include "chpl-comm-callbacks.h"
 #include "chpl-linefile-support.h"
+#include "chpl-program-registration.h"
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
@@ -41,8 +42,6 @@
 #include <sys/stat.h>
 #include <sys/resource.h>
 #include <sys/param.h>
-
-#include "chplcgfns.h"
 
 extern c_nodeid_t chpl_nodeID; // unique ID for each node: 0, 1, 2,
 
@@ -168,6 +167,13 @@ void chpl_vdebug_start (const char *fileroot, double now) {
   if (chpl_nodeID == 0) {
     int ix;
     int numFIDnames;
+
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_HOME);
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_compileDirectory);
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_saveCDir);
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_filenameTable);
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_filenameTableSize);
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_finfo);
 
     chpl_dprintf (chpl_vdebug_fd, "CHPL_HOME: %s\n", CHPL_HOME);
     chpl_dprintf (chpl_vdebug_fd, "DIR: %s\n", chpl_compileDirectory);
