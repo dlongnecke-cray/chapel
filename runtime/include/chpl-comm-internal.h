@@ -45,6 +45,8 @@ wide_ptr_t* chpl_comm_broadcast_global_vars_helper(void);
 // addresses of runtime-specific variables we also want to be able
 // broadcast around.
 //
+// TODO (dlongnecke): This may need to be adjusted to be made extensible.
+//
 extern void** chpl_rt_priv_bcast_tab;
 extern int chpl_rt_priv_bcast_tab_len;
 extern size_t chpl_rt_priv_bcast_lens[];
@@ -80,6 +82,9 @@ void chpl_comm_init_prv_bcast_tab(void);
 
 static inline
 void chpl_comm_really_bcast_rt_private(int id) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
+                         chpl_private_broadcast_table_len);
+
   chpl_comm_broadcast_private(chpl_private_broadcast_table_len + id,
                               chpl_rt_priv_bcast_lens[id]);
 }

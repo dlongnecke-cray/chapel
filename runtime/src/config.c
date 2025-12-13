@@ -21,12 +21,12 @@
 #include "chplrt.h"
 
 #include "arg.h"
-#include "chplcgfns.h"
 #include "chpl-comm.h"
 #include "chplexit.h"
 #include "chplio.h"
 #include "chpl-mem.h"
 #include "chpl-linefile-support.h"
+#include "chpl-program-registration.h"
 #include "config.h"
 #include "error.h"
 
@@ -314,6 +314,8 @@ static configVarType* lookupConfigVar(const char* moduleName,
 void initSetValue(const char* varName, const char* value,
                   const char* moduleName,
                   int32_t lineno, int32_t filename) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, warnUnstable);
+
   configVarType* configVar;
   if  (*varName == '\0') {
     const char* message = "No variable name given";

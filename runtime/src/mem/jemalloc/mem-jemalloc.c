@@ -31,8 +31,8 @@
 #include "chpl-linefile-support.h"
 #include "chpl-mem.h"
 #include "chpl-mem-desc.h"
+#include "chpl-program-registration.h"
 #include "chpl-topo.h"
-#include "chplcgfns.h"
 #include "chplmemtrack.h"
 #include "chpltypes.h"
 #include "error.h"
@@ -614,6 +614,7 @@ static void initializeSharedHeap(void) {
 }
 
 void chpl_mem_layerInit(void) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_INTERLEAVE_MEM);
   void* heap_base;
   size_t heap_size;
 

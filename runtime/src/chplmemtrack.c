@@ -28,7 +28,6 @@
 #include "chpltypes.h"
 #include "chpl-comm.h"
 #include "chpl-comm-internal.h"
-#include "chplcgfns.h"
 #include "chpl-linefile-support.h"
 #include "config.h"
 #include "error.h"
@@ -50,20 +49,6 @@ int chpl_memTrack = 0;
 static void
 printMemAllocs(chpl_mem_descInt_t description, int64_t threshold,
                int32_t lineno, int32_t filename);
-
-
-//
-// This is in the modules, in MemTracking.chpl.
-//
-extern void chpl_memTracking_returnConfigVals(chpl_bool* memTrack,
-                                              chpl_bool* memStats,
-                                              chpl_bool* memLeaksByType,
-                                              c_string* memLeaksByDesc,
-                                              chpl_bool* memLeaks,
-                                              size_t* memMax,
-                                              size_t* memThreshold,
-                                              c_string* memLog,
-                                              c_string* memLeaksLog);
 
 typedef struct memTableEntry_struct { /* table entry */
   size_t number;
@@ -131,6 +116,8 @@ void memTrack_unlock(void) {
 
 
 void chpl_setMemFlags(void) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_memTracking_returnConfigVals);
+
   chpl_bool local_memTrack = false;
 
   //
@@ -415,6 +402,8 @@ static int memTableEntryCmp(const void* p1, const void* p2) {
 
 static void printMemAllocsByType(_Bool forLeaks,
                                  int32_t lineno, int32_t filename) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_mem_numDescs);
+
   size_t* table;
   memTableEntry* me;
   int i;
@@ -481,6 +470,8 @@ void chpl_printMemAllocsByType(int32_t lineno, int32_t filename) {
 static chpl_mem_descInt_t
 find_desc(const char* descString)
 {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_mem_numDescs);
+
   const int numEntries = CHPL_RT_MD_NUM+chpl_mem_numDescs;
   for (chpl_mem_descInt_t i = 0; i < numEntries; ++i)
     if (! strcmp(descString, chpl_mem_descString(i)))
@@ -643,6 +634,8 @@ printMemAllocs(chpl_mem_descInt_t description, int64_t threshold,
 
 
 void chpl_reportMemInfo(void) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_compileCommand);
+
   if (memStats) {
     fprintf(memLogFile, "\n");
     chpl_printMemAllocStats(0, 0);

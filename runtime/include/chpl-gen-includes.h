@@ -29,7 +29,6 @@
 //
 
 #include "chpl-comm-compiler-macros.h"
-#include "chplcgfns.h"
 #include "chpl-locale-model.h"
 #include "chpl-tasks.h"
 #include "chpltypes.h"
@@ -45,6 +44,10 @@ extern "C" {
 static inline
 void chpl_ftable_call(chpl_fn_int_t fid, void* bundle)
 {
+  // TODO: This is going to have to stop happening - the compiler will need
+  //       to be responsible for accessing its own ftable instead. If it
+  //       needs this sort of widget, it can code-generate it.
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_ftable);
   (*chpl_ftable[fid])(bundle);
 }
 

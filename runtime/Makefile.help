@@ -168,7 +168,7 @@ ifeq ($(CHPL_MAKE_PLATFORM),darwin)
   RUNTIME_LIB_CXX_LINK_FLAGS=
 else
   # NOTE: Uncomment me to get strict linkage (errors at link time).
-  # RUNTIME_LIB_CXX_LINK_FLAGS=-Wl,--no-undefined
+  RUNTIME_LIB_CXX_LINK_FLAGS=-Wl,--no-undefined
 endif
 
 # TODO: Split the tags command out into its own rule so we can dedup things.

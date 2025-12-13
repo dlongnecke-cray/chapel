@@ -33,6 +33,7 @@
 #define _chpl_tasks_impl_fns_h_
 
 #include "chpl-locale-model.h"
+#include "chpl-program-registration.h"
 #include "chpltypes.h"
 
 #include <assert.h>
@@ -180,6 +181,7 @@ c_sublocid_t chpl_task_getSubloc(void)
 static inline
 void chpl_task_setSubloc(c_sublocid_t full_subloc)
 {
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_LOCALE_MODEL);
     qthread_shepherd_id_t curr_shep;
 
     // We allow using c_sublocid_none to represent the CPU in the gpu locale
@@ -199,6 +201,9 @@ void chpl_task_setSubloc(c_sublocid_t full_subloc)
     //       main thread of execution, which doesn't have a shepherd.
     //       The code below wouldn't work in that situation.
     if ((curr_shep = qthread_shep()) != NO_SHEPHERD) {
+        CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
+                               chpl_localeModel_sublocToExecutionSubloc);
+
         chpl_qthread_tls_t * data = chpl_qthread_get_tasklocal();
         c_sublocid_t execution_subloc =
           chpl_localeModel_sublocToExecutionSubloc(full_subloc);

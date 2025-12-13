@@ -18,24 +18,13 @@
  * limitations under the License.
  */
 
-#include "chplrt.h"
-#include "chpl-program-registration.h"
+#ifndef CHPL_PROGRAM_DATA_MACRO_INCLUDES_H
+#define CHPL_PROGRAM_DATA_MACRO_INCLUDES_H
 
-chpl_program_info chpl_program_info_singleton;
+#define CHPL_PROGRAM_DATA_MACRO_DECLARE_ONLY 1
+#include "chpl-program-data-macro.h"
 
-chpl_program_info* chpl_program_info_here(chpl_prg_id prg) {
-  if (prg == CHPL_PROGRAM_NULL) return NULL;
-  if (prg == CHPL_PROGRAM_ROOT) return &chpl_program_info_singleton;
-  abort();
-  return NULL;
-}
+#undef E_CONSTANT
+#undef E_CALLBACK
 
-int chpl_program_info_num_dat_entries(void) {
-  int ret = 0;
-  #define E_CONSTANT(name__, type__) ret += 1;
-  #define E_CALLBACK(name__) ret += 1;
-  #include "chpl-program-data-macro.h"
-  #undef E_CONSTANT
-  #undef E_CALLBACK
-  return ret;
-}
+#endif

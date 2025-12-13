@@ -30,4 +30,3 @@
 #include "bulkget.h"
 #include "sys.h"
 #include "qio_popen.h"
-#include "qio_plugin_api.h"

@@ -23,7 +23,7 @@
 #include <inttypes.h>
 
 #include "chplrt.h"
-#include "chplcgfns.h"
+#include "chpl-program-registration.h"
 #include "chpl-thread-local-storage.h"
 
 #include "chpl-linefile-support.h"
@@ -36,8 +36,10 @@ CHPL_TLS_DECL(fileBuff, unknownFileBuffer);
 // See note in chpl-linefile-support.h
 void chpl_saveFilename(const char *filename) { savedFilename = filename; }
 
-// chpl_filenameTable is defined in chplcgfns.h
 c_string chpl_lookupFilename(const int32_t idx) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_filenameTableSize);
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_filenameTable);
+
   if (idx < 0) {
     switch (idx) {
     case CHPL_FILE_IDX_COMMAND_LINE:
