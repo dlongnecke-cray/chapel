@@ -24,7 +24,6 @@
 #ifndef LAUNCHER
 
 #include <stdint.h>
-#include "chplcgfns.h"
 #include "chpltypes.h"
 #include "chpl-comm-task-decls.h"
 #include "chpl-tasks-impl.h"
@@ -434,14 +433,6 @@ size_t chpl_task_getDefaultCallStackSize(void);
 // but is currently only implemented when using tasks=fifo.
 //
 chpl_bool chpl_task_doTaskReport(void);
-
-//
-// These are service functions provided to the runtime by the module
-// code.
-//
-extern void chpl_taskRunningCntInc(int64_t _ln, int32_t _fn);
-extern void chpl_taskRunningCntDec(int64_t _ln, int32_t _fn);
-extern void chpl_taskRunningCntReset(int64_t _ln, int32_t _fn);
 
 #ifdef __cplusplus
 } // end extern "C"

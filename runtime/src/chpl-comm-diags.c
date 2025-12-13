@@ -47,6 +47,9 @@ static pthread_once_t bcastPrintUnstable_once = PTHREAD_ONCE_INIT;
 
 static
 void broadcast_print_unstable(void) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
+                         chpl_task_setCommDiagsTemporarilyDisabled);
+
   chpl_bool prevDisabled = chpl_task_setCommDiagsTemporarilyDisabled(true);
   chpl_comm_bcast_rt_private(chpl_comm_diags_print_unstable);
   (void)chpl_task_setCommDiagsTemporarilyDisabled(prevDisabled);
@@ -57,6 +60,9 @@ void chpl_comm_startVerbose(chpl_bool stacktrace,
                             chpl_bool print_unstable,
                             int32_t lineno,
                             int32_t filename) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
+                         chpl_task_setCommDiagsTemporarilyDisabled);
+
   chpl_comm_diags_print_unstable = (print_unstable == true);
   chpl_verbose_comm_stacktrace = (stacktrace == true);
   if (pthread_once(&bcastPrintUnstable_once, broadcast_print_unstable) != 0) {
@@ -77,6 +83,8 @@ void chpl_comm_startVerbose(chpl_bool stacktrace,
 
 void chpl_comm_stopVerbose(int32_t lineno,
                            int32_t filename) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
+                         chpl_task_setCommDiagsTemporarilyDisabled);
 
   if (chpl_verbose_comm == 0) {
     chpl_warning("verbose comm was never started", lineno, filename);
@@ -115,6 +123,9 @@ void chpl_comm_stopVerboseHere(int32_t lineno, int32_t filename) {
 void chpl_comm_startDiagnostics(chpl_bool print_unstable,
                                 int32_t lineno,
                                 int32_t filename) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
+                         chpl_task_setCommDiagsTemporarilyDisabled);
+
   chpl_comm_diags_print_unstable = (print_unstable == true);
 
   if (pthread_once(&bcastPrintUnstable_once, broadcast_print_unstable) != 0) {
@@ -136,6 +147,9 @@ void chpl_comm_startDiagnostics(chpl_bool print_unstable,
 
 
 void chpl_comm_stopDiagnostics(int32_t lineno, int32_t filename) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
+                         chpl_task_setCommDiagsTemporarilyDisabled);
+
   // Make sure that there are no pending communication operations.
   chpl_rmem_consist_release(lineno, filename);
 

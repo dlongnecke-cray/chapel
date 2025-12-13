@@ -58,26 +58,6 @@ extern int32_t chpl_numNodes; // number of nodes
 
 ssize_t chpl_comm_getenvMaxHeapSize(void);
 
-
-//
-// Shared interface (implemented in the compiler generated code)
-//
-extern void chpl__heapAllocateGlobals(void);
-
-//
-// chpl_globals_registry is an array of size chpl_numGlobalsOnHeap
-// storing ptr_wide_ptr_t, that is, local addresses of wide pointers.
-// It is filled in and used by chpl_comm_register_global_var() and
-// chpl_comm_broadcast_global_vars(), respectively, declared below.
-//
-extern const int chpl_numGlobalsOnHeap;
-extern ptr_wide_ptr_t chpl_globals_registry[];
-
-extern void* const chpl_private_broadcast_table[];
-extern int const chpl_private_broadcast_table_len;
-
-extern void* const chpl_global_serialize_table[];
-
 //
 // Comm layer-specific interface
 //
@@ -108,6 +88,9 @@ chpl_task_bundle_t* chpl_comm_on_bundle_task_bundle(chpl_comm_on_bundle_t* a)
 //
 // This is a convenience function for use by the module code, in which
 // we have function table indices rather than function pointers.
+//
+// TODO: This will have to go bye-bye and the module code will be responsible
+//       for writing a wrapper over this.
 //
 static inline
 void chpl_comm_taskCallFTable(chpl_fn_int_t fid,      // ftable[] entry to call

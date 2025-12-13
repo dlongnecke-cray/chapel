@@ -25,7 +25,7 @@
 
 #include "chplrt.h"
 #include "chpl-linefile-support.h"
-#include "chplcgfns.h"
+#include "chpl-program-registration.h"
 
 #include "error.h"
 #include "chplexit.h"
@@ -63,6 +63,7 @@
 #ifdef __linux__
 // We create a pipe with addr2line and try to get a line number
 static int chpl_unwind_refineGetLineNum(void *addr) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_LLVM_BIN_DIR);
 
   int rc;
   Dl_info info;
@@ -236,6 +237,7 @@ static int chpl_unwind_refineGetLineNum(void *addr) {
 static unsigned int chpl_unwind_getLineNum(unw_cursor_t* cursor,
                                            unw_word_t wordValue,
                                            int tableIdx) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_filenumSymTable);
   // use the procedure line number
   unsigned int line = chpl_filenumSymTable[tableIdx + 1];
 
@@ -288,6 +290,9 @@ enum chpl_stack_unwind_mode {
 // mode indicates whether we are writing to a FILE* or to a string
 // out is FILE* or char**, depending on the mode
 static void chpl_stack_unwind_helper(enum chpl_stack_unwind_mode mode, char sep, void* out) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_sizeSymTable);
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_funSymTable);
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_filenumSymTable);
 
   // This is just a prototype using libunwind
   unw_cursor_t cursor;
@@ -373,8 +378,9 @@ static void chpl_stack_unwind_helper(enum chpl_stack_unwind_mode mode, char sep,
   }
 }
 
-
 void chpl_stack_unwind(FILE* out, char sep) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_UNWIND);
+
   const char* chpl_rt_unwind = chpl_env_rt_get("UNWIND", NULL);
   chpl_bool should_print = chpl_env_str_to_bool("UNWIND", chpl_rt_unwind, true);
   chpl_bool user_set = chpl_rt_unwind != NULL;

@@ -20,12 +20,14 @@
 
 #include "chplrt.h"
 #include "chpl-dynamic-loading.h"
-#include "chplcgfns.h"
+#include "chpl-program-registration.h"
 #include <dlfcn.h>
 
 int CHPL_RTLD_LAZY = RTLD_LAZY;
 
+// TODO: This is a weird workaround / loop that doesn't make sense anymore.
 void** chpl_get_ftable(void) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_ftable);
   return (void**) chpl_ftable;
 }
 

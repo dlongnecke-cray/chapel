@@ -25,6 +25,7 @@
 
 #include "chpl-env.h"
 #include "chpl-mem-desc.h"
+#include "chpl-program-registration.h"
 #include "chpltypes.h"
 #include "error.h"
 
@@ -54,6 +55,8 @@ static struct md_desc_type rt_md[] = {
 
 
 const char* chpl_mem_descString(chpl_mem_descInt_t mdi) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_mem_descs);
+
   if (mdi < CHPL_RT_MD_NUM)
     return rt_md[mdi].string;
   return chpl_mem_descs[mdi-CHPL_RT_MD_NUM];
