@@ -1,0 +1,76 @@
+/*
+ * Copyright 2020-2025 Hewlett Packard Enterprise Development LP
+ * Copyright 2004-2019 Cray Inc.
+ * Other additional copyright holders may be indicated within.
+ *
+ * The entirety of this work is licensed under the Apache License,
+ * Version 2.0 (the "License"); you may not use this file except
+ * in compliance with the License.
+ *
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+#include "chplrt.h"
+#include "chpl-program-registration.h"
+#include <string.h>
+
+#ifndef LAUNCHER
+  #error "Should not be possible!"
+#endif
+
+// Technically one of these lives in module code, but don't worry about it.
+chpl_program_info chpl_program_info_singleton;
+
+// We don't have access to these symbols in the launcher.
+#define NOTHING
+#define E_CONSTANT_RT(name__, type__) NOTHING
+#define E_CALLBACK_RT(name__) NOTHING
+
+// Callbacks are expanded to a 'void (*)(void)' function pointer, which is
+// OK as we just need their address. Constants are expanded normally, and
+// both categories are expanded to 'extern' symbols that will be linked in.
+#define E_CONSTANT(name__, type__) extern type__ name__;
+#define E_CALLBACK(name__) extern void (*name__)(void);
+#include "chpl-program-data-macro-adapter.h"
+
+static
+void prepare_launcher_info_via_external_symbols(chpl_program_info* info) {
+  // Unlike the runtime, it is OK to link symbols into the launcher, as its
+  // purpose is just to launch the real program, and there is one launcher
+  // per Chapel program. So we prepare the fields of the program info by
+  // expanding out the X-macro pattern again and assigning the extern symbols
+  // that we declared above.
+  #define E_CONSTANT_RT(name__, type__) NOTHING
+  #define E_CALLBACK_RT(name__) NOTHING
+  #define E_CONSTANT(name__, type__) info->data.name__ = name__;
+  #define E_CALLBACK(name__) info->data.name__ = (name__##_type) &name__;
+  #include "chpl-program-data-macro-adapter.h"
+}
+
+chpl_program_info* chpl_program_info_from_id_here(chpl_prg_id prg) {
+  if (prg == CHPL_PROGRAM_NULL) return NULL;
+
+  if (prg == CHPL_PROGRAM_ROOT) {
+    chpl_program_info* ret = &chpl_program_info_singleton;
+
+    if (!ret->is_data_prepared) {
+      prepare_launcher_info_via_external_symbols(ret);
+      ret->is_data_prepared = 1;
+    }
+
+    return ret;
+  }
+
+  // Should never reach here as the launcher. Only 'root' ID is valid.
+  abort();
+
+  return NULL;
+}
