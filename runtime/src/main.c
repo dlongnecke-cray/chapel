@@ -21,10 +21,29 @@
 #include "chplrt.h"
 #include "chpl_rt_utils_static.h"
 #include "chpl-init.h"
+#include "chpl-program-registration.h"
 #include "chplexit.h"
 #include "config.h"
 
+// Defined in the modules. It's OK to declare it, we will link against it.
+extern chpl_prg_id chpl_prepareAndSetRootProgramInfoHere(void);
+
 int main(int argc, char* argv[]) {
+  // Initialize the program info so the runtime can see the program data.
+  chpl_prg_id prg = chpl_prepareAndSetRootProgramInfoHere();
+
+  if (prg != CHPL_PROGRAM_ROOT) {
+    // This should never fire, but there's no choice but to call C 'exit'.
+    fprintf(stderr, "%s: failed to prepare program data", argv[0]);
+    exit(1);
+  }
+
+  //
+  // TODO (dlongnecke): Split out setting up main from actually running main,
+  //                    and move setup into modules and make it idempotent.
+  //                    Also, 'main' should not be dynamically loadable, or
+  //                    if it is we need to make it aware of setup...
+  //
 
   // Initialize the runtime
   chpl_rt_init(argc, argv);

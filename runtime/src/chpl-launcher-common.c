@@ -33,30 +33,26 @@
 #include "chplexit.h"
 #include "chpllaunch.h"
 #include "chpl-mem.h"
+#include "chpl-program-registration.h"
 #include "chpltypes.h"
 #include "error.h"
 #include "whereami.c"
 
+#ifndef LAUNCHER
+  #error "Should not be possible!"
+#endif
+
 // used in get_enviro_keys
 extern char** environ;
-
-// This file is only compiled into the launcher, so it is OK to declare/link
-// against symbols from the Chapel program that we need instead of using the
-// program registration path.
-// TODO (dlongnecke): Is this correct...?
 
 // This global variable stores the arguments to main
 // that should be handled by the program.
 chpl_main_argument chpl_gen_main_arg;
 
-#ifdef LAUNCHER
-  extern const int mainHasArgs;
-  extern const int mainPreserveDelimiter;
-  extern const int launcher_is_mli;
-  extern const char* launcher_mli_real_name;
-  extern void CreateConfigVarTable(void);
-  extern const char* CHPL_LAUNCHER;
-#endif
+// These are generated at link-time and only linked into the launcher.
+extern const int launcher_is_mli;
+extern const char* launcher_mli_real_name;
+extern const char* CHPL_LAUNCHER;
 
 //
 // Are we doing a dry run, printing the system launcher command but
@@ -638,6 +634,7 @@ argDescTuple_t universalArgs[]
 
 int handleNonstandardArg(int* argc, char* argv[], int argNum,
                          int32_t lineno, int32_t filename) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, mainHasArgs);
   int numHandled = chpl_launch_handle_arg(*argc, argv, argNum,
                                           lineno, filename);
   if (numHandled == 0) {
@@ -811,6 +808,7 @@ void chpl_launcher_get_job_name(char *baseName, char *jobName, int jobLen) {
 
 int chpl_launch_prep(int* c_argc, char* argv[], int32_t* c_execNumLocales,
                      int32_t* c_execNumLocalesPerNode) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CreateConfigVarTable);
   //
   // This is a user invocation, so parse the arguments to determine
   // the number of locales.

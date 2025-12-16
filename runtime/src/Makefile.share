@@ -26,7 +26,8 @@ COMMON_LAUNCHER_SRCS = \
 	error.c
 
 ONLY_LAUNCHER_SRCS = \
-	chpl-launcher-common.c
+	chpl-launcher-common.c \
+	chpl-program-registration-launcher.c
 
 COMMON_NOGEN_SRCS = \
 	$(COMMON_LAUNCHER_SRCS) \

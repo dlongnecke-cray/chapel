@@ -18,8 +18,8 @@
  * limitations under the License.
  */
 
-#ifndef _chpl_program_registration_h_
-#define _chpl_program_registration_h_
+#ifndef CHPL_PROGRAM_REGISTRATION_H
+#define CHPL_PROGRAM_REGISTRATION_H
 
 #include "chpl-program-data-macro-includes.h"
 
@@ -85,8 +85,10 @@ extern "C" {
                      to be used for unit testing.
 */
 
-#define CHPL_PROGRAM_NULL   (0)
-#define CHPL_PROGRAM_ROOT   (1)
+// TODO: Where the heck does this live (i.e., launcher or us?). It was
+//       declared in 'chplcgfns.h', but clearly that's not correct as
+//       it is not code-generated (and that header is going away).
+extern char* chpl_executionCommand;
 
 // The type of a unique program identifier. These are assigned by the runtime
 // as it registers Chapel programs. The first Chapel program (that initial-
@@ -97,46 +99,52 @@ extern "C" {
 // the root ID. Or you need to do a callback.
 typedef uint64_t chpl_prg_id;
 
-#define CHPL_PROGRAM(prg__) (chpl_program_info_here(prg__))
+/** There will never be a Chapel program that is assigned this ID value. */
+#define CHPL_PROGRAM_NULL   (0)
 
+/** The Chapel program that initializes the runtime is given this ID. */
+#define CHPL_PROGRAM_ROOT   (1)
+
+/** Retrieve a program's info on the current locale given an ID. */
+#define CHPL_PROGRAM_INFO(prg__) (chpl_program_info_from_id_here(prg__))
+
+/** Retrieve data from a program on the current locale given an ID. */
 #define CHPL_PROGRAM_DATA(prg__, data_name__) \
-  (CHPL_PROGRAM(prg__)->data.data_name__)
+  (CHPL_PROGRAM_INFO(prg__)->data.data_name__)
 
-// Declares a local that is a copy of a program data, with the same name.
+/** Declares a local that is a copy of a program data, with the same name. */
 #define CHPL_PROGRAM_DATA_TEMP(prg__, data_name__) \
   data_name__##_type data_name__ = CHPL_PROGRAM_DATA(prg__, data_name__)
 
 // This structure contains "data entries" which must be supplied by each
 // compiled Chapel program. Currently it is unorganized and per-locale.
 typedef struct chpl_program_info {
+  int is_data_prepared;
+
   struct chpl_program_data {
-    #define E_CONSTANT(name__, type__) type__ name__ ;
-    #define E_CALLBACK(name__) name__##_type name__ ;
-    #include "chpl-program-data-macro.h"
+    #define E_CONSTANT(name__, type__) type__ name__;
+    #define E_CALLBACK(name__) name__##_type name__;
+    #include "chpl-program-data-macro-adapter.h"
     #undef E_CONSTANT
     #undef E_CALLBACK
+    #undef NOTHING
   } data;
-
 } chpl_program_info;
 
-int chpl_program_info_num_dat_entries(void);
+/** Get the program info on a given locale given a program's unique ID. */
+chpl_program_info* chpl_program_info_from_id_here(chpl_prg_id prg);
 
-const char** chpl_program_info_dat_entry_names(void);
+/** Get the number of data entries in a program info. */
+int chpl_program_info_num_data_entries(void);
 
-// TODO: Use this to register the info for the current locale...
-chpl_prg_id
-chpl_program_register_here(chpl_prg_id prg, chpl_program_info* info);
+/** Get the names of the data entries in a program info. */
+const char** chpl_program_info_data_entry_names(void);
 
-// TODO: Use this in hooks to get the info for the current locale...
-chpl_program_info* chpl_program_info_here(chpl_prg_id prg);
-
-// TODO: Where the heck does this live (i.e., launcher or us?). It was
-//       declared in 'chplcgfns.h', but clearly that's not correct as
-//       it is not code-generated (and that header is going away).
-extern char* chpl_executionCommand;
+// Private implementation details.
+#include "chpl-program-registration-detail.h"
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif // _chpl_program_registration_h_
+#endif // CHPL_PROGRAM_REGISTRATION_H
