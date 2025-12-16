@@ -20,22 +20,72 @@
 
 #include "chplrt.h"
 #include "chpl-program-registration.h"
+#include <string.h>
 
-chpl_program_info chpl_program_info_singleton;
+static chpl_program_info* chpl_prg_root;
 
-chpl_program_info* chpl_program_info_here(chpl_prg_id prg) {
-  if (prg == CHPL_PROGRAM_NULL) return NULL;
-  if (prg == CHPL_PROGRAM_ROOT) return &chpl_program_info_singleton;
+//
+// HIDDEN SYMBOLS W/ GLOBAL EXTERN LINKAGE
+// (Available for module code to call but not exposed in the header file.)
+//
+
+/** Define setters that module code can call to set up program data. */
+#define CONCAT(a__, b__) a__##b__
+#define PREFIX chpl_program_info_data_entry_set_
+#define SETTER(prefix__, name__)                                              \
+  void CONCAT(prefix__, name__)(chpl_program_info* info, const void* data) {  \
+    memcpy(&info->data.name__, data, sizeof(name__##_type));                  \
+  }
+#define E_CONSTANT(name__, type__) SETTER(PREFIX, name__)
+#define E_CALLBACK(name__) SETTER(PREFIX, name__)
+#include "chpl-program-data-macro-adapter.h"
+#undef PREFIX
+#undef SETTER
+#undef CONCAT
+
+int chpl_program_info_set_is_data_prepared(chpl_program_info* info, int x) {
+  int ret = info->is_data_prepared;
+  info->is_data_prepared = x;
+  return ret;
+}
+
+chpl_prg_id
+chpl_program_register_here_nosync(chpl_prg_id prg, chpl_program_info* info) {
+  chpl_prg_id ret = CHPL_PROGRAM_NULL;
+
+  if (chpl_prg_root == NULL) return ret;
+
+  // TODO...
   abort();
+
+  return ret;
+}
+
+void chpl_program_register_root_here(chpl_program_info* info) {
+  if (chpl_prg_root == NULL) {
+    chpl_prg_root = info;
+  }
+}
+
+//
+// HEADER-DECLARED SYMBOLS
+// (Available for both module code and runtime code to call.)
+//
+
+chpl_program_info* chpl_program_info_from_id_here(chpl_prg_id prg) {
+  if (prg == CHPL_PROGRAM_NULL) return NULL;
+  if (prg == CHPL_PROGRAM_ROOT) return chpl_prg_root;
+
+  // TODO...
+  abort();
+
   return NULL;
 }
 
-int chpl_program_info_num_dat_entries(void) {
+int chpl_program_info_num_data_entries(void) {
   int ret = 0;
   #define E_CONSTANT(name__, type__) ret += 1;
   #define E_CALLBACK(name__) ret += 1;
-  #include "chpl-program-data-macro.h"
-  #undef E_CONSTANT
-  #undef E_CALLBACK
+  #include "chpl-program-data-macro-adapter.h"
   return ret;
 }

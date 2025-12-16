@@ -27,6 +27,7 @@
 #include "chplexit.h"
 #include "error.h"
 #include "chpl-mem.h"
+#include "chpl-program-registration.h"
 #include "chpl-tasks.h"
 
 #include "chpl-gen-includes.h"
@@ -147,7 +148,7 @@ static chpl_bool chpl_lldb_supports_python(void) {
 }
 
 int chpl_comm_run_in_gdb(int argc, char* argv[], int gdbArgnum, int* status) {
-
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_HOME);
   char* command = (char*)"gdb -q";
 
   const char* gdb_commands = chpl_glom_strings(2, CHPL_HOME, "/runtime/etc/debug/gdb.commands");
@@ -178,7 +179,7 @@ int chpl_comm_run_in_gdb(int argc, char* argv[], int gdbArgnum, int* status) {
 }
 
 int chpl_comm_run_in_lldb(int argc, char* argv[], int lldbArgnum, int* status) {
-
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_HOME);
   char* command = (char*)"lldb";
 
   const char* lldb_commands = chpl_glom_strings(2, CHPL_HOME, "/runtime/etc/debug/lldb.commands");
@@ -338,6 +339,7 @@ void chpl_comm_execute_on_nb(c_nodeid_t node, c_sublocid_t subloc,
                              chpl_fn_int_t fid,
                              chpl_comm_on_bundle_t *arg, size_t arg_size,
                              int ln, int32_t fn) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_ftable);
   assert(node==0);
 
   chpl_task_startMovedTask(fid, chpl_ftable[fid],
