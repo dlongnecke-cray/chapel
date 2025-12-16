@@ -92,8 +92,10 @@
 #endif
 
 /**
+  E_CONSTANT_RT(name, type)
+  E_CALLBACK_RT(name)
   E_CONSTANT(name, type)
-  E_CALLBACK(name)
+  E_CALLBACK(name, type)
 
   For callbacks, the type must be specified in the 'ifdef' block above using
   the format '"name"_type'. This is due to limitations of the preprocessor.
@@ -117,27 +119,27 @@ E_CALLBACK(chpl_program_about)
 /** MODULE-CODE: ChapelTaskData.chpl | PER-PROGRAM-CALLBACK
     Whether or not comm diagnostics is temporarily disabled.
 */
-E_CALLBACK(chpl_task_getCommDiagsTemporarilyDisabled)
+E_CALLBACK_RT(chpl_task_getCommDiagsTemporarilyDisabled)
 
 /** MODULE-CODE: ChapelTaskData.chpl | PER-PROGRAM-CALLBACK
     Whether or not comm diagnostics is temporarily disabled.
 */
-E_CALLBACK(chpl_task_setCommDiagsTemporarilyDisabled)
-
-/** CODE-GENERATED | PER-PROGRAM-CONSTANT
-    Table of private broadcast constants.      
-*/
-E_CONSTANT(chpl_private_broadcast_table, void**)
-
-/** CODE-GENERATED | PER-PROGRAM-CONSTANT
-    Length of table of private broadcast constants.
-*/
-E_CONSTANT(chpl_private_broadcast_table_len, int)
+E_CALLBACK_RT(chpl_task_setCommDiagsTemporarilyDisabled)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Table of private broadcast constants.
 */
-E_CONSTANT(chpl_global_serialize_table, void**)
+E_CONSTANT_RT(chpl_private_broadcast_table, void**)
+
+/** CODE-GENERATED | PER-PROGRAM-CONSTANT
+    Length of table of private broadcast constants.
+*/
+E_CONSTANT_RT(chpl_private_broadcast_table_len, int)
+
+/** CODE-GENERATED | PER-PROGRAM-CONSTANT
+    TODO: Not exactly sure what this thing is. Table of serializers for RVF?
+*/
+E_CONSTANT_RT(chpl_global_serialize_table, void**)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     A table of local addresses of wide pointers containing global vars.
@@ -147,37 +149,37 @@ E_CONSTANT(chpl_global_serialize_table, void**)
     // It is filled in and used by chpl_comm_register_global_var() and
     // chpl_comm_broadcast_global_vars(), respectively, declared below.
 */
-E_CONSTANT(chpl_globals_registry, ptr_wide_ptr_t*)
+E_CONSTANT_RT(chpl_globals_registry, ptr_wide_ptr_t*)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     The number of globals that live on the heap.
 */
-E_CONSTANT(chpl_numGlobalsOnHeap, int)
+E_CONSTANT_RT(chpl_numGlobalsOnHeap, int)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     The function table.
 */
-E_CONSTANT(chpl_ftable, chpl_fn_p*)
+E_CONSTANT_RT(chpl_ftable, chpl_fn_p*)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT | (TODO NOT USED)
     Length of the function table.
 */
-E_CONSTANT(chpl_ftableSize, int64_t)
+E_CONSTANT_RT(chpl_ftableSize, int64_t)
 
 /** MODULE-CODE: ChapelLocale.chpl | PER-PROGRAM-CALLBACK
     Call to increment the task running count.
 */
-E_CALLBACK(chpl_taskRunningCntInc)
+E_CALLBACK_RT(chpl_taskRunningCntInc)
 
 /** MODULE-CODE: ChapelLocale.chpl | PER-PROGRAM-CALLBACK (TODO NOT USED)
     Call to decrement the task running count.
 */
-E_CALLBACK(chpl_taskRunningCntDec)
+E_CALLBACK_RT(chpl_taskRunningCntDec)
 
 /** MODULE-CODE: ChapelLocale.chpl | PER-PROGRAM-CALLBACK
     Call to reset the task running count.
 */
-E_CALLBACK(chpl_taskRunningCntReset)
+E_CALLBACK_RT(chpl_taskRunningCntReset)
 
 /** CODE-GENERATED | PER-PROGRAM-CALLBACK
     Function which constructs the config variable table.
@@ -187,44 +189,44 @@ E_CALLBACK(CreateConfigVarTable)
 /** CODE-GENERATED | MODULE-INIT | PER-PROGRAM-CALLBACK
     Module initializer which contains all string literals.
 */
-E_CALLBACK(chpl__initStringLiterals)
+E_CALLBACK_RT(chpl__initStringLiterals)
 
 /** CODE-GENERATED | MODULE-INIT | PER-PROGRAM-CALLBACK
     Module initializer which invokes (almost) all other module inits.
 */
-E_CALLBACK(chpl__init_preInit)
+E_CALLBACK_RT(chpl__init_preInit)
 
 /** CODE-GENERATED | MODULE-INIT | PER-PROGRAM-CALLBACK
     Module initializer for the 'PrintModuleInitOrder' module.
 */
-E_CALLBACK(chpl__init_PrintModuleInitOrder)
+E_CALLBACK_RT(chpl__init_PrintModuleInitOrder)
 
 /** CODE-GENERATED | MODULE-INIT | PER-PROGRAM-CALLBACK
     Module initializer for the 'ChapelStandard' module.
 */
-E_CALLBACK(chpl__init_ChapelStandard)
+E_CALLBACK_RT(chpl__init_ChapelStandard)
 
 /** MODULE-CODE: ChapelUtil.chpl | PER-PROGRAM-CALLBACK
     Deinitializes modules and prints the deinit order if needed.
     TODO: Why the heck is this in module code but the rest isn't?
     TODO: Can the generated code just be responsible for all this?
 */
-E_CALLBACK(chpl_deinitModules)
+E_CALLBACK_RT(chpl_deinitModules)
 
 /** CODE-GENERATED | MAIN | PER-PROGRAM-CALLBACK
     Main entrypoint for this program.
 */
-E_CALLBACK(chpl_gen_main)
+E_CALLBACK_RT(chpl_gen_main)
 
 /** MODULE-CODE: ExportWrappers.chpl | PER-PROGRAM-CALLBACK
     Currently only initializes the dynamic end count.
 */
-E_CALLBACK(chpl_libraryModuleLevelSetup)
+E_CALLBACK_RT(chpl_libraryModuleLevelSetup)
 
 /** MODULE-CODE: ExportWrappers.chpl | PER-PROGRAM-CALLBACK
     Currently only destroys the dynamic end count.
 */
-E_CALLBACK(chpl_libraryModuleLevelCleanup)
+E_CALLBACK_RT(chpl_libraryModuleLevelCleanup)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Contains filenames, and maybe other strings besides?
@@ -245,43 +247,43 @@ E_CONSTANT(chpl_filenameTableSize, int32_t)
     // chpl-mem.h).  This is that compiler-generated array, and how many
     // entries it has (also defined in the generated code).
 */
-E_CONSTANT(chpl_mem_descs, const char**)
+E_CONSTANT_RT(chpl_mem_descs, const char**)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Length of the memory description table.
 */
-E_CONSTANT(chpl_mem_numDescs, int)
+E_CONSTANT_RT(chpl_mem_numDescs, int)
 
 /** MODULE-CODE: MemTracking.chpl | PER-PROGRAM-CALLBACK
     This is a giant callback which writes the config vars used to control
     memory tracking to runtime memory.
 */
-E_CALLBACK(chpl_memTracking_returnConfigVals)
+E_CALLBACK_RT(chpl_memTracking_returnConfigVals)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Compiler invocation.
 */
-E_CONSTANT(chpl_compileCommand, const char*)
+E_CONSTANT_RT(chpl_compileCommand, const char*)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Directory where the compiler invocation took place (?).
 */
-E_CONSTANT(chpl_compileDirectory, const char*)
+E_CONSTANT_RT(chpl_compileDirectory, const char*)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Directory to save temporary compilation artifacts.
 */
-E_CONSTANT(chpl_saveCDir, const char*)
+E_CONSTANT_RT(chpl_saveCDir, const char*)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Location of '$CHPL_HOME' (when this was compiled?).
 */
-E_CONSTANT(CHPL_HOME, const char*)
+E_CONSTANT_RT(CHPL_HOME, const char*)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     If '--cache-remote' was set when this program was compiled.
 */
-E_CONSTANT(CHPL_CACHE_REMOTE, int)
+E_CONSTANT_RT(CHPL_CACHE_REMOTE, int)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     If '--warn-unstable' was set when this program was compiled.
@@ -300,29 +302,29 @@ E_CONSTANT(CHPL_LLVM_BIN_DIR, const char*)
     Chapel line number). TODO: Could we just refactor this whole table
     to be defined in the runtime and use a 'struct' instead for clarity?
 */
-E_CONSTANT(chpl_filenumSymTable, int*)
+E_CONSTANT_RT(chpl_filenumSymTable, int*)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     One piece of the symbol table. This is a flat 1D array with 2 elements
     per entry, so you need to scale indices by (idx*2). This portion of
     the table contains two 'const char*' per entry: (C name, Chapel name).
 */
-E_CONSTANT(chpl_funSymTable, const char**)
+E_CONSTANT_RT(chpl_funSymTable, const char**)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     The number of entries in the combined 'Chapel symbol table'.
 */
-E_CONSTANT(chpl_sizeSymTable, int32_t)
+E_CONSTANT_RT(chpl_sizeSymTable, int32_t)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Value of '$CHPL_UNWIND' when this program was compiled.
 */
-E_CONSTANT(CHPL_UNWIND, const char*)
+E_CONSTANT_RT(CHPL_UNWIND, const char*)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Value of '--interleave-memory' when this program was compiled.
 */
-E_CONSTANT(CHPL_INTERLEAVE_MEM, const char*)
+E_CONSTANT_RT(CHPL_INTERLEAVE_MEM, const char*)
 
 /** MODULE-CODE: LocaleModel.chpl | PER-PROGRAM-CALLBACK
     Convert from a full sublocale to an execution sublocale.
@@ -331,47 +333,47 @@ E_CONSTANT(CHPL_INTERLEAVE_MEM, const char*)
     // the tasking layer to convert between a full sublocale and an
     // execution sublocale.
 */
-E_CALLBACK(chpl_localeModel_sublocToExecutionSubloc)
+E_CALLBACK_RT(chpl_localeModel_sublocToExecutionSubloc)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Value of '$CHPL_COMM' when this program was compiled.
 */
-E_CONSTANT(CHPL_COMM, const char*)
+E_CONSTANT_RT(CHPL_COMM, const char*)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Value of '--stack-checks' when this program was compiled.
 */
-E_CONSTANT(CHPL_STACK_CHECKS, int)
+E_CONSTANT_RT(CHPL_STACK_CHECKS, int)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Value of '$CHPL_TARGET_PLATFORM' when this program was compiled.
 */
-E_CONSTANT(CHPL_TARGET_PLATFORM, const char*)
+E_CONSTANT_RT(CHPL_TARGET_PLATFORM, const char*)
 
 /** CODE-GENERATED | PER-PROGRAM-CALLBACK
     Call to heap allocate all global variables.
 */
-E_CALLBACK(chpl__heapAllocateGlobals)
+E_CALLBACK_RT(chpl__heapAllocateGlobals)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Table containing function info.
 */
-E_CONSTANT(chpl_finfo, const chpl_fn_info*)
+E_CONSTANT_RT(chpl_finfo, const chpl_fn_info*)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Value of '$CHPL_LOCALE_MODEL' when this program was compiled.
 */
-E_CONSTANT(CHPL_LOCALE_MODEL, const char*)
+E_CONSTANT_RT(CHPL_LOCALE_MODEL, const char*)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Value of '$CHPL_TARGET_CPU' when this program was compiled.
 */
-E_CONSTANT(CHPL_TARGET_CPU, const char*)
+E_CONSTANT_RT(CHPL_TARGET_CPU, const char*)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Value of '$CHPL_GASNET_SEGMENT' when this program was compiled.
 */
-E_CONSTANT(CHPL_GASNET_SEGMENT, const char*)
+E_CONSTANT_RT(CHPL_GASNET_SEGMENT, const char*)
 
 /// -------------- ///
 /// QIO Plugin API ///
@@ -380,50 +382,50 @@ E_CONSTANT(CHPL_GASNET_SEGMENT, const char*)
 /** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
     Create a plugin channel to attach to the qio channel.
 */
-E_CALLBACK(chpl_qio_setup_plugin_channel)
+E_CALLBACK_RT(chpl_qio_setup_plugin_channel)
 
 /** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
     Reads 'amt' bytes (or more) into the channel buffer.
 */
-E_CALLBACK(chpl_qio_read_atleast)
+E_CALLBACK_RT(chpl_qio_read_atleast)
 
 /** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
     Writes 'amt' bytes from the channel buffer.
 */
-E_CALLBACK(chpl_qio_write)
+E_CALLBACK_RT(chpl_qio_write)
 
 /** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
     Close the channel.
 */
-E_CALLBACK(chpl_qio_channel_close)
+E_CALLBACK_RT(chpl_qio_channel_close)
 
 /** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
     Get the length of a file.
 */
-E_CALLBACK(chpl_qio_filelength)
+E_CALLBACK_RT(chpl_qio_filelength)
 
 /** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
     Get the path to a file.
 */
-E_CALLBACK(chpl_qio_getpath)
+E_CALLBACK_RT(chpl_qio_getpath)
 
 /** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
     Performs a 'fsync' operation.
 */
-E_CALLBACK(chpl_qio_fsync)
+E_CALLBACK_RT(chpl_qio_fsync)
 
 /** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
     Get the optimal I/O size for the channel.
 */
-E_CALLBACK(chpl_qio_get_chunk)
+E_CALLBACK_RT(chpl_qio_get_chunk)
 
 /** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
     Get the locales for a region. The 'localeNamesPtr' should be a pointer
     to an array of 'char*' to set on output.
 */
-E_CALLBACK(chpl_qio_get_locales_for_region)
+E_CALLBACK_RT(chpl_qio_get_locales_for_region)
 
 /** MODULE-CODE: IO.chpl | PER-PROGRAM-CALLBACK
     Close a file.
 */
-E_CALLBACK(chpl_qio_file_close)
+E_CALLBACK_RT(chpl_qio_file_close)

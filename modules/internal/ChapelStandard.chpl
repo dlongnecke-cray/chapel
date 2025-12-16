@@ -33,6 +33,7 @@ module ChapelStandard {
   // (unless 'as xyz;' is also added).  Issue #19793 suggests taking
   // this a step further and not permitting the user to refer to the
   // names of internal modules at all.
+  public use ChapelProgramRegistration;
   public use CString;
   public use Bytes;
   public use String;
