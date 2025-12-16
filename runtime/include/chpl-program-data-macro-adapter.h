@@ -18,10 +18,27 @@
  * limitations under the License.
  */
 
-#ifndef CHPL_PROGRAM_DATA_MACRO_INCLUDES_H
-#define CHPL_PROGRAM_DATA_MACRO_INCLUDES_H
-
-#define CHPL_PROGRAM_DATA_MACRO_DECLARE_ONLY 1
-#include "chpl-program-data-macro-adapter.h"
-
+#ifndef E_CONSTANT_RT
+  #ifdef LAUNCHER
+    // By default, expand to nothing under the launcher.
+    #define E_CONSTANT_RT(name__, type__)
+  #else
+    #define E_CONSTANT_RT(name__, type__) E_CONSTANT(name__, type__)
+  #endif
 #endif
+
+#ifndef E_CALLBACK_RT
+  #ifdef LAUNCHER
+    // By default, expand to nothing under the launcher.
+    #define E_CALLBACK_RT(name__)
+  #else
+    #define E_CALLBACK_RT(name__) E_CALLBACK(name__)
+  #endif
+#endif
+
+#include "chpl-program-data-macro.h"
+
+#undef E_CONSTANT_RT
+#undef E_CALLBACK_RT
+#undef E_CONSTANT
+#undef E_CALLBACK
