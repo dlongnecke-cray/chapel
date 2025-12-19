@@ -149,7 +149,7 @@ E_CONSTANT_RT(chpl_global_serialize_table, void**)
     // It is filled in and used by chpl_comm_register_global_var() and
     // chpl_comm_broadcast_global_vars(), respectively, declared below.
 */
-E_CONSTANT_RT(chpl_globals_registry, ptr_wide_ptr_t*)
+E_CONSTANT_RT(chpl_globals_registry, wide_ptr_t**)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     The number of globals that live on the heap.
@@ -324,7 +324,7 @@ E_CONSTANT_RT(CHPL_UNWIND, const char*)
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Value of '--interleave-memory' when this program was compiled.
 */
-E_CONSTANT_RT(CHPL_INTERLEAVE_MEM, const char*)
+E_CONSTANT_RT(CHPL_INTERLEAVE_MEM, int)
 
 /** MODULE-CODE: LocaleModel.chpl | PER-PROGRAM-CALLBACK
     Convert from a full sublocale to an execution sublocale.

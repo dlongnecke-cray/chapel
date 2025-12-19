@@ -50,8 +50,7 @@ module ChapelProgramRegistration {
       // for passing in a pointer to a type of the correct size!
       extern setter_c_name proc setter(ref info: chpl_program_info,
                                        data: c_ptrConst(void)): void;
-
-      const ptrToData = c_ptrToConst(val);
+      const ptrToData = c_addrOfConst(val);
 
       // Invoke the appropriate setter in the module code.
       setter(info=this.info, data=ptrToData);
@@ -71,10 +70,7 @@ module ChapelProgramRegistration {
     }
 
     inline proc ref setConstant(param name: string, in val) {
-      // TODO: If we could use arbitrary expressions as the linkage name
-      //       for any decl, then the whole list below could just be expanded
-      //       from strings, e.g.,
-
+      // TODO: We need to be able to write something like this...
       /*
       // This type is defined in 'chpl-program-registration.h'.
       param type_c_name = name + '_type';
@@ -107,6 +103,7 @@ module ChapelProgramRegistration {
     }
 
     inline proc ref registerAsRootHere() {
+      // This is not parallel safe, but it doesn't really need to be.
       if id == nullId && rootProgramInfoHere() == nil {
         param cname = 'chpl_program_register_root_here';
         extern cname proc register(ref info: chpl_program_info): void;
@@ -259,9 +256,12 @@ module ChapelProgramRegistration {
     ref info = chpl_programInfoHere;
 
     setProgramInfoDataFieldsHere(info);
+
     info.markDataAsPrepared();
     info.registerAsRootHere();
 
-    return info.id;
+    const ret = info.id;
+
+    return ret;
   }
 }
