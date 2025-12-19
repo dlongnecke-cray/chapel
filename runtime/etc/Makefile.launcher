@@ -45,6 +45,8 @@ ifeq ($(CHPL_MAKE_TARGET_PLATFORM),darwin)
 	mv $(TMPBINNAME).dSYM $(REAL_BINARY_NAME).dSYM/
 endif
 endif
+	# Append an empty string to overwrite the contents of the file.
+	echo "" > $(LAUNCHER_SRC_NAME)
 	echo "#include \"config.h\"" >> $(LAUNCHER_SRC_NAME)
 	echo "#include \"_config.c\"" >> $(LAUNCHER_SRC_NAME)
 	echo "#include \"chpl_compilation_config.c\"" >> $(LAUNCHER_SRC_NAME)
