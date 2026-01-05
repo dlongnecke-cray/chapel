@@ -2085,7 +2085,7 @@ static void codegen_header(std::set<const char*> & cnames,
     chpl_globals_registryGVar->setInitializer(
         llvm::Constant::getNullValue(globValType));
     info->lvt->addGlobalValue("chpl_globals_registry",
-                              chpl_globals_registryGVar, GEN_PTR, true, /* chplType= */ nullptr);
+                              chpl_globals_registryGVar, GEN_VAL, true, /* chplType= */ nullptr);
 #endif
   }
   if( hdrfile ) {
@@ -2161,7 +2161,7 @@ static void codegen_header(std::set<const char*> & cnames,
         llvm::ConstantArray::get(
           private_broadcastTableType, private_broadcastTable));
     info->lvt->addGlobalValue("chpl_private_broadcast_table",
-                              private_broadcastTableGVar, GEN_PTR, true, dtCVoidPtr);
+                              private_broadcastTableGVar, GEN_VAL, true, dtCVoidPtr);
     genGlobalInt("chpl_private_broadcast_table_len",
                  private_broadcastTable.size(), false);
 #endif
