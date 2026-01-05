@@ -43,13 +43,13 @@ module ChapelProgramRegistration {
 
     inline proc ref _callSetter(param name: string, in val) {
       // Use 'const ref val' to avoid any copies at this time.
-      param setter_c_name = 'chpl_program_info_data_entry_set_' + name;
+      param cname = 'chpl_program_info_data_entry_set_' + name;
 
       // The setter is defined in the runtime and it knows the size in bytes it
       // needs to memcopy from 'data'. Instead, the module code is responsible
       // for passing in a pointer to a type of the correct size!
-      extern setter_c_name proc setter(ref info: chpl_program_info,
-                                       data: c_ptrConst(void)): void;
+      extern cname proc setter(ref info: chpl_program_info,
+                               data: c_ptrConst(void)): void;
       const ptrToData = c_addrOfConst(val);
 
       // Invoke the appropriate setter in the module code.
@@ -64,9 +64,9 @@ module ChapelProgramRegistration {
       //       Chapel procedure pointer from 'callback'! The only thing that
       //       should be happening here is to cast the local address of the
       //       'callback' to a 'void*'! (Otherwise, everything explodes...)
-      const val: c_fn_ptr = __primitive("capture fn", callback, true);
-
-      _callSetter(name, val);
+      const ptr1: c_fn_ptr = __primitive("capture fn", callback, true);
+      const ptr2 = ptr1 : c_ptr(void);
+      _callSetter(name, ptr2);
     }
 
     inline proc ref setConstant(param name: string, in val) {
