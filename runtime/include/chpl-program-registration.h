@@ -100,17 +100,20 @@ extern char* chpl_executionCommand;
 typedef uint64_t chpl_prg_id;
 
 /** There will never be a Chapel program that is assigned this ID value. */
-#define CHPL_PROGRAM_NULL   (0)
+#define CHPL_PROGRAM_NULL_ID  (0)
 
 /** The Chapel program that initializes the runtime is given this ID. */
-#define CHPL_PROGRAM_ROOT   (1)
+#define CHPL_PROGRAM_ROOT_ID  (1)
+
+/** Get a pointer to the root program info. */
+#define CHPL_PROGRAM_ROOT \
+  (chpl_program_info_from_id_here(CHPL_PROGRAM_ROOT_ID))
 
 /** Retrieve a program's info on the current locale given an ID. */
-#define CHPL_PROGRAM_INFO(prg__) (chpl_program_info_from_id_here(prg__))
+#define CHPL_PROGRAM_FETCH(id__) (chpl_program_info_from_id_here(id__))
 
-/** Retrieve data from a program on the current locale given an ID. */
-#define CHPL_PROGRAM_DATA(prg__, data_name__) \
-  (CHPL_PROGRAM_INFO(prg__)->data.data_name__)
+/** Retrieve data from a program. */
+#define CHPL_PROGRAM_DATA(prg__, data_name__) (prg__->data.data_name__)
 
 /** Declares a local that is a copy of a program data, with the same name. */
 #define CHPL_PROGRAM_DATA_TEMP(prg__, data_name__) \
@@ -119,7 +122,7 @@ typedef uint64_t chpl_prg_id;
 // This structure contains "data entries" which must be supplied by each
 // compiled Chapel program. Currently it is unorganized and per-locale.
 typedef struct chpl_program_info {
-  int is_data_prepared;
+  chpl_prg_id id;
 
   struct chpl_program_data {
     #define E_CONSTANT(name__, type__) type__ name__;
@@ -132,12 +135,15 @@ typedef struct chpl_program_info {
 } chpl_program_info;
 
 /** Get the program info on a given locale given a program's unique ID. */
-chpl_program_info* chpl_program_info_from_id_here(chpl_prg_id prg);
+chpl_program_info* chpl_program_info_from_id_here(chpl_prg_id id);
+
+/** Get the ID of a program info. */
+chpl_prg_id chpl_program_info_id(const chpl_program_info* prg);
 
 /** Get the number of data entries in a program info. */
 int chpl_program_info_num_data_entries(void);
 
-/** Get the names of the data entries in a program info. */
+/** Get the names of the data entries as a null terminated array. */
 const char** chpl_program_info_data_entry_names(void);
 
 // Private implementation details.
