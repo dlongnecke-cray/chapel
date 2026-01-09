@@ -30,9 +30,9 @@ extern chpl_prg_id chpl_prepareAndSetRootProgramInfoHere(void);
 
 int main(int argc, char* argv[]) {
   // Initialize the program info so the runtime can see the program data.
-  chpl_prg_id prg = chpl_prepareAndSetRootProgramInfoHere();
+  chpl_prg_id id = chpl_prepareAndSetRootProgramInfoHere();
 
-  if (prg != CHPL_PROGRAM_ROOT) {
+  if (id != CHPL_PROGRAM_ROOT_ID) {
     // This should never fire, but there's no choice but to call C 'exit'.
     fprintf(stderr, "%s: failed to prepare program data", argv[0]);
     exit(1);
