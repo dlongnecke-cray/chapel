@@ -43,16 +43,11 @@ static chpl_program_info* chpl_prg_root;
 #undef SETTER
 #undef CONCAT
 
-int chpl_program_info_set_is_data_prepared(chpl_program_info* info, int x) {
-  int ret = info->is_data_prepared;
-  info->is_data_prepared = x;
-  return ret;
-}
-
 chpl_prg_id
-chpl_program_register_here_nosync(chpl_prg_id prg, chpl_program_info* info) {
-  chpl_prg_id ret = CHPL_PROGRAM_NULL;
+chpl_program_register_here_nosync(chpl_prg_id id, chpl_program_info* prg) {
+  chpl_prg_id ret = CHPL_PROGRAM_NULL_ID;
 
+  // ERROR: The root program hasn't even been set yet...
   if (chpl_prg_root == NULL) return ret;
 
   // TODO...
@@ -61,9 +56,10 @@ chpl_program_register_here_nosync(chpl_prg_id prg, chpl_program_info* info) {
   return ret;
 }
 
-void chpl_program_register_root_here(chpl_program_info* info) {
+void chpl_program_register_root_here(chpl_program_info* prg) {
   if (chpl_prg_root == NULL) {
-    chpl_prg_root = info;
+    chpl_prg_root = prg;
+    prg->id = CHPL_PROGRAM_ROOT_ID;
   }
 }
 
@@ -72,14 +68,18 @@ void chpl_program_register_root_here(chpl_program_info* info) {
 // (Available for both module code and runtime code to call.)
 //
 
-chpl_program_info* chpl_program_info_from_id_here(chpl_prg_id prg) {
-  if (prg == CHPL_PROGRAM_NULL) return NULL;
-  if (prg == CHPL_PROGRAM_ROOT) return chpl_prg_root;
+chpl_program_info* chpl_program_info_from_id_here(chpl_prg_id id) {
+  if (id == CHPL_PROGRAM_NULL_ID) return NULL;
+  if (id == CHPL_PROGRAM_ROOT_ID) return chpl_prg_root;
 
   // TODO...
   abort();
 
   return NULL;
+}
+
+chpl_prg_id chpl_program_info_id(const chpl_program_info* prg) {
+  return prg ? prg->id : CHPL_PROGRAM_NULL_ID;
 }
 
 int chpl_program_info_num_data_entries(void) {

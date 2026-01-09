@@ -45,19 +45,18 @@ extern "C" {
 #undef SETTER
 #undef CONCAT
 
-/** Call to set a flag in the program info indicating data is set up. */
-int chpl_program_info_set_is_data_prepared(chpl_program_info* info, int x);
-
 /** Call to register a new dynamically loaded Chapel program here. If the
     passed program ID is 'null' then the implementation will assign a new
-    unique ID. Otherwise it will use the ID that is passed in. Only the
-    pointer will be mapped - it is assumed that the pointer points to memory
-    that exists for the entire duration of the loaded program (e.g., BSS). */
+    unique ID. Otherwise it will use the ID that is passed in.
+
+    Only the pointer will be stored - it is assumed that the pointer points
+    to memory that exists for the entire duration of the loaded program. The
+    passed in pointer is also assumed to point to writeable memory. */
 chpl_prg_id
-chpl_program_register_here_nosync(chpl_prg_id prg, chpl_program_info* info);
+chpl_program_register_here_nosync(chpl_prg_id id, chpl_program_info* prg);
 
 /** Call to register the root program here. */
-void chpl_program_register_root_here(chpl_program_info* info);
+void chpl_program_register_root_here(chpl_program_info* prg);
 
 #ifdef __cplusplus
 }
