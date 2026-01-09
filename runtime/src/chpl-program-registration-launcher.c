@@ -34,11 +34,11 @@ chpl_program_info chpl_program_info_singleton;
 #define E_CONSTANT_RT(name__, type__) NOTHING
 #define E_CALLBACK_RT(name__) NOTHING
 
-// Callbacks are expanded to a 'void (*)(void)' function pointer, which is
-// OK as we just need their address. Constants are expanded normally, and
-// both categories are expanded to 'extern' symbols that will be linked in.
+// Callbacks are expanded to a 'void (void)' function, which is OK as we just
+// need their address. Constants are expanded normally, and both categories
+// are expanded to 'extern' symbols that will be linked in.
 #define E_CONSTANT(name__, type__) extern type__ name__;
-#define E_CALLBACK(name__) extern void (*name__)(void);
+#define E_CALLBACK(name__) extern void name__(void);
 #include "chpl-program-data-macro-adapter.h"
 
 static
@@ -55,15 +55,16 @@ void prepare_launcher_info_via_external_symbols(chpl_program_info* info) {
   #include "chpl-program-data-macro-adapter.h"
 }
 
-chpl_program_info* chpl_program_info_from_id_here(chpl_prg_id prg) {
-  if (prg == CHPL_PROGRAM_NULL) return NULL;
+chpl_program_info* chpl_program_info_from_id_here(chpl_prg_id id) {
+  if (id == CHPL_PROGRAM_NULL_ID) return NULL;
 
-  if (prg == CHPL_PROGRAM_ROOT) {
+  if (id == CHPL_PROGRAM_ROOT_ID) {
     chpl_program_info* ret = &chpl_program_info_singleton;
 
-    if (!ret->is_data_prepared) {
+    if (ret->id == CHPL_PROGRAM_NULL_ID) {
+      // Only prepare the entries if the ID is not set.
       prepare_launcher_info_via_external_symbols(ret);
-      ret->is_data_prepared = 1;
+      ret->id = CHPL_PROGRAM_ROOT_ID;
     }
 
     return ret;
