@@ -1538,7 +1538,7 @@ static void genGlobalSerializeTable(GenInfo* info) {
         llvm::ConstantArray::get(
           global_serializeTableType, global_serializeTable));
     info->lvt->addGlobalValue("chpl_global_serialize_table",
-                              global_serializeTableGVar, GEN_PTR, true, dtCVoidPtr);
+                              global_serializeTableGVar, GEN_VAL, true, dtCVoidPtr);
 #endif
   }
 }
@@ -2111,7 +2111,7 @@ static void codegen_header(std::set<const char*> & cnames,
     chpl_memDescsGVar->setInitializer(
         llvm::ConstantArray::get(memDescTableType, memDescTable));
     chpl_memDescsGVar->setConstant(true);
-    info->lvt->addGlobalValue("chpl_mem_descs", chpl_memDescsGVar, GEN_PTR, true, dtStringC);
+    info->lvt->addGlobalValue("chpl_mem_descs", chpl_memDescsGVar, GEN_VAL, true, dtStringC);
 #endif
   }
 
