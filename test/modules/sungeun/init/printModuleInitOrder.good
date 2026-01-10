@@ -1,5 +1,6 @@
 Initializing Modules:
    ChapelStandard
+    ChapelProgramRegistration
     OwnedObject
     SharedObject
      Errors

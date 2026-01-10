@@ -42,6 +42,8 @@ CommDiagnostics
   from print-module-resolution.ChapelStandard.startInitCommDiags.CommDiagnostics
 startInitCommDiags
   from print-module-resolution.ChapelStandard.startInitCommDiags
+ChapelProgramRegistration
+  from print-module-resolution.ChapelStandard.ChapelProgramRegistration
 OwnedObject
   from print-module-resolution.ChapelStandard.OwnedObject
 MemConsistency
