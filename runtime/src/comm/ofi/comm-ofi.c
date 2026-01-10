@@ -39,6 +39,7 @@
 #include "chpl-linefile-support.h"
 #include "chpl-mem.h"
 #include "chpl-mem-sys.h"
+#include "chpl-program-registration.h"
 #include "chplsys.h"
 #include "chpl-tasks.h"
 #include "chpl-topo.h"
@@ -1476,6 +1477,7 @@ chpl_bool isGoodCoreProvider(struct fi_info* info) {
 // and address types.
 static inline
 chpl_bool isUseableProvider(struct fi_info* info) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_TARGET_PLATFORM);
   chpl_bool result = true;
 
   // Ignore any provider for the T2 interface on a mac. As of v1.13.0
@@ -2040,6 +2042,8 @@ void heedSlingshotSettings(struct fi_info* info);
 
 static
 void init_ofiFabricDomain(void) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_TARGET_PLATFORM);
+
   //
   // Get hints describing our base requirements, the ones that are
   // independent of which MCM conformance mode we'll eventually use.
@@ -2226,6 +2230,8 @@ void init_ofiReserveCores(void) {
 
 static
 struct fi_info* getBaseProviderHints(chpl_bool* pTxAttrsForced) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_TARGET_PLATFORM);
+
   //
   // Build hints describing our base requirements, the ones that are
   // independent of which MCM conformance mode we'll eventually use:
@@ -3300,6 +3306,9 @@ void chpl_comm_rollcall(void) {
 //
 
 wide_ptr_t* chpl_comm_broadcast_global_vars_helper(void) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_numGlobalsOnHeap);
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_globals_registry);
+
   DBG_PRINTF(DBG_IFACE_SETUP, "%s()", __func__);
 
   //
@@ -3536,6 +3545,8 @@ static chpl_bool get_ofiUseTHP(struct fi_info* info) {
 
 static
 void init_fixedHeap(void) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_TARGET_PLATFORM);
+
   //
   // Determine whether or not we'll use a fixed heap, and if so what its
   // address and size are.  Note that this has to be able to run early,
