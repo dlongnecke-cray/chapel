@@ -29,9 +29,12 @@
 #include "chplrt.h"
 #include "chpl-comm-launch.h"
 #include "chpl-env.h"
+#include "chpl-program-registration.h"
 
 
 void chpl_comm_preLaunch(int32_t numLocales) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_TARGET_PLATFORM);
+
 #ifdef COMM_OFI_OOB_PMI2
   //
   // Set the maximum number of PMI key-value store entries to an amount
