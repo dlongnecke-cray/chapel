@@ -352,6 +352,12 @@ E_CONSTANT_RT(CHPL_STACK_CHECKS, int)
 */
 E_CONSTANT_RT(CHPL_TARGET_PLATFORM, const char*)
 
+/** CODE-GENERATED | PER-PROGRAM-CONSTANT
+    Value of '$CHPL_TARGET_MEM' when this program was compiled.
+    TODO: Could be dropped since it's only used by 'COMM=ugni'.
+*/
+E_CONSTANT_RT(CHPL_TARGET_MEM, const char*)
+
 /** CODE-GENERATED | PER-PROGRAM-CALLBACK
     Call to heap allocate all global variables.
 */

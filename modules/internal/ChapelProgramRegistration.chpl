@@ -222,6 +222,9 @@ module ChapelProgramRegistration {
     extern type CHPL_TARGET_PLATFORM_type;
     extern const CHPL_TARGET_PLATFORM: CHPL_TARGET_PLATFORM_type;
     info.setConstant('CHPL_TARGET_PLATFORM', CHPL_TARGET_PLATFORM);
+    extern type CHPL_TARGET_MEM_type;
+    extern const CHPL_TARGET_MEM: CHPL_TARGET_MEM_type;
+    info.setConstant('CHPL_TARGET_MEM', CHPL_TARGET_MEM);
     info.setCallback('chpl__heapAllocateGlobals');
     extern type chpl_finfo_type;
     extern const chpl_finfo: chpl_finfo_type;
