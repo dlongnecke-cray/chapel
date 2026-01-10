@@ -27,8 +27,8 @@
 #include <stdlib.h>
 
 #include "chplrt.h"
-#include "chplcgfns.h"
 #include "chpl-env.h"
+#include "chpl-program-registration.h"
 #include "comm-ugni-heap-pages.h"
 #include "error.h"
 
@@ -67,6 +67,8 @@ static size_t hps = 0;
 static
 void set_hps(void)
 {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_TARGET_MEM);
+
   hps = chpl_comm_ugni_getSysPageSize();
 
   //
