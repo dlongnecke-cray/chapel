@@ -43,6 +43,8 @@
   struct qio_channel_s;
   typedef struct qio_channel_s qio_channel_t;
 
+  // TODO: Could be removed if we had some formulaic way to pass a function
+  //       type as a macro argument, but it doesn't seem like we can...?
   typedef void (*chpl_program_about_type)(void);
   typedef chpl_bool (*chpl_task_getCommDiagsTemporarilyDisabled_type)(void);
   typedef chpl_bool (*chpl_task_setCommDiagsTemporarilyDisabled_type)(chpl_bool);
