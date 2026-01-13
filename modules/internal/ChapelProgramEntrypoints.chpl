@@ -37,6 +37,8 @@ module ChapelProgramEntrypoints {
   pragma "locale private"
   var chpl_isLibInitialized = false;
 
+  // Memory will be set to 'false' and must be manually set to 'true'.
+  pragma "no init"
   pragma "locale private"
   var chpl_isLibFinalized = false;
 
@@ -80,6 +82,9 @@ module ChapelProgramEntrypoints {
     if chpl_isLibInitialized {
       // Ok to emit message as runtime is already set up.
       rtError("Can't call chpl_library_init() twice");
+      return;
+    } else {
+      chpl_isLibInitialized = true;
     }
 
     if numLocales > 1 then {
@@ -87,6 +92,15 @@ module ChapelProgramEntrypoints {
       return;
     }
 
+    // Before we initialize the runtime, we have to prepare program info.
+    const registered = chpl_programInfoHere.registerAsRoot();
+
+    if !registered {
+      // TODO: What to do when another program is already bound as root?
+      rtError("Failed to register root program in chpl_library_init()");
+    }
+
+    // Now that the root program is set, we can initialize the runtime here.
     // NOTE: The call 'chpl_rt_init' is idempotent and nothing will happen
     // if the runtime is already initialized.
     chpl_rt_init(argc, argv);

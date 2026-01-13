@@ -213,8 +213,6 @@ void chpl_rt_init(int argc, char* argv[]) {
   int runInGDB;
   int runInLLDB;
 
-  // TODO: Program data needs to be initialized before this point even?
-  // TODO: Maybe the program needs to be responsible for parsing configs?
   CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CreateConfigVarTable);
 
   // Check that we can get the page size.
@@ -345,6 +343,8 @@ void chpl_rt_init(int argc, char* argv[]) {
 // of standard module initialization are privatized and must be executed on
 // each locale in order for the Chapel program to function correctly.
 //
+// TODO (dlongnecke): Why can't this live in the module code, since it is
+//                    responsible for initializing modules?
 void chpl_std_module_init(void) {
   CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl__initStringLiterals);
   CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl__heapAllocateGlobals);
