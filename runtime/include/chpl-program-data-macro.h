@@ -56,10 +56,7 @@
   typedef void (*chpl__init_preInit_type)(int64_t ln, int32_t fn);
   typedef void (*chpl__init_PrintModuleInitOrder_type)(int64_t ln, int32_t fn);
   typedef void (*chpl__init_ChapelStandard_type)(int64_t ln, int32_t fn);
-  typedef void (*chpl_deinitModules_type)(void);
   typedef int64_t (*chpl_gen_main_type)(chpl_main_argument* _arg);
-  typedef void (*chpl_libraryModuleLevelSetup_type)(void);
-  typedef void (*chpl_libraryModuleLevelCleanup_type)(void);
   typedef void (*chpl_memTracking_returnConfigVals_type)(chpl_bool* memTrack,
                                                          chpl_bool* memStats,
                                                          chpl_bool* memLeaksByType,
@@ -208,27 +205,10 @@ E_CALLBACK_RT(chpl__init_PrintModuleInitOrder)
 */
 E_CALLBACK_RT(chpl__init_ChapelStandard)
 
-/** MODULE-CODE: ChapelUtil.chpl | PER-PROGRAM-CALLBACK
-    Deinitializes modules and prints the deinit order if needed.
-    TODO: Why the heck is this in module code but the rest isn't?
-    TODO: Can the generated code just be responsible for all this?
-*/
-E_CALLBACK_RT(chpl_deinitModules)
-
 /** CODE-GENERATED | MAIN | PER-PROGRAM-CALLBACK
     Main entrypoint for this program.
 */
 E_CALLBACK_RT(chpl_gen_main)
-
-/** MODULE-CODE: ExportWrappers.chpl | PER-PROGRAM-CALLBACK
-    Currently only initializes the dynamic end count.
-*/
-E_CALLBACK_RT(chpl_libraryModuleLevelSetup)
-
-/** MODULE-CODE: ExportWrappers.chpl | PER-PROGRAM-CALLBACK
-    Currently only destroys the dynamic end count.
-*/
-E_CALLBACK_RT(chpl_libraryModuleLevelCleanup)
 
 /** CODE-GENERATED | PER-PROGRAM-CONSTANT
     Contains filenames, and maybe other strings besides?
