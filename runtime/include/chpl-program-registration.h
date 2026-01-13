@@ -59,9 +59,10 @@ extern "C" {
   using the format that is described in that file.
 
   Then, within a runtime function, you can access the value on the current
-  locale by writing (e.g., for a data named 'foo'):
+  locale by writing (e.g., for a 'chpl_program_info*' named 'prg' and
+  for a data named 'foo'):
 
-  CHPL_PROGRAM_DATA_TEMP(prg_id, foo);
+  CHPL_PROGRAM_DATA_TEMP(prg, foo);
 
   This will declare a temporary in the current scope with the name 'foo' that
   has the C type for the constant.
@@ -72,17 +73,32 @@ extern "C" {
 
   int bar = CHPL_PROGRAM_DATA(prg_id, foo);
 
-  Do not declare global variables with values retrieved from these functions.
-  They are only valid on the currently executing locale during the lifetime
-  of the executing function. Multiple Chapel programs can be loaded into a
-  single process space and the values they contain for these constants can
-  differ.
+  If you don't have a 'chpl_program_info*' but you do have that program's
+  unique ID, you can get the info using:
+
+  chpl_program_info* info = CHPL_PROGRAM_FETCH(id);
+
+  Do not declare global variables with values retrieved from these functions!
+
+  The values returned are only valid on the currently executing locale during
+  the lifetime of the executing function. Multiple Chapel programs can be
+  loaded into a single process space and the values they contain for these
+  constants can differ. There is no guarantee that a value retrieved for one
+  program has any meaning in another.
 
   ---
 
   TODO (dlongnecke): We can provide default-implementations of certain
-                     callbacks such as for the QIO functions in order
-                     to be used for unit testing.
+                     callbacks such as for the QIO functions in order to be
+                     used for unit testing.
+  TODO (dlongnecke): We can introduce a mechanic such as "combine on load"
+                     if we wanted to produce execution-unique table
+                     indices, but that will require some restructuring or
+                     additional indirection for compiler-generated tables
+                     as well as to their indices in the code...
+  TODO (dlongnecke): Some structures may need serious adjustment such as
+                     vtables (which may require a notion of "combine on
+                     load").
 */
 
 // TODO: Where the heck does this live (i.e., launcher or us?). It was
@@ -92,11 +108,8 @@ extern char* chpl_executionCommand;
 
 // The type of a unique program identifier. These are assigned by the runtime
 // as it registers Chapel programs. The first Chapel program (that initial-
-// izes the runtime) will have the special ID 'CHPL_PROGRAM_ROOT'.
-//
-// TODO (chpl_library_init) will also need to be owned by the module code so
-// that we can make sure that it takes care of assigning that Chapel program
-// the root ID. Or you need to do a callback.
+// izes the runtime) will have the special ID 'CHPL_PROGRAM_ROOT'. Others
+// will have unique IDs with no other ordering guarantees.
 typedef uint64_t chpl_prg_id;
 
 /** There will never be a Chapel program that is assigned this ID value. */
@@ -128,9 +141,6 @@ typedef struct chpl_program_info {
     #define E_CONSTANT(name__, type__) type__ name__;
     #define E_CALLBACK(name__) name__##_type name__;
     #include "chpl-program-data-macro-adapter.h"
-    #undef E_CONSTANT
-    #undef E_CALLBACK
-    #undef NOTHING
   } data;
 } chpl_program_info;
 
