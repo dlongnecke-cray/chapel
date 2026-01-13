@@ -200,6 +200,9 @@ static void chpl_setlocale_utf8(void) {
   }
 }
 
+// Runtime initialization should be idempotent per locale.
+static int is_runtime_initialized = 0;
+
 //
 // Chapel runtime initialization
 //
@@ -209,12 +212,13 @@ static void chpl_setlocale_utf8(void) {
 // Called from main.c:main(...) and chpl-init.c:chpl_library_init(...)
 //
 void chpl_rt_init(int argc, char* argv[]) {
+  if (is_runtime_initialized) return;
+  is_runtime_initialized = 1;
+
   int32_t execNumLocales;
   int runInGDB;
   int runInLLDB;
 
-  // TODO: Program data needs to be initialized before this point even?
-  // TODO: Maybe the program needs to be responsible for parsing configs?
   CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CreateConfigVarTable);
 
   // Check that we can get the page size.
@@ -346,6 +350,8 @@ void chpl_rt_init(int argc, char* argv[]) {
 // Factored out of "main.c:chpl_main(...)" this needs to be called from within the
 // "main-task" which is either "chpl_executable_init" or "chpl_library_init".
 //
+// TODO (dlongnecke): Why can't this live in the module code, since it is
+//                    responsible for initializing modules?
 void chpl_std_module_init(void) {
   CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl__initStringLiterals);
   CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl__heapAllocateGlobals);
@@ -415,67 +421,4 @@ void chpl_execute_module_deinit(c_fn_ptr deinitFun) {
   void (*deinitFn)(void);
   deinitFn = deinitFun;
   deinitFn();
-}
-
-bool lib_inited = false;
-//
-// A program using Chapel as a library might look like:
-//
-// int main(int argc, char* argv) {
-//
-//   chpl_library_init(...)
-//   chpl__init_MODULE_1(LINE, FILENAME)
-//   ...
-//   chpl__init_MODULE_N(LINE, FILENAME)
-//
-//   call_chapel_function_from_MODULE_1()
-//   ...
-//   call_chapel_function_from_MODULE_N()
-//
-//   chpl_library_finalize()
-//
-// }
-//
-void chpl_library_init(int argc, char* argv[]) {
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_libraryModuleLevelSetup);
-
-  if (lib_inited) {
-    chpl_error("Can't call chpl_library_init() twice", 0, 0);
-  } else {
-    lib_inited = true;
-  }
-  chpl_rt_init(argc, argv);                     // Initialize the runtime
-  chpl_task_callMain(chpl_std_module_init);     // Initialize std modules
-  chpl_libraryModuleLevelSetup();
-
-  // @dlongnecke-cray, 11/16/2020
-  // TODO: Call chpl_rt_preUserCodeHook() here for Locale[0]?
-}
-
-// TODO (dlongnecke): This has to go, runtime shouldn't be keeping track of
-//                    deinit? Or if it needs to manage it, then the program
-//                    info needs to contain this state.
-bool lib_deinited = false;
-
-//
-// A wrapper around chplexit.c:chpl_finalize(...), sole purpose is
-// to provide a "chpl_library_*" interface for the Chapel "library-user".
-void chpl_library_finalize(void) {
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_libraryModuleLevelCleanup);
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_deinitModules);
-
-  if (!lib_inited) {
-    return;
-  }
-
-  if (lib_deinited) {
-    // Nothing to do, we've already been cleaned up
-    return;
-  } else {
-    lib_deinited = true;
-  }
-
-  chpl_libraryModuleLevelCleanup();
-  chpl_deinitModules();
-  chpl_finalize(0, 1);
 }

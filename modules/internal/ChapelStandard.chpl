@@ -33,7 +33,6 @@ module ChapelStandard {
   // (unless 'as xyz;' is also added).  Issue #19793 suggests taking
   // this a step further and not permitting the user to refer to the
   // names of internal modules at all.
-  public use ChapelProgramRegistration;
   public use CString;
   public use Bytes;
   public use String;
@@ -85,6 +84,10 @@ module ChapelStandard {
   public use AutoMath as AutoMath;
   public use AutoGpu as AutoGpu;
 
-  use stopInitCommDiags;      // Internal, but uses standard/CommDiagnostics
-  use ChapelDynamicLoading;   // Internal, but the compiler uses this
+  use stopInitCommDiags;        // Internal, but uses standard/CommDiagnostics
+
+  // These need to be compiled but do not need to be in the global namespace.
+  use ChapelDynamicLoading;
+  use ChapelProgramEntrypoints;
+  use ChapelProgramRegistration;
 }

@@ -56,11 +56,14 @@ chpl_program_register_here_nosync(chpl_prg_id id, chpl_program_info* prg) {
   return ret;
 }
 
-void chpl_program_register_root_here(chpl_program_info* prg) {
+int chpl_program_register_root_here(chpl_program_info* prg) {
   if (chpl_prg_root == NULL) {
     chpl_prg_root = prg;
     prg->id = CHPL_PROGRAM_ROOT_ID;
+    return 1;
   }
+
+  return 0;
 }
 
 //

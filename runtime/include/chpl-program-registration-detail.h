@@ -55,8 +55,8 @@ extern "C" {
 chpl_prg_id
 chpl_program_register_here_nosync(chpl_prg_id id, chpl_program_info* prg);
 
-/** Call to register the root program here. */
-void chpl_program_register_root_here(chpl_program_info* prg);
+/** Call to register the root program here. Returns '1' if registered. */
+int chpl_program_register_root_here(chpl_program_info* prg);
 
 #ifdef __cplusplus
 }
