@@ -35,6 +35,7 @@ module ChapelProgramRegistration {
   // We maintain a program info for each locale.
   record chpl_programInfo {
     var info: chpl_program_info;
+    var prepared: bool;
 
     inline proc type nullId param: uint do return 0;
     inline proc type rootId param: uint do return 1;
@@ -65,7 +66,7 @@ module ChapelProgramRegistration {
     inline proc ref setCallback(param name: string) {
       // NOTE: The type need not match up - we just need the local address...
       extern name proc callback(): void;
-      
+
       // NOTE: This absolutely, should not, under ANY circumstances, create a
       //       Chapel procedure pointer from 'callback'! The only thing that
       //       should be happening here is to cast the local address of the
@@ -99,17 +100,21 @@ module ChapelProgramRegistration {
       return get(prg);
     }
 
-    inline proc rootProgramInfoHere() {
-      return infoForIdHere(prg=rootId);
+    inline proc ref prepare(): void {
+      if !prepared {
+        setProgramInfoDataFieldsHere(this);
+        prepared = true;
+      }
     }
 
-    inline proc ref registerAsRootHere() {
-      // This is not parallel safe, but it doesn't really need to be.
-      if id == nullId && rootProgramInfoHere() == nil {
-        param cname = 'chpl_program_register_root_here';
-        extern cname proc register(ref info: chpl_program_info): void;
-        register(info);
-      }
+    inline proc ref registerAsRoot(): bool {
+      param cname = 'chpl_program_register_root_here';
+      extern cname proc register(ref info: chpl_program_info): c_int;
+
+      prepare();
+      const ret = register(info) : bool;
+
+      return ret;
     }
   }
 
@@ -159,10 +164,7 @@ module ChapelProgramRegistration {
     info.setCallback('chpl__init_preInit');
     info.setCallback('chpl__init_PrintModuleInitOrder');
     info.setCallback('chpl__init_ChapelStandard');
-    info.setCallback('chpl_deinitModules');
     info.setCallback('chpl_gen_main');
-    info.setCallback('chpl_libraryModuleLevelSetup');
-    info.setCallback('chpl_libraryModuleLevelCleanup');
     extern type chpl_filenameTable_type;
     extern const chpl_filenameTable: chpl_filenameTable_type;
     info.setConstant('chpl_filenameTable', chpl_filenameTable);
@@ -250,14 +252,9 @@ module ChapelProgramRegistration {
     info.setCallback('chpl_qio_file_close');
   }
 
-  // This must be called by each locale after the runtime has set itself up.
-  export proc chpl_prepareAndSetRootProgramInfoHere(): chpl_prg_id {
+  export proc chpl_prepareProgramInfoHere(): c_ptr(chpl_program_info) {
     ref prg = chpl_programInfoHere;
-
-    setProgramInfoDataFieldsHere(prg);
-
-    prg.registerAsRootHere();
-
-    return prg.id;
+    prg.prepare();
+    return c_ptrTo(prg.info);
   }
 }
