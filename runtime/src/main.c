@@ -26,14 +26,15 @@
 #include "config.h"
 
 // Defined in the modules. It's OK to declare it, we will link against it.
-extern chpl_prg_id chpl_prepareAndSetRootProgramInfoHere(void);
+extern chpl_program_info* chpl_prepareProgramInfoHere(void);
 
 int main(int argc, char* argv[]) {
   // Initialize the program info so the runtime can see the program data.
-  chpl_prg_id id = chpl_prepareAndSetRootProgramInfoHere();
+  chpl_program_info* info = chpl_prepareProgramInfoHere();
 
-  if (id != CHPL_PROGRAM_ROOT_ID) {
-    // This should never fire, but there's no choice but to call C 'exit'.
+  int registered = chpl_program_register_root_here(info);
+  if (!registered) {
+    // Should never fire. TODO: Can we call something besides C exit here?
     fprintf(stderr, "%s: failed to prepare program data", argv[0]);
     exit(1);
   }
