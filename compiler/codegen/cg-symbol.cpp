@@ -1110,19 +1110,25 @@ static Type* getFormalCodegenType(ArgSymbol* formal) {
 // TODO: apply to _ddata as well?
 static std::string
 transformTypeForPointer(Type* type) {
+  Type* underlying = nullptr;
+  bool isConst = false;
+
   if (type->symbol->hasFlag(FLAG_REF)) {
-    Type* referenced = type->getValType();
-    return referenced->codegen().c + " *";
+    underlying = type->getValType();
 
   } else if (type->symbol->hasFlag(FLAG_C_PTR_CLASS)) {
-    Type* pointedTo = getDataClassType(type->symbol)->typeInfo();
-    bool isConst = type->symbol->hasFlag(FLAG_C_PTRCONST_CLASS);
-    std::string ret = isConst ? "const " : "";
-    ret += pointedTo->codegen().c + " *";
-    return ret;
+    underlying = getDataClassType(type->symbol)->typeInfo();
+    isConst = type->symbol->hasFlag(FLAG_C_PTRCONST_CLASS);
+
+  } else {
+    // Base case: Just print the codegen'd type.
+    return type->codegen().c;
   }
-  std::string typeName = type->codegen().c;
-  return typeName;
+
+  std::string ret = isConst ? "const " : "";
+  ret += transformTypeForPointer(underlying) + "*";
+
+  return ret;
 }
 
 static GenRet codegenFormalType(Qualifier qual, Type* type) {
