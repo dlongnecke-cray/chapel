@@ -941,6 +941,17 @@ static void genFilenameTable() {
   genGlobalInt32(sizeName, InsertLineNumbers::getFilenameTable().size());
 }
 
+static bool shouldAddToUnwindTable(FnSymbol* fn) {
+  // Always keep module initializers.
+  if (fn->hasFlag(FLAG_MODULE_INIT)) return true;
+
+  // Name or C name starts with 'chpl_', which is reserved.
+  if (!strncmp(fn->name, "chpl_", 5)) return false;
+  if (!strncmp(fn->cname, "chpl_", 5)) return false;
+
+  return true;
+}
+
 //
 // This adds the Chapel symbol table to the config file
 // Our symbol table is formed by two 1-D arrays with 2 elements
@@ -956,7 +967,7 @@ static void genUnwindSymbolTable(){
   if(strcmp(CHPL_UNWIND, "none") != 0){
     // Gets only user symbols
     forv_Vec(FnSymbol, fn, gFnSymbols) {
-      if(strncmp(fn->name, "chpl_", 5) || fn->hasFlag(FLAG_MODULE_INIT)) {
+      if (shouldAddToUnwindTable(fn)) {
         symbols.push_back(fn);
       }
     }
