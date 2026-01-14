@@ -24,13 +24,9 @@ module ChapelProgramEntrypoints {
   // Alias for 'char**' to be used as the type of 'argv'.
   type c_argArray = c_ptr(c_ptr(c_char));
 
-  // Memory will be set to 'false' and must be manually set to 'true'.
-  pragma "no init"
   pragma "locale private"
   var chpl_isLibInitialized = false;
 
-  // Memory will be set to 'false' and must be manually set to 'true'.
-  pragma "no init"
   pragma "locale private"
   var chpl_isLibFinalized = false;
 
@@ -73,8 +69,6 @@ module ChapelProgramEntrypoints {
       // Ok to emit message as runtime is already set up.
       rtError("Can't call chpl_library_init() twice");
 
-    } else {
-      chpl_isLibInitialized = true;
     }
 
     if numLocales > 1 then {
@@ -103,10 +97,12 @@ module ChapelProgramEntrypoints {
 
     chpl_task_callMain(p2);
 
-    chpl_libraryModuleLevelSetup();
-
     // @dlongnecke-cray, 11/16/2020
     // TODO: Call chpl_rt_preUserCodeHook() here for Locale[0]?
+    chpl_libraryModuleLevelSetup();
+
+    // Now that module initialization is done, set the flag to 'true'.
+    chpl_isLibInitialized = true;
   }
 
   export proc chpl_library_finalize() {
@@ -115,10 +111,12 @@ module ChapelProgramEntrypoints {
     extern proc chpl_finalize(status: c_int, all: c_int): void;
 
     if !chpl_isLibInitialized || chpl_isLibFinalized then return;
-    chpl_isLibFinalized = true;
 
     chpl_libraryModuleLevelCleanup();
     chpl_deinitModules();
     chpl_finalize(0, 1);
+
+    // Now that finalization is done, set the flag to 'true'.
+    chpl_isLibFinalized = true;
   }
 }
