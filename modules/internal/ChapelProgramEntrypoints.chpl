@@ -37,8 +37,6 @@ module ChapelProgramEntrypoints {
   pragma "locale private"
   var chpl_isLibInitialized = false;
 
-  // Memory will be set to 'false' and must be manually set to 'true'.
-  pragma "no init"
   pragma "locale private"
   var chpl_isLibFinalized = false;
 
@@ -83,8 +81,6 @@ module ChapelProgramEntrypoints {
       // Ok to emit message as runtime is already set up.
       rtError("Can't call chpl_library_init() twice");
 
-    } else {
-      chpl_isLibInitialized = true;
     }
 
     if numLocales > 1 then {
