@@ -72,7 +72,7 @@ module ChapelProgramEntrypoints {
     if chpl_isLibInitialized {
       // Ok to emit message as runtime is already set up.
       rtError("Can't call chpl_library_init() twice");
-      return;
+
     } else {
       chpl_isLibInitialized = true;
     }

@@ -95,6 +95,12 @@ void codegen_library_header(std::vector<FnSymbol*> functions) {
         if (fn->hasFlag(FLAG_EXPORT) &&
             isUserRoutine(fn)) {
           fn->codegenPrototype();
+
+        } else if (!strcmp(fn->cname, "chpl_library_init") ||
+                   !strcmp(fn->cname, "chpl_library_finalize")) {
+          // These functions are special and need to be exposed.
+          // TODO: Is matching by name OK?
+          fn->codegenPrototype();
         }
       }
 
