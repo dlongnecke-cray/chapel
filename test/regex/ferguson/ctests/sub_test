@@ -70,7 +70,7 @@ fi
 
 # compute the g++ etc command
 DEPS="$OPTS --std=gnu++11 -Wall -DCHPL_RT_UNIT_TEST $DEFS $RE2INCLS"
-LDEPS="$RSRC/qio.c $RSRC/sys.c $RSRC/sys_xsi_strerror_r.c $RSRC/qbuffer.c $RSRC/qio_error.c $RSRC/deque.c $RSRC/regex/bundled/re2-interface.cc $RE2LIB -lpthread"
+LDEPS="$RSRC/qio.c $RSRC/sys.c $RSRC/sys_xsi_strerror_r.c $RSRC/qbuffer.c $RSRC/qio_error.c $RSRC/deque.c $RSRC/regex/bundled/re2-interface.cc $CHPL_HOME/runtime/src/chpl-program-registration.c $RE2LIB -lpthread"
 
 T1="$TEST_CXX $DEPS -g regex_test.cc -o regex_test $LDEPS"
 T2="$TEST_CXX $DEPS -g regex_channel_test.cc -o regex_channel_test $LDEPS"
