@@ -19,7 +19,7 @@
  */
 
 module ChapelProgramEntrypoints {
-  use ChapelBase, CTypes;
+  use ChapelBase, ChapelProgramRegistration, CTypes;
 
   // This is an opaque alias for "char" used to make sure the compiler will
   // generate the proper type instead of e.g., "int(8)" as is usually done
