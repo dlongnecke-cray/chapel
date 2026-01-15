@@ -1,6 +1,5 @@
 Initializing Modules:
    ChapelStandard
-    ChapelProgramRegistration
     OwnedObject
     SharedObject
      Errors
@@ -66,6 +65,8 @@ Initializing Modules:
     ExportWrappers
     ChapelStaticVars
     ChapelDynamicLoading
+    ChapelProgramEntrypoints
+     ChapelProgramRegistration
     AlignedTSupport
    printModuleInitOrder
     moduleInitTest
