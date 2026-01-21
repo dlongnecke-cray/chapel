@@ -31,6 +31,7 @@ extern "C" {
 // under earlier versions of LLVM that require typed pointers (e.g,. LLVM-14).
 // It has the type 'void**' because in practice that is how we use it (and
 // it can contain procedure pointers of any type, now).
+// TODO: This needs to go away.
 void** chpl_get_ftable(void);
 
 extern int CHPL_RTLD_LAZY;
@@ -42,6 +43,8 @@ void* chpl_dlsym(void* handle, const char* symbol);
 int chpl_dlclose(void* handle);
 
 const char* chpl_dlerror(void);
+
+int64_t chpl_rootProgMapPtrToIdxHere(void* ptr, int64_t idx);
 
 #ifdef __cplusplus
 }

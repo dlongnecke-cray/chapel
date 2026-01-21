@@ -24,6 +24,12 @@
 
 static chpl_program_info* chpl_prg_root;
 
+#ifndef CHPL_RT_COMPILE_DYNAMIC_LIBRARY
+  int chpl_rt_is_dynamic_library = 1;
+#else
+  int chpl_rt_is_dynamic_library = 0;
+#endif
+
 //
 // HIDDEN SYMBOLS W/ GLOBAL EXTERN LINKAGE
 // (Available for module code to call but not exposed in the header file.)
