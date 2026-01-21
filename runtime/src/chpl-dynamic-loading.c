@@ -46,3 +46,8 @@ int chpl_dlclose(void* handle) {
 const char* chpl_dlerror(void) {
   return dlerror();
 }
+
+int64_t chpl_rootProgMapPtrToIdxHere(void* ptr, int64_t idx) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_mapPtrToIdxHere);
+  return chpl_mapPtrToIdxHere(ptr, idx);
+}
