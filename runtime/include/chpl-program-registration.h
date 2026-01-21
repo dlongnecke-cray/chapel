@@ -106,6 +106,9 @@ extern "C" {
 //       it is not code-generated (and that header is going away).
 extern char* chpl_executionCommand;
 
+// Whether or not the runtime is compiled as a dynamic library or not.
+extern int chpl_rt_is_dynamic_library;
+
 // The type of a unique program identifier. These are assigned by the runtime
 // as it registers Chapel programs. The first Chapel program (that initial-
 // izes the runtime) will have the special ID 'CHPL_PROGRAM_ROOT'. Others

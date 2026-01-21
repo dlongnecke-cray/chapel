@@ -23,6 +23,7 @@ module ChapelDynamicLoading {
   private use CTypes;
   private use Atomics;
   private use ChapelLocks;
+  private use ChapelProgramRegistration;
 
   private proc isLocalNoComm param {
     use ChplConfig;
@@ -192,7 +193,7 @@ module ChapelDynamicLoading {
     return ret;
   }
 
-  proc checkForDynamicLoadingErrors(ref err) {
+  proc checkForDynamicLoadingConfigurationErrors(ref err) {
     // Note that procedure pointer errors were checked in module code.
     param errors = configErrorsForDynamicLoading(emitErrors=true);
 
@@ -230,7 +231,11 @@ module ChapelDynamicLoading {
   // This class represents a "wide" binary. It contains the state necessary
   // to load a symbol from the binary on each locale.
   class chpl_BinaryInfo {
+    enum binaryKind { FOREIGN, CHAPEL };
+
     var _lock: chpl_LocalSpinlock;
+
+    var _kind: binaryKind = binaryKind.FOREIGN;
 
     // This refcount is bumped and dropped by the user-facing wrapper.
     var _refCount: atomic int = 0;
@@ -267,11 +272,10 @@ module ChapelDynamicLoading {
       }
     }
 
-    // Load a binary given a path.
-    proc type create(path: string, out err: owned DynLoadError?) {
+    proc type _tryToLoadEagerlyOnAllLocales(path, out err) {
       var ret: unmanaged chpl_BinaryInfo? = nil;
 
-      if checkForDynamicLoadingErrors(err) then return ret;
+      if checkForDynamicLoadingConfigurationErrors(err) then return ret;
 
       on Locales[0] {
         const store = chpl_binaryInfoStore.borrow();
@@ -367,6 +371,92 @@ module ChapelDynamicLoading {
       return ret;
     }
 
+    proc _loadPreparedProgramInfoLocally(): c_ptr(chpl_program_info) {
+      type prepareType = proc(): c_ptr(chpl_program_info);
+      param prepareName = 'chpl_prepareProgramInfoHere';
+      const prepare = this.loadSymbolLocally(prepareName, prepareType);
+      if prepare != nil then return prepare();
+      return nil;
+    }
+
+    // TODO: Propagate warnings out as errors instead.
+    proc _inspectAndPrepareIfCompatibleChapelBinary(): binaryKind {
+      use ChapelProgramRegistration;
+
+      const info = _loadPreparedProgramInfoLocally();
+      if info == nil then return binaryKind.FOREIGN;
+
+      //
+      // TODO: Confirm that the info is compatible with us.
+      //
+
+      // The runtime records if it was compiled as a dynamic library or not,
+      // so check that. TODO: This check alone is not enough, the compiled
+      // Chapel program must also support dynamically resolving runtime
+      // symbols as well. And if it does, we can also work to make it support
+      // using the runtime of an existing Chapel program (so we don't even
+      // need to dynamically link the runtime).
+      //
+      // TODO: We can possibly inject two more flags to help check this:
+      //        - 'chpl_program_is_dynamically_linked_against_rt'
+      //          -> This would be set at link time.
+      //        - 'chpl_program_rt_symbols_always_resolve_dynamically'
+      //          -> This behavior is forced at compile-time (?).
+      extern const chpl_rt_is_dynamic_library: c_int;
+      if !chpl_rt_is_dynamic_library {
+        warning('Cannot load \'' + _path + '\' as a Chapel binary because' +
+                'the runtime is not compiled as a dynamic library');
+        return binaryKind.FOREIGN;
+      }
+
+      // Internal runtime function used to bind program IDs.
+      extern 'chpl_program_register_here_nosync'
+      proc bind(id: chpl_prg_id, prg: c_ptr(chpl_program_info)): chpl_prg_id;
+
+      var idBuf = new chpl_localBuffer(chpl_prg_id, numLocales);
+
+      idBuf[here.id] = bind(chpl_programInfo.nullId, info);
+      const newPrgId = idBuf[here.id];
+
+      if newPrgId == chpl_programInfo.nullId ||
+         newPrgId == chpl_programInfo.rootId {
+        // TODO: Unbind.
+        warning('Failed to set Chapel program ID on locale ' + here.id + ' ' +
+                'for program loaded at \'' + _path + '\'');
+        return binaryKind.FOREIGN;
+      }
+
+      // Bind the ID of this program on all locales.
+      coforall loc in fanToAll(skip=here) with (ref idBuf) do on loc {
+        const infoHere = _loadPreparedProgramInfoLocally();
+        on idBuf do idBuf[here.id] = bind(newPrgId, infoHere);
+      }
+
+      for i in 0..idBuf.size do {
+        if i == here.id then continue;
+
+        const id = idBuf[i];
+        if id != newPrgId {
+          // TODO: Unbind.
+          warning('Failed to set Chapel program ID on locale ' + i + ' ' +
+                  'for program loaded at \'' + _path + '\'');
+          return binaryKind.FOREIGN;
+        }
+      }
+
+      return binaryKind.CHAPEL;
+    }
+
+    // Load a binary given a path.
+    proc type create(path: string, out err: owned DynLoadError?) {
+      var ret = _tryToLoadEagerlyOnAllLocales(path, err);
+      if ret == nil || err != nil then return ret;
+
+      ret._kind = ret._inspectToDetermineBinaryKind();
+
+      return ret;
+    }
+
     // TODO: Also need to evict pointer cache entries.
     proc _close() {
       assert(_refCount.read() == 0);
@@ -410,7 +500,7 @@ module ChapelDynamicLoading {
 
       // Get the wide index to use by interning on 'this.locale'. By passing
       // in '0' we tell the routine to assign us a unique index to use.
-      var ret = chpl_insertExternLocalPtrNoSync(ptrOnThis, this.locale.id);
+      var ret = chpl_mapPtrToIdxHere(ptrOnThis, this.locale.id);
       assert(ret != 0);
 
       if shouldFanOut {
@@ -433,7 +523,7 @@ module ChapelDynamicLoading {
 
           } else {
             assert(ptr != nil);
-            const got = chpl_insertExternLocalPtrNoSync(ptr, ret);
+            const got = chpl_mapPtrToIdxHere(ptr, ret);
             assert(got == ret);
           }
         }
@@ -457,6 +547,34 @@ module ChapelDynamicLoading {
       return ret;
     }
 
+    // Load a symbol locally and return a local procedure pointer.
+    proc loadSymbolLocally(sym:string, type t, out err: owned DynLoadError?) {
+      type P = chpl_toExternProcType(chpl_toLocalProcType(t));
+      var ret = __primitive("cast", P, nil);
+
+      if !isProcedure(t) || isClass(t) {
+        compilerError('The type passed to \'loadSymbol\' must be ' +
+                      'a procedure type');
+      }
+
+      if checkForDynamicLoadingConfigurationErrors(err) then return ret;
+
+      const handle = _systemPtrs[here.id];
+      assert(handle != nil);
+
+      const ptr = localDynLoadSymbolLookup(sym, handle, err);
+
+      if ptr == nil {
+        // There was an error while calling the system lookup routine.
+        err = new DynLoadError('Failed to locate symbol: ' + sym);
+
+      } else if err == nil {
+        ret = __primitive("cast", P, ptr);
+      }
+
+      return ret;
+    }
+
     // TODO: 'T' must be a procedure type, but we cannot restrict it yet,
     // e.g., we cannot write "type t: proc". As a short-term workaround
     // we could add a primitive "any procedure type" to use instead.
@@ -469,13 +587,7 @@ module ChapelDynamicLoading {
                       'a procedure type');
       }
 
-      if chpl_isLocalProc(t) {
-        // Users shouldn't be able to easily construct local types right now.
-        compilerError('The procedure type passed to \'loadSymbol\'' +
-                      'should be wide');
-      }
-
-      if checkForDynamicLoadingErrors(err) {
+      if checkForDynamicLoadingConfigurationErrors(err) {
         return __primitive("cast", P, 0);
       }
 
@@ -879,7 +991,7 @@ module ChapelDynamicLoading {
   // if it has done so. It does not do synchronization on LOCALE-0 as it
   // expects the caller to do so if necessary.
   export proc
-  chpl_insertExternLocalPtrNoSync(ptr: c_ptr(void), idx: int): int {
+  chpl_mapPtrToIdxHere(ptr: c_ptr(void), idx: int): int {
     const ret = if idx == 0
       then chpl_dynamicProcIdxCounter.fetchAdd(1)
       else idx;

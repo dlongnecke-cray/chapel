@@ -85,6 +85,7 @@
   typedef c_sublocid_t
   (*chpl_localeModel_sublocToExecutionSubloc_type)(c_sublocid_t full_subloc);
   typedef void (*chpl__heapAllocateGlobals_type)(void);
+  typedef int64_t (*chpl_mapPtrToIdxHere_type)(void* ptr, int64_t idx);
 
   #define E_CALLBACK(name__)
   #define E_CONSTANT(name__, type__) typedef type__ name__##_type;
@@ -417,3 +418,8 @@ E_CALLBACK_RT(chpl_qio_get_locales_for_region)
     Close a file.
 */
 E_CALLBACK_RT(chpl_qio_file_close)
+
+/** MODULE-CODE: ChapelDynamicLoading.chpl | PER-PROGRAM-CALLBACK
+    Map a pointer to an index in the pointer cache on this locale.
+*/
+E_CALLBACK_RT(chpl_mapPtrToIdxHere)
