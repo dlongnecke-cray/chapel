@@ -228,11 +228,11 @@ module ChapelDynamicLoading {
   // This is one per entrypoint binary and lives on LOCALE-0.
   var chpl_binaryInfoStore = new owned chpl_BinaryInfoStore();
 
+  enum binaryKind { FOREIGN, CHAPEL };
+
   // This class represents a "wide" binary. It contains the state necessary
   // to load a symbol from the binary on each locale.
   class chpl_BinaryInfo {
-    enum binaryKind { FOREIGN, CHAPEL };
-
     var _lock: chpl_LocalSpinlock;
 
     var _kind: binaryKind = binaryKind.FOREIGN;
@@ -272,7 +272,7 @@ module ChapelDynamicLoading {
       }
     }
 
-    proc type _tryToLoadEagerlyOnAllLocales(path, out err) {
+    proc type _tryToLoadEagerly(path, out err: owned DynLoadError?) {
       var ret: unmanaged chpl_BinaryInfo? = nil;
 
       if checkForDynamicLoadingConfigurationErrors(err) then return ret;
@@ -372,10 +372,14 @@ module ChapelDynamicLoading {
     }
 
     proc _loadPreparedProgramInfoLocally(): c_ptr(chpl_program_info) {
+      var err;
+
       type prepareType = proc(): c_ptr(chpl_program_info);
       param prepareName = 'chpl_prepareProgramInfoHere';
-      const prepare = this.loadSymbolLocally(prepareName, prepareType);
-      if prepare != nil then return prepare();
+      const prepare = this.loadSymbolLocally(prepareName, prepareType, err);
+
+      if prepare != nil && err == nil then return prepare();
+
       return nil;
     }
 
@@ -421,8 +425,9 @@ module ChapelDynamicLoading {
       if newPrgId == chpl_programInfo.nullId ||
          newPrgId == chpl_programInfo.rootId {
         // TODO: Unbind.
-        warning('Failed to set Chapel program ID on locale ' + here.id + ' ' +
-                'for program loaded at \'' + _path + '\'');
+        warning('Failed to set Chapel program ID on locale ' +
+                here.id:string + ' ' + 'for program loaded at \'' +
+                _path + '\'');
         return binaryKind.FOREIGN;
       }
 
@@ -438,8 +443,9 @@ module ChapelDynamicLoading {
         const id = idBuf[i];
         if id != newPrgId {
           // TODO: Unbind.
-          warning('Failed to set Chapel program ID on locale ' + i + ' ' +
-                  'for program loaded at \'' + _path + '\'');
+          warning('Failed to set Chapel program ID on locale ' +
+                  here.id:string + ' ' + 'for program loaded at \'' +
+                  _path + '\'');
           return binaryKind.FOREIGN;
         }
       }
@@ -449,10 +455,11 @@ module ChapelDynamicLoading {
 
     // Load a binary given a path.
     proc type create(path: string, out err: owned DynLoadError?) {
-      var ret = _tryToLoadEagerlyOnAllLocales(path, err);
+      var ret = _tryToLoadEagerly(path, err);
+
       if ret == nil || err != nil then return ret;
 
-      ret._kind = ret._inspectToDetermineBinaryKind();
+      ret!._kind = ret!._inspectAndPrepareIfCompatibleChapelBinary();
 
       return ret;
     }
@@ -548,7 +555,7 @@ module ChapelDynamicLoading {
     }
 
     // Load a symbol locally and return a local procedure pointer.
-    proc loadSymbolLocally(sym:string, type t, out err: owned DynLoadError?) {
+    proc loadSymbolLocally(sym: string, type t, out err: owned DynLoadError?) {
       type P = chpl_toExternProcType(chpl_toLocalProcType(t));
       var ret = __primitive("cast", P, nil);
 
