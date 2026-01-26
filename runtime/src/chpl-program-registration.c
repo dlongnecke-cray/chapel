@@ -57,6 +57,7 @@ chpl_program_register_here_nosync(chpl_prg_id id, chpl_program_info* prg) {
   if (chpl_prg_root == NULL) return ret;
 
   // TODO...
+  fprintf(stderr, "Not implemented yet!\n");
   abort();
 
   return ret;
