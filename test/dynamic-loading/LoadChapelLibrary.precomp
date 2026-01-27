@@ -6,4 +6,5 @@ chpl_home=$($chpl --print-chpl-home)
 srcname="ChapelLibrary.chpl"
 
 echo Building dynamic Chapel library...
-$chpl --library --dynamic $srcname --savec dump
+$chpl --library --dynamic --no-builtin-runtime -suseProcedurePointers=true \
+$srcname --savec dump

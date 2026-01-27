@@ -30,6 +30,11 @@ module ChapelDynamicLoading {
     return compiledForSingleLocale();
   }
 
+  private proc isRuntimeCompiledAsDynamicLibrary {
+    extern const chpl_rt_is_dynamic_library: c_int;
+    return chpl_rt_is_dynamic_library != 0;
+  }
+
   param chpl_defaultProcBufferSize = 512;
 
   // Returns 'true' if compile-time configuration errors exist.
@@ -62,9 +67,13 @@ module ChapelDynamicLoading {
     return isDynamicLoadingSupported && !isLocalNoComm && numLocales > 1;
   }
 
-  // This counter is used to assign a unique 'wide index' to each procedure.
-  // We start with '1' since the '0th' index is reserved to represent 'nil'.
-  var chpl_dynamicProcIdxCounter: atomic int = 1;
+  // This counter is used to assign a unique index to each pointer.
+  // We start with '2' because:
+  //
+  //  -- The '0th' index is reserved to represent 'nil'.
+  //  -- The '1th' index is reserved to represent the root program.
+  //
+  var chpl_ptrCacheIdxCounter: atomic int = 2;
 
   class chpl_LocalPtrCache {
     var guard: chpl_lockGuard(chpl_localBidirectionalMap(c_ptr(void), int));
@@ -391,25 +400,20 @@ module ChapelDynamicLoading {
       if info == nil then return binaryKind.FOREIGN;
 
       //
-      // TODO: Confirm that the info is compatible with us.
+      // TODO: Confirm that the info is compatible with us. This can be
+      //       generated based on which fields are ABI-sensitive.
       //
 
       // The runtime records if it was compiled as a dynamic library or not,
-      // so check that. TODO: This check alone is not enough, the compiled
-      // Chapel program must also support dynamically resolving runtime
-      // symbols as well. And if it does, we can also work to make it support
-      // using the runtime of an existing Chapel program (so we don't even
-      // need to dynamically link the runtime).
+      // so check that. If it was not, currently we cannot possibly load this
+      // as a Chapel binary right now without making some more adjustments.
       //
-      // TODO: We can possibly inject two more flags to help check this:
-      //        - 'chpl_program_is_dynamically_linked_against_rt'
-      //          -> This would be set at link time.
-      //        - 'chpl_program_rt_symbols_always_resolve_dynamically'
-      //          -> This behavior is forced at compile-time (?).
-      extern const chpl_rt_is_dynamic_library: c_int;
-      if !chpl_rt_is_dynamic_library {
-        warning('Cannot load \'' + _path + '\' as a Chapel binary because' +
-                'the runtime is not compiled as a dynamic library');
+      // Do not even TRY to load it, because doing so will cause the linker
+      // to emit some symbol resolution errors for runtime symbols right off
+      // the bat (e.g., for 'chpl_std_module_init').
+      if !isRuntimeCompiledAsDynamicLibrary {
+        warning('Will not attempt to \'' + _path + '\' as a Chapel binary ' +
+                'because the runtime is not compiled as a dynamic library');
         return binaryKind.FOREIGN;
       }
 
@@ -459,6 +463,7 @@ module ChapelDynamicLoading {
 
       if ret == nil || err != nil then return ret;
 
+      // Otherwise, we can inspect things about the loaded binary.
       ret!._kind = ret!._inspectAndPrepareIfCompatibleChapelBinary();
 
       return ret;
@@ -967,7 +972,7 @@ module ChapelDynamicLoading {
           // If we did not look up an existing entry, then we are the task
           // that will set the map entries for this pointer. Set the index
           // on LOCALE-0 to claim the job.
-          ret = chpl_dynamicProcIdxCounter.fetchAdd(1);
+          ret = chpl_ptrCacheIdxCounter.fetchAdd(1);
           m.add(ptr, ret);
           requestedUniqueIdx = true;
         }
@@ -1000,7 +1005,7 @@ module ChapelDynamicLoading {
   export proc
   chpl_mapPtrToIdxHere(ptr: c_ptr(void), idx: int): int {
     const ret = if idx == 0
-      then chpl_dynamicProcIdxCounter.fetchAdd(1)
+      then chpl_ptrCacheIdxCounter.fetchAdd(1)
       else idx;
 
     local do manage chpl_localPtrCache.guard.write() as m {
