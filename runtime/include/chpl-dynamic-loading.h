@@ -44,7 +44,7 @@ int chpl_dlclose(void* handle);
 
 const char* chpl_dlerror(void);
 
-int64_t chpl_rootProgMapPtrToIdxHere(void* ptr, int64_t idx);
+int64_t chpl_rootPrgMapPtrToIdxHere(void* ptr, int64_t idx);
 
 #ifdef __cplusplus
 }

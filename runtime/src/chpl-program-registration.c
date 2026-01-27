@@ -19,15 +19,16 @@
  */
 
 #include "chplrt.h"
+#include "chpl-dynamic-loading.h"
 #include "chpl-program-registration.h"
 #include <string.h>
 
 static chpl_program_info* chpl_prg_root;
 
 #ifndef CHPL_RT_COMPILE_DYNAMIC_LIBRARY
-  int chpl_rt_is_dynamic_library = 1;
-#else
   int chpl_rt_is_dynamic_library = 0;
+#else
+  int chpl_rt_is_dynamic_library = 1;
 #endif
 
 //
@@ -56,9 +57,19 @@ chpl_program_register_here_nosync(chpl_prg_id id, chpl_program_info* prg) {
   // ERROR: The root program hasn't even been set yet...
   if (chpl_prg_root == NULL) return ret;
 
-  // TODO...
-  fprintf(stderr, "Not implemented yet!\n");
-  abort();
+  // ERROR: This ID is reserved...
+  if (id == CHPL_PROGRAM_ROOT_ID) return ret;
+
+  int requestingNewIdx = (id == CHPL_PROGRAM_NULL_ID);
+  int64_t idxToUse = requestingNewIdx ? 0 : ((int64_t) id);
+  int64_t got = chpl_rootPrgMapPtrToIdxHere(prg, idxToUse);
+
+  if (!requestingNewIdx && idxToUse != got) {
+    // TODO...
+    chpl_error("Failed to map index!\n", 0, 0);
+  }
+
+  ret = (chpl_prg_id) got;
 
   return ret;
 }
