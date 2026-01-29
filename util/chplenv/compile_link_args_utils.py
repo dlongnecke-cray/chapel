@@ -81,11 +81,24 @@ def get_runtime_link_args(runtime_subdir):
 
     return (bundled, system)
 
+def compute_rpath_linker_arg(path_to_runtime_lib):
+    if os.getenv('CHPL_RT_COMPILE_DYNAMIC_LIBRARY', None) is not None:
+        # Use '-Wl,' because the linker is guaranteed to be a C++ compiler.
+        ret = '-Wl,-rpath,'
+        ret += path_to_runtime_lib
+        return ret
+    return None
+
 # Returns a list of strings representing linker arguments.
 def compute_use_runtime_link_args(runtime_subdir):
     ret = []
     lib = chpl_home_utils.get_chpl_runtime_lib()
-    ret.append("-L" + os.path.join(lib, runtime_subdir))
+    path = os.path.join(lib, runtime_subdir)
+    # Append additional argument if we are dynamically linking.
+    rpath_linker_arg = compute_rpath_linker_arg(path)
+    if rpath_linker_arg:
+      ret.append(rpath_linker_arg)
+    ret.append("-L" + path)
     ret.append("-lchpl")
     return ret
 
