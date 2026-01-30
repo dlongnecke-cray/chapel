@@ -58,6 +58,14 @@ chpl_program_register_here_nosync(chpl_prg_id id, chpl_program_info* prg);
 /** Call to register the root program here. Returns '1' if registered. */
 int chpl_program_register_root_here(chpl_program_info* prg);
 
+/** Used as a hook to print deugging info to stdout when accessing fields. */
+void* chpl_program_data_debug_hook(int verbosity, chpl_program_info* prg,
+                                   void* field_addr,
+                                   const char* field_name,
+                                   const char* file,
+                                   const char* function,
+                                   int line);
+
 #ifdef __cplusplus
 }
 #endif

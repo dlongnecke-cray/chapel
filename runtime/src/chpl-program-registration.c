@@ -110,3 +110,31 @@ int chpl_program_info_num_data_entries(void) {
   #include "chpl-program-data-macro-adapter.h"
   return ret;
 }
+
+static int debug_is_hotspot(const char* function, const char* field_name) {
+  if (!strcmp(function, "chpl_cache_enabled")) return 1;
+  return 0;
+}
+
+void* chpl_program_data_debug_hook(int verbosity, chpl_program_info* prg,
+                                   void* field_addr,
+                                   const char* field_name,
+                                   const char* file,
+                                   const char* function,
+                                   int line) {
+  // Just return the field address, it will be deref'd and used like normal.
+  void* ret = field_addr;
+
+  // Nothing to do, could have another hook to run later.
+  if (verbosity <= 0) return ret;
+
+  int do_print = (verbosity == 1 && !debug_is_hotspot(function, field_name)) ||
+                 (verbosity == 2);
+
+  if (do_print) {
+    printf("[%s:%d in %s (P%" PRIu64 ")] %s\n",
+           file, line, function, prg->id, field_name);
+  }
+
+  return ret;
+}

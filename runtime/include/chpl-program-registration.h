@@ -27,6 +27,16 @@
 extern "C" {
 #endif
 
+// Uncomment this to embed debugging information.
+// LEVELS: 0 = none, 1 = reasonable, 2 = ALL
+//
+// #define CHPL_RT_DEBUG_PROGRAM_ACCESS 1
+
+#ifdef LAUNCHER
+  // Except, never bother in the launcher...
+  #undef CHPL_RT_DEBUG_PROGRAM_ACCESS
+#endif
+
 /**
   This file contains an interface to access critical pieces of data that the
   runtime requires from compiled Chapel programs. This includes data such as
@@ -129,7 +139,18 @@ typedef uint64_t chpl_prg_id;
 #define CHPL_PROGRAM_FETCH(id__) (chpl_program_info_from_id_here(id__))
 
 /** Retrieve data from a program. */
-#define CHPL_PROGRAM_DATA(prg__, data_name__) (prg__->data.data_name__)
+#ifndef CHPL_RT_DEBUG_PROGRAM_ACCESS
+  #define CHPL_PROGRAM_DATA(prg__, data_name__) (prg__->data.data_name__)
+#else
+  #define CHPL_PROGRAM_DATA(prg__, data_name__)                         \
+    (*((data_name__##_type*)                                            \
+      chpl_program_data_debug_hook(CHPL_RT_DEBUG_PROGRAM_ACCESS, prg__, \
+                                   &(prg__->data.data_name__),          \
+                                   #data_name__,                        \
+                                   __FILE__,                            \
+                                   __FUNCTION__,                        \
+                                   __LINE__)))
+#endif
 
 /** Declares a local that is a copy of a program data, with the same name. */
 #define CHPL_PROGRAM_DATA_TEMP(prg__, data_name__) \
