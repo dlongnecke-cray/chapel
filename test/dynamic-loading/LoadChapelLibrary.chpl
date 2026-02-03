@@ -91,8 +91,18 @@ record dynamicLibrary {
   }
 }
 
+proc chapelLibraryExtension param {
+  use ChplConfig;
+  if CHPL_TARGET_PLATFORM == 'darwin' then return 'dylib';
+  return 'so';
+}
+
+proc chapelLibraryPath param {
+  return './lib/libChapelLibrary.' + chapelLibraryExtension;
+}
+
 proc runTestBattery() {
-  var lib = new dynamicLibrary("./lib/libChapelLibrary.so");
+  var lib = new dynamicLibrary(chapelLibraryPath);
 
   // Get the number of tests to run.
   type numTestsType = proc(): int(64);
