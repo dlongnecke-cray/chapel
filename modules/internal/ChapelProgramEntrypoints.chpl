@@ -19,7 +19,7 @@
  */
 
 module ChapelProgramEntrypoints {
-  use ChapelBase, CTypes, ChapelProgramRegistration;
+  use ChapelBase, CTypes, ChapelProgramRegistration, ExportWrappers;
 
   // Alias for 'char**' to be used as the type of 'argv'.
   type c_argArray = c_ptr(c_ptr(c_char));
@@ -35,6 +35,23 @@ module ChapelProgramEntrypoints {
                            lineno: int(32),
                            filenameIdx: int(32)): void;
     chpl_error(msg, 0, 0);
+  }
+
+  export proc chpl_initializeModules() {
+    // TODO: A lie, this actually takes a local function pointer.
+    extern proc chpl_task_callMain(chpl_main: c_ptr(void)): void;
+    extern proc chpl_std_module_init(): void;
+
+    // TODO: There really needs to be a better way to do this. How am I
+    //       supposed to trigger a local pointer to be created again?
+    const p1: c_fn_ptr = __primitive("capture fn", chpl_std_module_init, true);
+    const p2 = p1 : c_ptr(void);
+
+    chpl_task_callMain(p2);
+  }
+
+  export proc chpl_finalizeModules() {
+    chpl_deinitModules();
   }
 
   //
@@ -60,10 +77,6 @@ module ChapelProgramEntrypoints {
   //                    runtime initialization is split out from library init.
   export proc chpl_library_init(argc: c_int, argv: c_argArray) {
     extern proc chpl_rt_init(argc: c_int, argv: c_argArray): void;
-    // TODO: A lie, this is actually a local function pointer.
-    extern proc chpl_task_callMain(chpl_main: c_ptr(void)): void;
-    extern proc chpl_std_module_init(): void;
-    extern proc chpl_libraryModuleLevelSetup(): void;
 
     if chpl_isLibInitialized {
       // Ok to emit message as runtime is already set up.
@@ -89,31 +102,23 @@ module ChapelProgramEntrypoints {
       rtError("Failed to register root program in chpl_library_init()");
     }
 
-    // TODO: There really needs to be a better way to do this. Is the normal
-    //       casting not working because the proc-ptr is a class right now?
-    //       How am I supposed to trigger a local pointer to be created again?
-    const p1: c_fn_ptr = __primitive("capture fn", chpl_std_module_init, true);
-    const p2 = p1 : c_ptr(void);
-
-    chpl_task_callMain(p2);
+    chpl_initializeModules();
 
     // @dlongnecke-cray, 11/16/2020
     // TODO: Call chpl_rt_preUserCodeHook() here for Locale[0]?
-    chpl_libraryModuleLevelSetup();
+    chpl_setupCurrentTaskDynamicEndCount();
 
     // Now that module initialization is done, set the flag to 'true'.
     chpl_isLibInitialized = true;
   }
 
   export proc chpl_library_finalize() {
-    extern proc chpl_libraryModuleLevelSetup(): void;
-    extern proc chpl_deinitModules(): void;
     extern proc chpl_finalize(status: c_int, all: c_int): void;
 
     if !chpl_isLibInitialized || chpl_isLibFinalized then return;
 
-    chpl_libraryModuleLevelCleanup();
-    chpl_deinitModules();
+    chpl_cleanupCurrentTaskDynamicEndCount();
+    chpl_finalizeModules();
     chpl_finalize(0, 1);
 
     // Now that finalization is done, set the flag to 'true'.

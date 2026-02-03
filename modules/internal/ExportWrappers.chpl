@@ -35,12 +35,12 @@ module ExportWrappers {
   }
 
   // TODO: Consider moving this to a separate "LibrarySupport" module.
-  export proc chpl_libraryModuleLevelSetup(): void {
+  proc chpl_setupCurrentTaskDynamicEndCount(): void {
     _initDynamicEndCount();
   }
 
   // TODO: Consider moving this to a separate "LibrarySupport" module.
-  export proc chpl_libraryModuleLevelCleanup(): void {
+  export proc chpl_cleanupCurrentTaskDynamicEndCount(): void {
     _destroyDynamicEndCount();
   }
 

@@ -25,7 +25,7 @@
 
 static chpl_program_info* chpl_prg_root;
 
-#ifndef CHPL_RT_COMPILE_DYNAMIC_LIBRARY
+#ifndef CHPL_RT_IS_BUILT_AS_DYNAMIC_LIBRARY
   int chpl_rt_is_dynamic_library = 0;
 #else
   int chpl_rt_is_dynamic_library = 1;
@@ -132,8 +132,8 @@ void* chpl_program_data_debug_hook(int verbosity, chpl_program_info* prg,
                  (verbosity == 2);
 
   if (do_print) {
-    printf("[%s:%d in %s (P%" PRIu64 ")] %s\n",
-           file, line, function, prg->id, field_name);
+    printf("[%s in %s:%d] P%" PRIu64 ": %s\n",
+           function, file, line, prg->id, field_name);
   }
 
   return ret;

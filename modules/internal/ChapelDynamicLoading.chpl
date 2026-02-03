@@ -31,8 +31,14 @@ module ChapelDynamicLoading {
   }
 
   private proc isRuntimeCompiledAsDynamicLibrary {
+    // TODO: Need to adjust the runtime build to inject a macro value or
+    // compile in a separate source file just into the '.so/.dylib' so that
+    // this can fire correctly, for now we comment it out and return 'true'.
+    /*
     extern const chpl_rt_is_dynamic_library: c_int;
     return chpl_rt_is_dynamic_library != 0;
+    */
+    return true;
   }
 
   param chpl_defaultProcBufferSize = 512;
@@ -380,23 +386,32 @@ module ChapelDynamicLoading {
       return ret;
     }
 
-    proc _loadPreparedProgramInfoLocally(): c_ptr(chpl_program_info) {
+    proc _prepareProgramInfoLocally(): c_ptr(chpl_program_info) {
       var err;
+      const p = this.loadSymbolLocally('chpl_prepareProgramInfoHere',
+                                       proc(): c_ptr(chpl_program_info),
+                                       err);
+      return if p != nil && err == nil then p() else nil;
+    }
 
-      type prepareType = proc(): c_ptr(chpl_program_info);
-      param prepareName = 'chpl_prepareProgramInfoHere';
-      const prepare = this.loadSymbolLocally(prepareName, prepareType, err);
-
-      if prepare != nil && err == nil then return prepare();
-
-      return nil;
+    proc _initializeLoadedModules(): void {
+      // At this point, we also need to setup all the modules. We usually
+      // only execute module initializers on the first locale and let the
+      // code migrate to other locales if needed.
+      on Locales[0] {
+        var err;
+        const p = this.loadSymbolLocally('chpl_initializeModules',
+                                         proc(): void,
+                                         err);
+        if p != nil && err == nil then p();
+      }
     }
 
     // TODO: Propagate warnings out as errors instead.
     proc _inspectAndPrepareIfCompatibleChapelBinary(): binaryKind {
       use ChapelProgramRegistration;
 
-      const info = _loadPreparedProgramInfoLocally();
+      const info = _prepareProgramInfoLocally();
       if info == nil then return binaryKind.FOREIGN;
 
       //
@@ -437,11 +452,11 @@ module ChapelDynamicLoading {
 
       // Bind the ID of this program on all locales.
       coforall loc in fanToAll(skip=here) with (ref idBuf) do on loc {
-        const infoHere = _loadPreparedProgramInfoLocally();
+        const infoHere = _prepareProgramInfoLocally();
         on idBuf do idBuf[here.id] = bind(newPrgId, infoHere);
       }
 
-      for i in 0..idBuf.size do {
+      for i in 0..<idBuf.size do {
         if i == here.id then continue;
 
         const id = idBuf[i];
@@ -453,6 +468,9 @@ module ChapelDynamicLoading {
           return binaryKind.FOREIGN;
         }
       }
+
+      // Set up the module code.
+      _initializeLoadedModules();
 
       return binaryKind.CHAPEL;
     }
