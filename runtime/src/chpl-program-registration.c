@@ -60,16 +60,22 @@ chpl_program_register_here_nosync(chpl_prg_id id, chpl_program_info* prg) {
   // ERROR: This ID is reserved...
   if (id == CHPL_PROGRAM_ROOT_ID) return ret;
 
+  // ERROR: The program's ID is already set!
+  if (prg->id != CHPL_PROGRAM_NULL_ID) return ret;
+
   int requestingNewIdx = (id == CHPL_PROGRAM_NULL_ID);
   int64_t idxToUse = requestingNewIdx ? 0 : ((int64_t) id);
   int64_t got = chpl_rootPrgMapPtrToIdxHere(prg, idxToUse);
 
   if (!requestingNewIdx && idxToUse != got) {
-    // TODO...
+    // TODO: Propagate errors outwards from this function?
     chpl_error("Failed to map index!\n", 0, 0);
   }
 
   ret = (chpl_prg_id) got;
+
+  // Set the program's ID. It should be writeable memory.
+  prg->id = ret;
 
   return ret;
 }

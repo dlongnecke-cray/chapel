@@ -31,7 +31,7 @@ module PrintModuleInitOrder {
   private use ChapelBase, CTypes;
 
   @unstable("The variable 'printModuleInitOrder' is unstable and its interface is subject to change in the future")
-  config const printModuleInitOrder = false;
+  config const printModuleInitOrder = true;
   pragma "print module init indent level" var moduleInitLevel = 2:int(32);
 
   //
@@ -46,9 +46,13 @@ module PrintModuleInitOrder {
 
 
   proc initPrint() {
+    use ChapelProgramRegistration;
+
     // printf requires a 'fmt' argument to avoid a format-security warning from gcc
     extern proc printf(fmt, s);
-    printf("%s\n", "Initializing Modules:");
+    // TODO: Need portable 64-bit int printer.
+    const id = chpl_programInfoHere.id : c_int;
+    printf('Initializing Modules (Program ID %d)\n', id);
   }
 
   if printModuleInitOrder then initPrint();

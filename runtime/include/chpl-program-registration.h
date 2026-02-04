@@ -30,7 +30,7 @@ extern "C" {
 // Uncomment this to embed debugging information.
 // LEVELS: 0 = none, 1 = reasonable, 2 = ALL
 //
-// #define CHPL_RT_DEBUG_PROGRAM_ACCESS 1
+#define CHPL_RT_DEBUG_PROGRAM_ACCESS 1
 
 #ifdef LAUNCHER
   // Except, never bother in the launcher...
