@@ -488,11 +488,14 @@ void dequeue_task(task_pool_p ptask) {
 }
 
 
-void chpl_task_addTask(chpl_fn_int_t fid,
-                       chpl_task_bundle_t* arg, size_t arg_size,
-                       c_sublocid_t subloc,
-                       int lineno, int32_t filename) {
+void chpl_rt_task_addTask(chpl_program_info* prg,
+                          chpl_fn_int_t fid,
+                          chpl_task_bundle_t* arg, size_t arg_size,
+                          c_sublocid_t subloc,
+                          int lineno, int32_t filename) {
   assert(subloc == c_sublocid_none);
+
+  CHPL_PROGRAM_DATA_TEMP(chpl_ftable, prg);
 
   arg->kind = CHPL_ARG_BUNDLE_KIND_TASK;
 

@@ -28,7 +28,7 @@
 // duplication. If necessary, a locale model using this file
 // should feel free to reimplement them in some other way.
 module LocaleModelHelpRuntime {
-  private use ChapelStandard, CTypes;
+  private use ChapelStandard, CTypes, ChapelRuntimeInterface;
 
   // The chpl_localeID_t type is used internally.  It should not be exposed to
   // the user.  The runtime defines the actual type, as well as a functional
@@ -116,14 +116,6 @@ module LocaleModelHelpRuntime {
   //
   // support for tasking statements: begin, cobegin, coforall
   //
-
-  //
-  // runtime interface
-  //
-  pragma "insert line file info"
-  extern proc chpl_task_addTask(fn: int,
-                                args: chpl_task_bundle_p, args_size: c_size_t,
-                                subloc_id: int);
 
   //
   // Add a task for a begin statement.

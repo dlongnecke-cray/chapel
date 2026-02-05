@@ -26,15 +26,32 @@ module ChapelRuntimeInterface {
 
   pragma "chapel runtime shim"
   proc chpl_initProgramStandardModules(): void {
-    param cname = 'chpl_rt_initProgramStandardModules';
-    extern cname proc fn(prg: c_ptr(chpl_program_info)): void;
+    extern 'chpl_rt_initProgramStandardModules'
+      proc fn(prg: c_ptr(chpl_program_info)): void;
+
     fn(chpl_programInfoHere.asPtr());
   }
 
   pragma "chapel runtime shim"
   proc chpl_initChapelRuntime(argc: c_int, argv: c_argArray): void {
-    param cname = 'chpl_rt_init';
-    extern cname proc fn(argc: c_int, argv: c_argArray): void;
+    extern 'chpl_rt_init'
+      proc fn(argc: c_int, argv: c_argArray): void;
+
     fn(argc, argv);
+  }
+
+  pragma "chapel runtime shim"
+  pragma "insert line file info"
+  proc chpl_task_addTask(fid: int, args: chpl_task_bundle_p,
+                         args_size: c_size_t,
+                         subloc_id: int) {
+    pragma "insert line file info"
+    pragma "always propagate line file info"
+    extern 'chpl_rt_task_addTask'
+      proc fn(prg: c_ptr(chpl_program_info), fid: int,
+                         args: chpl_task_bundle_p,
+                         args_size: c_size_t,
+                         subloc_id: int);
+    fn(chpl_programInfoHere.asPtr(), fid, args, args_size, subloc_id);
   }
 }

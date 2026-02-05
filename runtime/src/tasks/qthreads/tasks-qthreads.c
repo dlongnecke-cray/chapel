@@ -992,17 +992,16 @@ int chpl_task_createCommTask(chpl_fn_p fn,
     return rc;
 }
 
-void chpl_task_addTask(chpl_fn_int_t       fid,
-                       chpl_task_bundle_t *arg,
-                       size_t              arg_size,
-                       c_sublocid_t        full_subloc,
-                       int                 lineno,
-                       int32_t             filename)
-{
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_ftable);
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_LOCALE_MODEL);
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
-                           chpl_localeModel_sublocToExecutionSubloc);
+void chpl_rt_task_addTask(chpl_program_info*  prg,
+                          chpl_fn_int_t       fid,
+                          chpl_task_bundle_t* arg,
+                          size_t              arg_size,
+                          c_sublocid_t        full_subloc,
+                          int                 lineno,
+                          int32_t             filename) {
+    CHPL_PROGRAM_DATA_TEMP(prg, chpl_ftable);
+    CHPL_PROGRAM_DATA_TEMP(prg, CHPL_LOCALE_MODEL);
+    CHPL_PROGRAM_DATA_TEMP(prg, chpl_localeModel_sublocToExecutionSubloc);
 
     chpl_fn_p requested_fn = chpl_ftable[fid];
 

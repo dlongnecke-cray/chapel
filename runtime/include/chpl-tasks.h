@@ -173,7 +173,7 @@ void chpl_rt_task_startMainTask(void (*callback)(void));
 
 
 //
-// Task creation.  chpl_task_addTask adds a new task to the pool of
+// Task creation. chpl_rt_task_addTask adds a new task to the pool of
 // runnable candidate tasks.  It is called by Chapel tasking support
 // functions in the internal modules, which are in turn called by the
 // compiler-emitted code for all task-parallel constructs.  Tasking
@@ -183,13 +183,14 @@ void chpl_rt_task_startMainTask(void (*callback)(void));
 // Note that the tasking layer must generally copy the arguments
 // as it cannot assume anything about the lifetime of that memory.
 //
-void chpl_task_addTask(
-         chpl_fn_int_t,      // function to call for task
-         chpl_task_bundle_t*,// argument to the function
-         size_t,             // length of the argument
-         c_sublocid_t,       // desired sublocale
-         int,                // line at which function begins
-         int32_t);           // name of file containing function
+void chpl_rt_task_addTask(
+           chpl_program_info* prg,  // program info
+           chpl_fn_int_t,           // function to call for task
+           chpl_task_bundle_t*,     // argument to the function
+           size_t,                  // length of the argument
+           c_sublocid_t,            // desired sublocale
+           int,                     // line at which function begins
+           int32_t);                // name of file containing function
 
 //
 // Call a chpl_ftable[] function in a task.
