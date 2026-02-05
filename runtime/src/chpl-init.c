@@ -345,20 +345,15 @@ void chpl_rt_init(int argc, char* argv[]) {
 }
 
 //
-// Chapel standard module initialization.
+// Per-program initialization of standard modules.
+// TODO (dlongnecke): If possible move this to live entirely in module code.
 //
-// Factored out of "main.c:chpl_main(...)" this needs to be called from within the
-// "main-task" which is either "chpl_executable_init" or "chpl_library_init".
-//
-// TODO (dlongnecke): Why can't this live in the module code, since it is
-//                    responsible for initializing modules?
-void chpl_std_module_init(void) {
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl__initStringLiterals);
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl__heapAllocateGlobals);
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl__init_preInit);
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
-                        chpl__init_PrintModuleInitOrder);
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl__init_ChapelStandard);
+void chpl_rt_initProgramStandardModules(chpl_program_info* prg) {
+  CHPL_PROGRAM_DATA_TEMP(prg, chpl__initStringLiterals);
+  CHPL_PROGRAM_DATA_TEMP(prg, chpl__heapAllocateGlobals);
+  CHPL_PROGRAM_DATA_TEMP(prg, chpl__init_preInit);
+  CHPL_PROGRAM_DATA_TEMP(prg, chpl__init_PrintModuleInitOrder);
+  CHPL_PROGRAM_DATA_TEMP(prg, chpl__init_ChapelStandard);
 
   // chpl__initStringLiterals runs the constructors for all string literals. We
   // need to setup the literals on every locale before any other chapel code is
@@ -405,7 +400,7 @@ void chpl_std_module_init(void) {
 //
 void chpl_executable_init(void) {
 
-  chpl_std_module_init();
+  chpl_rt_initProgramStandardModules(CHPL_PROGRAM_ROOT);
   if (chpl_nodeID == 0) {
     CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_gen_main);
 

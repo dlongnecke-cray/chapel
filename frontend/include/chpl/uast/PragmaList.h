@@ -33,6 +33,9 @@
 #define npr false /* NO, cannot be set via a pragma */
 #define ncm ""    /* no comment */
 
+// used to mark shims over runtime functions
+PRAGMA(RUNTIME_SHIM, ypr, "chapel runtime shim", ncm)
+
 // flags to be added to the aggregation markers
 PRAGMA(AGG_MARKER, npr, "aggregation marker", ncm)
 PRAGMA(AGG_IN_STATIC_ONLY_CLONE, npr,

@@ -40,8 +40,8 @@ static chpl_program_info* chpl_prg_root;
 #define CONCAT(a__, b__) a__##b__
 #define PREFIX chpl_program_info_data_entry_set_
 #define SETTER(prefix__, name__)                                              \
-  void CONCAT(prefix__, name__)(chpl_program_info* info, const void* data) {  \
-    memcpy(&info->data.name__, data, sizeof(name__##_type));                  \
+  void CONCAT(prefix__, name__)(chpl_program_info* prg, const void* data) {   \
+    memcpy(&prg->data.name__, data, sizeof(name__##_type));                   \
   }
 #define E_CONSTANT(name__, type__) SETTER(PREFIX, name__)
 #define E_CALLBACK(name__) SETTER(PREFIX, name__)

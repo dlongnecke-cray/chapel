@@ -32,6 +32,16 @@ module ChapelProgramRegistration {
   // It is intentionally completely opaque here.
   extern type chpl_program_info;
 
+  proc isProgramCompiledAsLibrary param {
+    param style = __primitive('get compiler variable', 'libraryStyle');
+    return style != 'none';
+  }
+
+  proc isProgramLinkedAgainstBuiltinRuntime param {
+    param style = __primitive('get compiler variable', 'runtimeStyle');
+    return style == 'static';
+  }
+
   // We maintain a program info for each locale.
   record chpl_programInfo {
     var info: chpl_program_info;
@@ -116,6 +126,8 @@ module ChapelProgramRegistration {
 
       return ret;
     }
+
+    inline proc ref asPtr() do return c_ptrTo(info);
   }
 
   pragma "no init"          /** Initialized manually at program startup.  */

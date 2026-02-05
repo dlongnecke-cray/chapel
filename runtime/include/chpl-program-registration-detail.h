@@ -37,7 +37,7 @@ extern "C" {
 #define CONCAT(a__, b__) a__##b__
 #define PREFIX chpl_program_info_data_entry_set_
 #define SETTER(prefix__, name__) \
-  void CONCAT(prefix__, name__)(chpl_program_info* info, const void* data);
+  void CONCAT(prefix__, name__)(chpl_program_info* prg, const void* data);
 #define E_CONSTANT(name__, type__) SETTER(PREFIX, name__)
 #define E_CALLBACK(name__) SETTER(PREFIX, name__)
 #include "chpl-program-data-macro-adapter.h"

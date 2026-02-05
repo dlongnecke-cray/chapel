@@ -18,34 +18,23 @@
  * limitations under the License.
  */
 
-#ifndef _CHPL_INIT_H_
-#define _CHPL_INIT_H_
+module ChapelRuntimeInterface {
+  use ChapelBase, CTypes, ChapelProgramRegistration;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+  // Alias for 'char**' to be used as the type of 'argv'.
+  type c_argArray = c_ptr(c_ptr(c_char));
 
-#include <stdint.h>
+  pragma "chapel runtime shim"
+  proc chpl_initProgramStandardModules(): void {
+    param cname = 'chpl_rt_initProgramStandardModules';
+    extern cname proc fn(prg: c_ptr(chpl_program_info)): void;
+    fn(chpl_programInfoHere.asPtr());
+  }
 
-#ifndef LAUNCHER
-
-void chpl_rt_preUserCodeHook(void);
-void chpl_rt_postUserCodeHook(void);
-const char* allocate_string_literals_buf(int64_t s);
-void deallocate_string_literals_buf(void);
-
-#endif // ifndef LAUNCHER
-
-void chpl_rt_init(int argc, char* argv[]);
-
-void chpl_executable_init(void);
-void chpl_execute_module_deinit(c_fn_ptr deinitFun);
-
-void chpl_rt_initProgramStandardModules(chpl_program_info* prg);
-void chpl_std_module_finalize(void);
-
-#ifdef __cplusplus
+  pragma "chapel runtime shim"
+  proc chpl_initChapelRuntime(argc: c_int, argv: c_argArray): void {
+    param cname = 'chpl_rt_init';
+    extern cname proc fn(argc: c_int, argv: c_argArray): void;
+    fn(argc, argv);
+  }
 }
-#endif
-
-#endif // _CHPL_INIT_H_

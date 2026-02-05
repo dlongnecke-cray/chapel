@@ -330,7 +330,7 @@ extern void            chpl_init_heap_stack(void);
 extern void*           chpl_alloc_pthread_stack(size_t);
 extern void            chpl_free_pthread_stack(void*);
 
-void chpl_task_callMain(void (*chpl_main)(void)) {
+void chpl_rt_task_startMainTask(void (*callback)(void)) {
   // since we want to run all work in a task with a comm-friendly stack,
   // run main in a pthread that we will wait for.
   size_t stack_size;
@@ -366,7 +366,7 @@ void chpl_task_callMain(void (*chpl_main)(void)) {
     }
   }
 
-  rc = pthread_create(&thread, &attr, do_callMain, chpl_main);
+  rc = pthread_create(&thread, &attr, do_callMain, callback);
   if( rc != 0 ) {
     chpl_internal_error("pthread_create main failed");
   }

@@ -1298,6 +1298,27 @@ static Expr* preFoldPrimOp(CallExpr* call) {
       auto str = fDynoResolver || fDynoResolveOnly ? "on" : "off";
       retval = new SymExpr(new_StringSymbol(str));
       call->replace(retval);
+
+    } else if (envKey == "runtimeStyle") {
+      auto str = fBuiltinRuntime ? "static" : "shared";
+      retval = new SymExpr(new_StringSymbol(str));
+      call->replace(retval);
+
+    } else if (envKey == "libraryStyle") {
+      const char* str = "none";
+      if (fLibraryCompile) {
+        if (fLinkStyle == LS_DEFAULT) {
+          str = "default";
+        } else if (fLinkStyle == LS_STATIC) {
+          str = "static";
+        } else if (fLinkStyle == LS_DYNAMIC) {
+          str = "dynamic";
+        }
+      }
+
+      retval = new SymExpr(new_StringSymbol(str));
+      call->replace(retval);
+
     } else {
       USR_FATAL(call,
                 "primitive string does not match any environment variable");

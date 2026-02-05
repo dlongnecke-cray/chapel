@@ -948,16 +948,15 @@ static void *comm_task_trampoline(void *arg)
 //
 // Warning: this method is not called within a Qthread task context. Do
 // not use methods that require task context (e.g., task-local storage).
-void chpl_task_callMain(void (*chpl_main)(void))
-{
-    // We'll pass this arg to (*chpl_main)(), but it will just ignore it.
+void chpl_rt_task_startMainTask(void (*callback)(void)) {
+    // We'll pass this arg to (*callback)(), but it will just ignore it.
     chpl_task_bundle_t arg =
         (chpl_task_bundle_t)
         { .kind            = CHPL_ARG_BUNDLE_KIND_TASK,
           .is_executeOn    = false,
           .requestedSubloc = c_sublocid_none_val,
           .requested_fid   = FID_NONE,
-          .requested_fn    = (void(*)(void*)) chpl_main,
+          .requested_fn    = (void(*)(void*)) callback,
           .lineno          = 0,
           .filename        = CHPL_FILE_IDX_MAIN_TASK,
           .id              = chpl_qthread_process_bundle.id,

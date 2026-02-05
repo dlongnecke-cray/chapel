@@ -86,7 +86,7 @@ extern "C" {
   If you don't have a 'chpl_program_info*' but you do have that program's
   unique ID, you can get the info using:
 
-  chpl_program_info* info = CHPL_PROGRAM_FETCH(id);
+  chpl_program_info* prg = CHPL_PROGRAM_FETCH(id);
 
   Do not declare global variables with values retrieved from these functions!
 

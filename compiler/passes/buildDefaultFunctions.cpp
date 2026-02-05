@@ -742,6 +742,40 @@ static FnSymbol* chplGenMainExists() {
   return matchFn;
 }
 
+static FnSymbol* buildInitProgramCommandLineModulesFn() {
+  ModuleSymbol* mainModule = ModuleSymbol::mainModule();
+  const char* fnName = astr("chpl_initProgramCommandLineModules");
+
+  for_alist(expr, mainModule->block->body) {
+    if (auto def = toDefExpr(expr)) {
+      if (auto fn = toFnSymbol(def->sym)) {
+        if (fn->name == fnName) return fn;
+      }
+    }
+  }
+
+  auto ret = new FnSymbol(fnName);
+  ret->addFlag(FLAG_EXPORT);
+  ret->retType = dtVoid;
+  ret->cname = fnName;
+  ret->addFlag(FLAG_COMPILER_GENERATED);
+
+  mainModule->block->insertAtTail(new DefExpr(ret));
+
+  ret->insertAtTail(new CallExpr(mainModule->initFn));
+
+  // also init other modules mentioned on command line
+  forv_Vec(ModuleSymbol, mod, gModuleSymbols) {
+    if (mod->hasFlag(FLAG_MODULE_FROM_COMMAND_LINE_FILE) &&
+        mod != mainModule) {
+      ret->insertAtTail(new CallExpr(mod->initFn));
+    }
+  }
+
+  normalize(ret);
+
+  return ret;
+}
 
 static void buildChplEntryPoints() {
   //
@@ -832,14 +866,8 @@ static void buildChplEntryPoints() {
   // We have to initialize the main module explicitly.
   // It will initialize all the modules it uses, recursively.
   if (!fClientServerLibrary) {
-    chpl_gen_main->insertAtTail(new CallExpr(mainModule->initFn));
-    // also init other modules mentioned on command line
-    forv_Vec(ModuleSymbol, mod, gModuleSymbols) {
-      if (mod->hasFlag(FLAG_MODULE_FROM_COMMAND_LINE_FILE) &&
-          mod != mainModule) {
-        chpl_gen_main->insertAtTail(new CallExpr(mod->initFn));
-      }
-    }
+    auto initCmdMods = buildInitProgramCommandLineModulesFn();
+    chpl_gen_main->insertAtTail(new CallExpr(initCmdMods));
 
   } else {
     // Create an extern definition for the multilocale library server's main

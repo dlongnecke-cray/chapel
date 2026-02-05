@@ -400,7 +400,7 @@ module ChapelDynamicLoading {
       // code migrate to other locales if needed.
       on Locales[0] {
         var err;
-        const p = this.loadSymbolLocally('chpl_initializeModules',
+        const p = this.loadSymbolLocally('chpl_initLoadedProgramModules',
                                          proc(): void,
                                          err);
         if p != nil && err == nil then p();

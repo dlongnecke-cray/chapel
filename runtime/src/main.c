@@ -30,9 +30,9 @@ extern chpl_program_info* chpl_prepareProgramInfoHere(void);
 
 int main(int argc, char* argv[]) {
   // Initialize the program info so the runtime can see the program data.
-  chpl_program_info* info = chpl_prepareProgramInfoHere();
+  chpl_program_info* prg = chpl_prepareProgramInfoHere();
 
-  int registered = chpl_program_register_root_here(info);
+  int registered = chpl_program_register_root_here(prg);
   if (!registered) {
     // Should never fire. TODO: Can we call something besides C exit here?
     fprintf(stderr, "%s: failed to prepare program data", argv[0]);
@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
   chpl_rt_init(argc, argv);
 
   // Run the main function for this node.
-  chpl_task_callMain(chpl_executable_init);
+  chpl_rt_task_startMainTask(chpl_executable_init);
 
   // have everyone exit, returning the value returned by the user written main
   // or 0 if it didn't return anything

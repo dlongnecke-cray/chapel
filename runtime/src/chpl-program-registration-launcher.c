@@ -42,7 +42,7 @@ chpl_program_info chpl_program_info_singleton;
 #include "chpl-program-data-macro-adapter.h"
 
 static
-void prepare_launcher_info_via_external_symbols(chpl_program_info* info) {
+void prepare_launcher_info_via_external_symbols(chpl_program_info* prg) {
   // Unlike the runtime, it is OK to link symbols into the launcher, as its
   // purpose is just to launch the real program, and there is one launcher
   // per Chapel program. So we prepare the fields of the program info by
@@ -50,8 +50,8 @@ void prepare_launcher_info_via_external_symbols(chpl_program_info* info) {
   // that we declared above.
   #define E_CONSTANT_RT(name__, type__) NOTHING
   #define E_CALLBACK_RT(name__) NOTHING
-  #define E_CONSTANT(name__, type__) info->data.name__ = name__;
-  #define E_CALLBACK(name__) info->data.name__ = (name__##_type) &name__;
+  #define E_CONSTANT(name__, type__) prg->data.name__ = name__;
+  #define E_CALLBACK(name__) prg->data.name__ = (name__##_type) &name__;
   #include "chpl-program-data-macro-adapter.h"
 }
 

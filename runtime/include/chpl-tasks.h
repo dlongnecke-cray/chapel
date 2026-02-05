@@ -152,12 +152,12 @@ void chpl_task_exit(void);        // called by the main task
 int chpl_task_createCommTask(chpl_fn_p fn, void* arg, int cpu);
 
 //
-// Have the tasking layer call the 'chpl_main' function pointer
-// representing the entry point for the user's Chapel code.  This
+// Have the tasking layer call the 'callback' function pointer
+// representing a callback into Chapel code from a program.  This
 // can either be done by invoking the function directly or by creating
 // a task that evaluates the function.
 //
-void chpl_task_callMain(void (*chpl_main)(void));
+void chpl_rt_task_startMainTask(void (*callback)(void));
 
 //
 // The following is an optional callback into the tasking layer from
@@ -165,7 +165,7 @@ void chpl_task_callMain(void (*chpl_main)(void));
 // been initialized.  It gives the tasking layer the ability to wait
 // to make use of functionality in the internal modules (like the task
 // tracking table) which are not yet available at the time of the call
-// to chpl_task_callMain().
+// to chpl_rt_task_startMainTask().
 //
 #ifndef CHPL_TASK_STD_MODULES_INITIALIZED
 #define CHPL_TASK_STD_MODULES_INITIALIZED()
