@@ -110,11 +110,11 @@ module LocaleModelHelpGPU {
       // run directly on this node
       var origSubloc = chpl_task_getRequestedSubloc();
       if (dsubloc==origSubloc) {
-        chpl_ftable_call(fn, args);
+        chpl_callFtableEntryHere(fn, args);
       } else {
         // move to a different sublocale
         chpl_task_setSubloc(dsubloc);
-        chpl_ftable_call(fn, args);
+        chpl_callFtableEntryHere(fn, args);
         chpl_task_setSubloc(origSubloc);
       }
     }
@@ -140,11 +140,11 @@ module LocaleModelHelpGPU {
     } else {
       var origSubloc = chpl_task_getRequestedSubloc();
       if (dsubloc==origSubloc) {
-        chpl_ftable_call(fn, args);
+        chpl_callFtableEntryHere(fn, args);
       } else {
         // move to a different sublocale
         chpl_task_setSubloc(dsubloc);
-        chpl_ftable_call(fn, args);
+        chpl_callFtableEntryHere(fn, args);
         chpl_task_setSubloc(origSubloc);
       }
     }
@@ -170,7 +170,7 @@ module LocaleModelHelpGPU {
     var isSerial = chpl_task_data_getSerial(tls);
     if dnode == chpl_nodeID {
       if isSerial {
-        chpl_ftable_call(fn, args);
+        chpl_callFtableEntryHere(fn, args);
       } else {
         chpl_task_data_setup(chpl_comm_on_bundle_task_bundle(args), tls);
         chpl_comm_taskCallFtableEntry(fn, args, args_size, dsubloc);

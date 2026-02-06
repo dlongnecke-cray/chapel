@@ -69,4 +69,22 @@ module ChapelRuntimeInterface {
               subloc_id: int): void;
     fn(infoPtrHere, fid, args, args_size, subloc_id);
   }
+
+  pragma "chapel runtime shim"
+  proc chpl_callFtableEntryHere(fid: int, args: c_ptr(void)) {
+    // TODO: No need to actually call into the runtime to do this.
+    extern 'chpl_rt_callFtableEntryHere'
+      proc fn(fid: int, bundle: c_ptr(void)): void;
+    fn(fid, args);
+  }
+
+  inline proc chpl_callFtableEntryHere(fid: int, args: chpl_comm_on_bundle_p) {
+    const ptr = __primitive('cast', c_ptr(void), args);
+    chpl_callFtableEntryHere(fid, ptr);
+  }
+
+  inline proc chpl_callFtableEntryHere(fid: int, args: chpl_task_bundle_p) {
+    const ptr = __primitive('cast', c_ptr(void), args);
+    chpl_callFtableEntryHere(fid, ptr);
+  }
 }

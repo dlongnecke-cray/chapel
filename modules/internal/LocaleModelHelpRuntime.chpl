@@ -106,9 +106,6 @@ module LocaleModelHelpRuntime {
   extern proc chpl_comm_execute_on_nb(loc_id: int, subloc_id: int, fn: int,
                                       args: chpl_comm_on_bundle_p, args_size: c_size_t);
 
-  extern proc chpl_ftable_call(fn: int, args: chpl_comm_on_bundle_p): void;
-  extern proc chpl_ftable_call(fn: int, args: chpl_task_bundle_p): void;
-
   //////////////////////////////////////////
   //
   // support for tasking statements: begin, cobegin, coforall
@@ -127,7 +124,7 @@ module LocaleModelHelpRuntime {
     var tls = chpl_task_getInfoChapel();
     var isSerial = chpl_task_data_getSerial(tls);
     if isSerial {
-      chpl_ftable_call(fn, args);
+      chpl_callFtableEntryHere(fn, args);
     } else {
       chpl_task_data_setup(args, tls);
       chpl_task_addTask(fn, args, args_size, subloc_id);
@@ -151,7 +148,7 @@ module LocaleModelHelpRuntime {
       chpl_task_data_setNextCoStmtSerial(tls, false);
     }
     if isSerial {
-      chpl_ftable_call(fn, args);
+      chpl_callFtableEntryHere(fn, args);
     } else {
       chpl_task_data_setup(args, tls);
       chpl_task_addTask(fn, args, args_size, subloc_id);

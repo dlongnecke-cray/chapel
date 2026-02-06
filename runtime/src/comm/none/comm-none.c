@@ -332,7 +332,7 @@ void chpl_comm_execute_on(c_nodeid_t node, c_sublocid_t subloc,
                           int ln, int32_t fn) {
   assert(node==0);
 
-  chpl_ftable_call(fid, arg);
+  chpl_rt_callFtableEntryHere(fid, arg);
 }
 
 void chpl_comm_execute_on_nb(c_nodeid_t node, c_sublocid_t subloc,
@@ -354,7 +354,7 @@ void chpl_comm_execute_on_fast(c_nodeid_t node, c_sublocid_t subloc,
                                int ln, int32_t fn) {
   assert(node==0);
 
-  chpl_ftable_call(fid, arg);
+  chpl_rt_callFtableEntryHere(fid, arg);
 }
 
 void chpl_comm_ensure_progress(void) { }

@@ -4187,7 +4187,7 @@ void rf_handler(gni_cq_entry_t* ev)
       chpl_comm_on_bundle_t* f_c = (chpl_comm_on_bundle_t*) f;
 
       if (f_c->comm.fast) {
-        chpl_ftable_call(f_c->comm.fid, f);
+        chpl_rt_callFtableEntryHere(f_c->comm.fid, f);
         indicate_done2(f_c->comm.caller, (rf_done_t*) f_c->comm.rf_done);
         // doesn't call release_req_buf, because that
         // is handled on the sender side for fast forks
@@ -4300,7 +4300,7 @@ static
 void fork_call_wrapper_blocking(chpl_comm_on_bundle_t* f)
 {
   // Call the on body
-  chpl_ftable_call(f->comm.fid, f);
+  chpl_rt_callFtableEntryHere(f->comm.fid, f);
   indicate_done2(f->comm.caller, (rf_done_t*) f->comm.rf_done);
 }
 
@@ -4342,7 +4342,7 @@ void fork_call_wrapper_large(fork_large_call_info_t* lc)
   }
 
   // Call the on body
-  chpl_ftable_call(bundle->comm.fid, bundle);
+  chpl_rt_callFtableEntryHere(bundle->comm.fid, bundle);
 
   // Free the bundle we just allocated.
   chpl_mem_free(bundle, 0, 0);
