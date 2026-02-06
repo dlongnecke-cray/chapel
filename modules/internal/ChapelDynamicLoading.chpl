@@ -589,17 +589,23 @@ module ChapelDynamicLoading {
 
       if checkForDynamicLoadingConfigurationErrors(err) then return ret;
 
-      const handle = _systemPtrs[here.id];
+      // Get the handle for the current locale.
+      // TODO: Do with zero comm?
+      // TODO: Locale-agnostic after rebase.
+      var handle: c_ptr(void);
+      on Locales[0] do handle = _systemPtrs[here.id];
       assert(handle != nil);
 
-      const ptr = localDynLoadSymbolLookup(sym, handle, err);
+      local do {
+        const ptr = localDynLoadSymbolLookup(sym, handle, err);
 
-      if ptr == nil {
-        // There was an error while calling the system lookup routine.
-        err = new DynLoadError('Failed to locate symbol: ' + sym);
+        if ptr == nil {
+          // There was an error while calling the system lookup routine.
+          err = new DynLoadError('Failed to locate symbol: ' + sym);
 
-      } else if err == nil {
-        ret = __primitive("cast", P, ptr);
+        } else if err == nil {
+          ret = __primitive("cast", P, ptr);
+        }
       }
 
       return ret;
