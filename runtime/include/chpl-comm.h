@@ -93,17 +93,17 @@ chpl_task_bundle_t* chpl_comm_on_bundle_task_bundle(chpl_comm_on_bundle_t* a)
 //       for writing a wrapper over this.
 //
 static inline
-void chpl_comm_taskCallFTable(chpl_fn_int_t fid,      // ftable[] entry to call
-                              chpl_comm_on_bundle_t* arg,// function arg
-                              size_t arg_size,        // length of arg in bytes
-                              c_sublocid_t subloc,    // desired sublocale
-                              int lineno,             // source line
-                              int32_t filename) {     // source filename
+void chpl_rt_comm_taskCallFtableEntry(
+                        chpl_program_info* prg,     // program info
+                        chpl_fn_int_t fid,          // ftable[] entry to call
+                        chpl_comm_on_bundle_t* arg, // function arg
+                        size_t arg_size,            // length of arg in bytes
+                        c_sublocid_t subloc,        // desired sublocale
+                        int lineno,                 // source line
+                        int32_t filename) {         // source filename
     arg->kind = CHPL_ARG_BUNDLE_KIND_COMM;
-    chpl_task_taskCallFTable(fid,
-                             arg, arg_size,
-                             subloc,
-                             lineno, filename);
+    chpl_rt_task_taskCallFtableEntry(prg, fid, arg, arg_size, subloc,
+                                     lineno, filename);
 }
 
 

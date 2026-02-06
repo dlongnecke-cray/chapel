@@ -105,10 +105,7 @@ module LocaleModelHelpRuntime {
   pragma "insert line file info"
   extern proc chpl_comm_execute_on_nb(loc_id: int, subloc_id: int, fn: int,
                                       args: chpl_comm_on_bundle_p, args_size: c_size_t);
-  pragma "insert line file info"
-    extern proc chpl_comm_taskCallFTable(fn: int,
-                                         args: chpl_comm_on_bundle_p, args_size: c_size_t,
-                                         subloc_id: int): void;
+
   extern proc chpl_ftable_call(fn: int, args: chpl_comm_on_bundle_p): void;
   extern proc chpl_ftable_call(fn: int, args: chpl_task_bundle_p): void;
 

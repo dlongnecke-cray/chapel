@@ -201,12 +201,14 @@ void chpl_rt_task_addTask(
 // Note that the tasking layer must generally copy the arguments
 // as it cannot assume anything about the lifetime of that memory.
 //
-void chpl_task_taskCallFTable(chpl_fn_int_t fid,      // ftable[] entry to call
-                              void* arg,              // function arg
-                              size_t arg_size,        // length of arg
-                              c_sublocid_t subloc,    // desired sublocale
-                              int lineno,             // source line
-                              int32_t filename);      // source filename
+void chpl_rt_task_taskCallFtableEntry(
+                          chpl_program_info* prg, // program info
+                          chpl_fn_int_t fid,      // ftable[] entry to call
+                          void* arg,              // function arg
+                          size_t arg_size,        // length of arg
+                          c_sublocid_t subloc,    // desired sublocale
+                          int lineno,             // source line
+                          int32_t filename);      // source filename
 
 // In some cases, we are not worried about the "function number" (fid)
 

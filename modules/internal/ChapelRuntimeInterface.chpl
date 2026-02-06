@@ -24,19 +24,19 @@ module ChapelRuntimeInterface {
   // Alias for 'char**' to be used as the type of 'argv'.
   type c_argArray = c_ptr(c_ptr(c_char));
 
+  inline proc infoPtrHere do return chpl_programInfoHere.asPtr();
+
   pragma "chapel runtime shim"
   proc chpl_initProgramStandardModules(): void {
     extern 'chpl_rt_initProgramStandardModules'
       proc fn(prg: c_ptr(chpl_program_info)): void;
-
-    fn(chpl_programInfoHere.asPtr());
+    fn(infoPtrHere);
   }
 
   pragma "chapel runtime shim"
   proc chpl_initChapelRuntime(argc: c_int, argv: c_argArray): void {
     extern 'chpl_rt_init'
       proc fn(argc: c_int, argv: c_argArray): void;
-
     fn(argc, argv);
   }
 
@@ -49,9 +49,24 @@ module ChapelRuntimeInterface {
     pragma "always propagate line file info"
     extern 'chpl_rt_task_addTask'
       proc fn(prg: c_ptr(chpl_program_info), fid: int,
-                         args: chpl_task_bundle_p,
-                         args_size: c_size_t,
-                         subloc_id: int);
-    fn(chpl_programInfoHere.asPtr(), fid, args, args_size, subloc_id);
+              args: chpl_task_bundle_p,
+              args_size: c_size_t,
+              subloc_id: int): void;
+    fn(infoPtrHere, fid, args, args_size, subloc_id);
+  }
+
+  pragma "chapel runtime shim"
+  pragma "insert line file info"
+  proc chpl_comm_taskCallFtableEntry(fid: int, args: chpl_comm_on_bundle_p,
+                                     args_size: c_size_t,
+                                     subloc_id: int) {
+    pragma "insert line file info"
+    pragma "always propagate line file info"
+    extern 'chpl_rt_comm_taskCallFtableEntry'
+      proc fn(prg: c_ptr(chpl_program_info), fid: int,
+              args: chpl_comm_on_bundle_p,
+              args_size: c_size_t,
+              subloc_id: int): void;
+    fn(infoPtrHere, fid, args, args_size, subloc_id);
   }
 }

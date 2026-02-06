@@ -28,6 +28,7 @@ module LocaleModelHelpFlat {
   use CTypes;
   use ChapelBase;
   use ChapelLocale;
+  use ChapelRuntimeInterface;
 
   //////////////////////////////////////////
   //
@@ -123,7 +124,7 @@ module LocaleModelHelpFlat {
         chpl_ftable_call(fn, args);
       } else {
         chpl_task_data_setup(chpl_comm_on_bundle_task_bundle(args), tls);
-        chpl_comm_taskCallFTable(fn, args, args_size, c_sublocid_none);
+        chpl_comm_taskCallFtableEntry(fn, args, args_size, c_sublocid_none);
       }
     } else {
       chpl_task_data_setup(chpl_comm_on_bundle_task_bundle(args), tls);

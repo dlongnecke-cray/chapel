@@ -26,6 +26,7 @@ module LocaleModelHelpGPU {
   use CTypes;
   use ChapelBase;
   use ChapelLocale;
+  use ChapelRuntimeInterface;
 
   @chpldoc.nodoc
   config param debugGPULocale = false;
@@ -172,7 +173,7 @@ module LocaleModelHelpGPU {
         chpl_ftable_call(fn, args);
       } else {
         chpl_task_data_setup(chpl_comm_on_bundle_task_bundle(args), tls);
-        chpl_comm_taskCallFTable(fn, args, args_size, dsubloc);
+        chpl_comm_taskCallFtableEntry(fn, args, args_size, dsubloc);
       }
     } else {
       chpl_task_data_setup(chpl_comm_on_bundle_task_bundle(args), tls);

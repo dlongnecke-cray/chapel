@@ -510,10 +510,14 @@ void chpl_rt_task_addTask(chpl_program_info* prg,
 }
 
 
-void chpl_task_taskCallFTable(chpl_fn_int_t fid,
-                        void* arg, size_t arg_size,
-                        c_sublocid_t subloc,
-                        int lineno, int32_t filename) {
+void chpl_rt_task_taskCallFtableEntry(chpl_program_info* prg,
+                                      chpl_fn_int_t fid,
+                                      void* arg,
+                                      size_t arg_size,
+                                      c_sublocid_t subloc,
+                                      int lineno,
+                                      int32_t filename) {
+  CHPL_PROGRAM_DATA_TEMP(prg, chpl_ftable);
   taskCallBody(fid, chpl_ftable[fid], arg, arg_size, subloc, lineno, filename);
 }
 

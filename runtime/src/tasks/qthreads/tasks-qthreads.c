@@ -92,7 +92,7 @@
 /* Tasks */
 static aligned_t profile_task_yield = 0;
 static aligned_t profile_task_addTask = 0;
-static aligned_t profile_task_taskCallFTable = 0;
+static aligned_t profile_task_taskCallFtableEntry = 0;
 static aligned_t profile_task_startMovedTask = 0;
 static aligned_t profile_task_getId = 0;
 static aligned_t profile_task_sleep = 0;
@@ -115,7 +115,7 @@ static void profile_print(void)
     /* Tasks */
     fprintf(stderr, "task yield: %lu\n", (unsigned long)profile_task_yield);
     fprintf(stderr, "task addTask: %lu\n", (unsigned long)profile_task_addTask);
-    fprintf(stderr, "task taskCallFTable: %lu\n", (unsigned long)profile_task_taskCallFTable);
+    fprintf(stderr, "task taskCallFtableEntry: %lu\n", (unsigned long)profile_task_taskCallFtableEntry);
     fprintf(stderr, "task startMovedTask: %lu\n", (unsigned long)profile_task_startMovedTask);
     fprintf(stderr, "task getId: %lu\n", (unsigned long)profile_task_getId);
     fprintf(stderr, "task sleep: %lu\n", (unsigned long)profile_task_sleep);
@@ -1037,13 +1037,14 @@ void chpl_rt_task_addTask(chpl_program_info*  prg,
     }
 }
 
-static inline void taskCallBody(chpl_fn_int_t fid, chpl_fn_p fp,
-                                void *arg, size_t arg_size,
+static inline void taskCallBody(chpl_program_info* prg, chpl_fn_int_t fid,
+                                chpl_fn_p fp,
+                                void* arg,
+                                size_t arg_size,
                                 c_sublocid_t full_subloc,
-                                int lineno, int32_t filename)
-{
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
-                           chpl_localeModel_sublocToExecutionSubloc);
+                                int lineno,
+                                int32_t filename) {
+    CHPL_PROGRAM_DATA_TEMP(prg, chpl_localeModel_sublocToExecutionSubloc);
 
     chpl_task_bundle_t *bundle = chpl_argBundleTaskArgBundle(arg);
     c_sublocid_t execution_subloc =
@@ -1071,16 +1072,19 @@ static inline void taskCallBody(chpl_fn_int_t fid, chpl_fn_p fp,
     }
 }
 
-void chpl_task_taskCallFTable(chpl_fn_int_t fid,
-                              void *arg, size_t arg_size,
-                              c_sublocid_t subloc,
-                              int lineno, int32_t filename)
-{
-    PROFILE_INCR(profile_task_taskCallFTable,1);
+void chpl_rt_task_taskCallFtableEntry(chpl_program_info* prg,
+                                      chpl_fn_int_t fid,
+                                      void* arg,
+                                      size_t arg_size,
+                                      c_sublocid_t subloc,
+                                      int lineno,
+                                      int32_t filename) {
+    PROFILE_INCR(profile_task_taskCallFtableEntry, 1);
 
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_ftable);
+    CHPL_PROGRAM_DATA_TEMP(prg, chpl_ftable);
 
-    taskCallBody(fid, chpl_ftable[fid], arg, arg_size, subloc, lineno, filename);
+    taskCallBody(prg, fid, chpl_ftable[fid], arg, arg_size, subloc, lineno,
+                 filename);
 }
 
 void chpl_task_startMovedTask(chpl_fn_int_t       fid,
@@ -1100,7 +1104,8 @@ void chpl_task_startMovedTask(chpl_fn_int_t       fid,
 
     PROFILE_INCR(profile_task_startMovedTask,1);
 
-    taskCallBody(fid, fp, arg, arg_size, subloc, 0, CHPL_FILE_IDX_UNKNOWN);
+    taskCallBody(CHPL_PROGRAM_ROOT, fid, fp, arg, arg_size, subloc, 0,
+                 CHPL_FILE_IDX_UNKNOWN);
 }
 
 //
