@@ -42,8 +42,9 @@ extern "C" {
 // one argument.
 //
 static inline
-void chpl_rt_callFtableEntryHere(chpl_fn_int_t fid, void* bundle) {
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_ftable);
+void chpl_rt_callFtableEntryHere(chpl_program_info* prg, chpl_fn_int_t fid,
+                                 void* bundle) {
+  CHPL_PROGRAM_DATA_TEMP(prg, chpl_ftable);
   (*chpl_ftable[fid])(bundle);
 }
 
