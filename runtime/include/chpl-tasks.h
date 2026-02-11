@@ -82,6 +82,7 @@ typedef struct chpl_task_bundle {
   uint64_t payload[0];
 } chpl_task_bundle_t;
 
+// TODO (dlongnecke): Drop once the compiler can express this properly.
 typedef chpl_task_bundle_t* chpl_task_bundle_p;
 
 #ifdef __cplusplus

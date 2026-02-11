@@ -36,12 +36,10 @@ CHPL_TLS_DECL(fileBuff, unknownFileBuffer);
 // See note in chpl-linefile-support.h
 void chpl_saveFilename(const char *filename) { savedFilename = filename; }
 
-c_string chpl_lookupFilename(const int32_t idx) {
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_filenameTableSize);
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_filenameTable);
+c_string chpl_rt_lookupBuiltinFilenameDescriptor(int32_t idx) {
+  if (idx >= 0) return NULL;
 
-  if (idx < 0) {
-    switch (idx) {
+  switch (idx) {
     case CHPL_FILE_IDX_COMMAND_LINE:
       return "(command-line)";
     case CHPL_FILE_IDX_COMMAND_LINE_ARG:
@@ -69,8 +67,19 @@ c_string chpl_lookupFilename(const int32_t idx) {
       // used, not a very good one though.
       return CHPL_TLS_GET(unknownFileBuffer);
     }
-    }
+  }
+
+  return NULL;
+}
+
+c_string chpl_lookupFilename(int32_t idx) {
+  if (idx < 0) {
+    return chpl_rt_lookupBuiltinFilenameDescriptor(idx);
+
   } else {
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_filenameTableSize);
+    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_filenameTable);
+
     if (idx < chpl_filenameTableSize) {
       return chpl_filenameTable[idx];
     } else {

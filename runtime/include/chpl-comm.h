@@ -75,6 +75,7 @@ typedef struct {
   uint64_t payload[0];
 } chpl_comm_on_bundle_t;
 
+// TODO (dlongnecke): Drop once the compiler can express this properly.
 typedef chpl_comm_on_bundle_t *chpl_comm_on_bundle_p;
 
 static inline

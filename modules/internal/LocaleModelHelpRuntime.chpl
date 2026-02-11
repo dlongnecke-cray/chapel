@@ -49,9 +49,21 @@ module LocaleModelHelpRuntime {
   extern record chpl_task_bundle_t {
   };
 
+  // TODO (dlongnecke): Drop and replace with 'c_ptr(chpl_comm_on_bundle_t).
   extern type chpl_comm_on_bundle_p;
 
+  proc chpl_comm_on_bundle_p.serialize(writer, ref serializer) throws {
+    const ptr = c_ptrToConst(this);
+    ptr.serialize(writer, serializer);
+  }
+
+  // TODO (dlongnecke): Drop and replace with 'c_ptr(chpl_task_bundle_t).
   extern type chpl_task_bundle_p;
+
+  proc chpl_task_bundle_p.serialize(writer, ref serializer) throws {
+    const ptr = c_ptrToConst(this);
+    ptr.serialize(writer, serializer);
+  }
 
   pragma "fn synchronization free"
   extern proc chpl_comm_on_bundle_task_bundle(bundle:chpl_comm_on_bundle_p):chpl_task_bundle_p;

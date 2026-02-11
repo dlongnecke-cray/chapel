@@ -36,7 +36,9 @@ extern "C" {
 // in a user-supplied file for config vars.
 void chpl_saveFilename(const char *filename);
 
-c_string chpl_lookupFilename(const int32_t idx);
+c_string chpl_lookupFilename(int32_t idx);
+
+c_string chpl_rt_lookupBuiltinFilenameDescriptor(int32_t idx);
 
 #ifdef __cplusplus
 }
