@@ -48,17 +48,7 @@ static int32_t   numLocalesOnNode = -1;
 static int32_t   localRank = -1;
 static int32_t   numColocalesOnNode = 1;
 
-
-//
-// Global variable broadcast support.
-//
-void chpl_comm_register_global_var(int i, wide_ptr_t *ptr_to_wide_ptr) {
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_globals_registry);
-  chpl_globals_registry[i] = ptr_to_wide_ptr;
-}
-
-
-void chpl_comm_broadcast_global_vars(int numGlobals) {
+void chpl_rt_comm_broadcastGlobalVars(chpl_program_info* prg) {
   //
   // On node 0: gather up the global variables' wide pointers into a
   //            buffer; return that buffer if it needs deallocating
@@ -66,7 +56,7 @@ void chpl_comm_broadcast_global_vars(int numGlobals) {
   // On other nodes: retrieve the node 0 local address of that buffer.
   //
   wide_ptr_t* buf_on_0;
-  buf_on_0 = chpl_comm_broadcast_global_vars_helper();
+  buf_on_0 = chpl_rt_comm_broadcastGlobalVarsHelper(prg);
 
   //
   // On node 0: barrier to ensure the other nodes have the global vars;
@@ -85,8 +75,8 @@ void chpl_comm_broadcast_global_vars(int numGlobals) {
       chpl_mem_free(buf_on_0, 0, 0);
     }
   } else {
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_numGlobalsOnHeap);
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_globals_registry);
+    CHPL_PROGRAM_DATA_TEMP(prg, chpl_numGlobalsOnHeap);
+    CHPL_PROGRAM_DATA_TEMP(prg, chpl_globals_registry);
 
     wide_ptr_t* buf;
     size_t size = chpl_numGlobalsOnHeap * sizeof(*buf);

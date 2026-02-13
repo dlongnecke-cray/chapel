@@ -1164,7 +1164,7 @@ void chpl_comm_impl_regMemHeapInfo(void** start_p, size_t* size_p) {
 #endif
 }
 
-wide_ptr_t* chpl_comm_broadcast_global_vars_helper(void) {
+wide_ptr_t* chpl_rt_comm_broadcastGlobalVarsHelper(chpl_program_info* prg) {
   //
   // Gather the global variables' wide pointers on node 0 into the
   // buffer at the front of our communicable segment.  We don't have
@@ -1173,8 +1173,8 @@ wide_ptr_t* chpl_comm_broadcast_global_vars_helper(void) {
   // node 0 has filled in that buffer, however.
   //
   if (chpl_nodeID == 0) {
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_numGlobalsOnHeap);
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_globals_registry);
+    CHPL_PROGRAM_DATA_TEMP(prg, chpl_numGlobalsOnHeap);
+    CHPL_PROGRAM_DATA_TEMP(prg, chpl_globals_registry);
 
     for (int i = 0; i < chpl_numGlobalsOnHeap; i++) {
       ((wide_ptr_t*) seginfo_table[0].addr)[i] = *chpl_globals_registry[i];

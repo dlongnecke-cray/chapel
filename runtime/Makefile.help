@@ -171,7 +171,7 @@ else
   # NOTE: Uncomment when direct references to program symbols in the runtime
   # have all been removed. By default, the linux linker will mark unresolved
   # symbols at link-time to use dynamic resolution.
-  # RUNTIME_SHARED_LIB_CXX_LINK_FLAGS=-Wl,--no-undefined
+  RUNTIME_SHARED_LIB_CXX_LINK_FLAGS=-Wl,--no-undefined
 endif
 
 $(RUNTIME_SHARED_LIB): $(RUNTIME_OBJS) $(RUNTIME_DIR_TIMESTAMP) \

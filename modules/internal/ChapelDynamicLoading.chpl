@@ -77,7 +77,7 @@ module ChapelDynamicLoading {
   // We start with '2' because:
   //
   //  -- The '0th' index is reserved to represent 'nil'.
-  //  -- The '1th' index is reserved to represent the root program.
+  //  -- The '1st' index is reserved to represent the root program.
   //
   var chpl_ptrCacheIdxCounter: atomic int = 2;
 
@@ -394,17 +394,29 @@ module ChapelDynamicLoading {
       return if p != nil && err == nil then p() else nil;
     }
 
-    proc _initializeLoadedModules(): void {
-      // At this point, we also need to setup all the modules. We usually
-      // only execute module initializers on the first locale and let the
-      // code migrate to other locales if needed.
-      on Locales[0] {
-        var err;
-        const p = this.loadSymbolLocally('chpl_initLoadedProgramModules',
+    proc _initializeLoadedModules(out err: owned DynLoadError?): void {
+      var errGuard: chpl_lockGuard(err.type);
+
+      coforall loc in Locales do on loc {
+        var errHere;
+        // Each locale has to call this hook in order to initialize modules,
+        // even though L0 will be the only locale executing the majority of
+        // the code. This is defined in 'ChapelProgramEntrypoints' and it
+        // constitutes the 'entrypoint' for a loaded Chapel program, at least
+        // as far as module initialization is concerned.
+        const p = this.loadSymbolLocally('chpl_initLoadedProgramModulesHere',
                                          proc(): void,
-                                         err);
-        if p != nil && err == nil then p();
+                                         errHere);
+        if errHere != nil {
+          // TODO: Consolidate instead of just keeping one.
+          manage errGuard.write() as e do e = errHere;
+        } else {
+          p();
+        }
       }
+
+      // Propagate the error if one exists (write to consume the 'owned').
+      manage errGuard.write() as e do if e != nil then err = e;
     }
 
     // TODO: Propagate warnings out as errors instead.
@@ -438,8 +450,9 @@ module ChapelDynamicLoading {
 
       var idBuf = new chpl_localBuffer(chpl_prg_id, numLocales);
 
-      idBuf[here.id] = bind(chpl_programInfo.nullId, info);
-      const newPrgId = idBuf[here.id];
+      // Bind and set on 'this.locale'.
+      const newPrgId = bind(chpl_programInfo.nullId, info);
+      idBuf[here.id] = newPrgId;
 
       if newPrgId == chpl_programInfo.nullId ||
          newPrgId == chpl_programInfo.rootId {
@@ -453,7 +466,9 @@ module ChapelDynamicLoading {
       // Bind the ID of this program on all locales.
       coforall loc in fanToAll(skip=here) with (ref idBuf) do on loc {
         const infoHere = _prepareProgramInfoLocally();
-        on idBuf do idBuf[here.id] = bind(newPrgId, infoHere);
+        const slotIdx = here.id;
+        const prgIdx = bind(newPrgId, infoHere);
+        on idBuf do idBuf[slotIdx] = prgIdx;
       }
 
       for i in 0..<idBuf.size do {
@@ -470,7 +485,11 @@ module ChapelDynamicLoading {
       }
 
       // Set up the module code.
-      _initializeLoadedModules();
+      var err;
+      _initializeLoadedModules(err);
+
+      // TODO: Propagate me back out.
+      if err != nil then halt(err!.message());
 
       return binaryKind.CHAPEL;
     }
@@ -592,8 +611,9 @@ module ChapelDynamicLoading {
       // Get the handle for the current locale.
       // TODO: Do with zero comm?
       // TODO: Locale-agnostic after rebase.
+      const origin = here.id;
       var handle: c_ptr(void);
-      on Locales[0] do handle = _systemPtrs[here.id];
+      on this do handle = _systemPtrs[origin];
       assert(handle != nil);
 
       local do {

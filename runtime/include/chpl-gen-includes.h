@@ -48,7 +48,9 @@ void chpl_rt_callFtableEntryHere(chpl_program_info* prg, chpl_fn_int_t fid,
   (*chpl_ftable[fid])(bundle);
 }
 
-extern void chpl_getLocaleID (chpl_localeID_t* localeID,  int64_t _ln, int32_t _fn);
+// TODO (dlongnecke): This points into module code...
+extern void chpl_getLocaleID(chpl_localeID_t* localeID,  int64_t _ln, int32_t _fn);
+
 static inline
 chpl_localeID_t chpl_gen_getLocaleID(void)
 {

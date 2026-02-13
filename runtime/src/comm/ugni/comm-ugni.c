@@ -3906,7 +3906,7 @@ void regMemBroadcast(int mr_i, int mr_cnt, chpl_bool send_mreg_cnt)
 }
 
 
-wide_ptr_t* chpl_comm_broadcast_global_vars_helper(void) {
+wide_ptr_t* chpl_rt_comm_broadcastGlobalVarsHelper(chpl_program_info* prg) {
   //
   // Gather the global variables' wide pointers on node 0 into a
   // buffer, and broadcast the address of that buffer to the other
@@ -3914,6 +3914,9 @@ wide_ptr_t* chpl_comm_broadcast_global_vars_helper(void) {
   //
   wide_ptr_t* buf;
   if (chpl_nodeID == 0) {
+    CHPL_PROGRAM_DATA_TEMP(prg, chpl_numGlobalsOnHeap);
+    CHPL_PROGRAM_DATA_TEMP(prg, chpl_globals_registry);
+
     buf = (wide_ptr_t*) chpl_mem_allocMany(chpl_numGlobalsOnHeap, sizeof(*buf),
                                            CHPL_RT_MD_COMM_PER_LOC_INFO, 0, 0);
     for (int i = 0; i < chpl_numGlobalsOnHeap; i++) {

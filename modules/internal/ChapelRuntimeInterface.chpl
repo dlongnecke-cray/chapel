@@ -18,14 +18,29 @@
  * limitations under the License.
  */
 
+/***
+  This module contains shims which wrap calls to functions from the runtime.
+  Any function marked with 'chapel runtime shim' is such a shim. Also, if a
+  function in this module is marked with 'export', it is usually because
+  either the compiler needs to see it at codegen, or because the runtime will
+  need to access it (indirectly, through 'chpl_program_info').
+
+  ---
+
+  Another longterm TODO is to prefix every single runtime funtion with the
+  prefix 'chpl_rt_'. That, coupled with 'chapel runtime shim', will make it
+  possible for the compiler to mark all calls to runtime functions.
+*/
 module ChapelRuntimeInterface {
   use ChapelBase, CTypes, ChapelProgramRegistration;
   use Reflection;
 
-  param debugRuntimeCalls = true;
+  param debugRuntimeCalls = false;
 
   // Alias for 'char**' to be used as the type of 'argv'.
   type c_argArray = c_ptr(c_ptr(c_char));
+
+  extern type wide_ptr_t;
 
   inline proc infoPtrHere do return chpl_programInfoHere.asPtr();
 
@@ -45,6 +60,13 @@ module ChapelRuntimeInterface {
     return try! string.createBorrowingBuffer(ptr);
   }
 
+  export /** So compiler can see it easily at codegen. */
+  proc chpl_registerGlobalVar(idx: int(32), ptrToWidePtr: c_ptr(wide_ptr_t)) {
+    // Extern, but declared by the compiler and lives in program code.
+    extern var chpl_globals_registry: c_ptr(c_ptr(wide_ptr_t));
+    chpl_globals_registry[idx] = ptrToWidePtr;
+  }
+
   pragma "insert line file info"
   pragma "always propagate line file info"
   inline proc debugf(param procInfo: string, args...) {
@@ -55,7 +77,7 @@ module ChapelRuntimeInterface {
     const fileInfo = chpl_filenameFromIdx(fileIdx);
 
     writeln('[', procInfo, ' in modules ', fileInfo, ':', lineInfo, '] ',
-            'P', chpl_programInfoHere.id, ': ', (...args));
+            'P', chpl_programInfoHere.id, '@L', chpl_nodeID, ': ', (...args));
   }
 
   // TODO: Have this pragma imply "always propagate..." and "insert line...".
@@ -78,6 +100,14 @@ module ChapelRuntimeInterface {
     extern 'chpl_rt_init'
       proc fn(argc: c_int, argv: c_argArray): void;
     fn(argc, argv);
+  }
+
+  pragma "chapel runtime shim"
+  export /** So compiler can see it easily at codegen. */
+  proc chpl_comm_broadcastGlobalVars(): void {
+    extern 'chpl_rt_comm_broadcastGlobalVars'
+      proc fn(prg: c_ptr(chpl_program_info)): void;
+    fn(infoPtrHere);
   }
 
   pragma "chapel runtime shim"

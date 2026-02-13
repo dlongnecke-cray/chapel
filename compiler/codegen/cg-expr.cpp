@@ -124,6 +124,7 @@ static void codegenCallWithArgs(const char* fnName,
 
 // some codegenCallExpr are declared in codegen.h
 static GenRet codegenCallExpr(const char* fnName, GenRet a1, GenRet a2, GenRet a3);
+static void codegenCall(const char* fnName);
 static void codegenCall(const char* fnName, GenRet a1);
 static void codegenCall(const char* fnName, GenRet a1, GenRet a2);
 static void codegenCall(const char* fnName, GenRet a1, GenRet a2, GenRet a3);
@@ -3307,12 +3308,11 @@ GenRet codegenCallExpr(const char* fnName, GenRet a1, GenRet a2, GenRet a3)
   return codegenCallExprWithArgs(fnName, args);
 }
 
-/* static
-void codegenCall(const char* fnName)
-{
+void codegenCall(const char* fnName) {
   std::vector<GenRet> args;
   codegenCallWithArgs(fnName, args);
-}*/
+}
+
 static
 void codegenCall(const char* fnName, GenRet a1)
 {
@@ -6187,12 +6187,11 @@ DEFINE_PRIM(REGISTER_GLOBAL_VAR) {
     }
 #endif
 
-    codegenCall("chpl_comm_register_global_var",
-                idx,
+    codegenCall("chpl_registerGlobalVar", idx,
                 codegenCast("ptr_wide_ptr_t", ptr_wide_ptr));
 }
 DEFINE_PRIM(BROADCAST_GLOBAL_VARS) {
-    codegenCall("chpl_comm_broadcast_global_vars", call->get(1));
+    codegenCall("chpl_comm_broadcastGlobalVars");
 }
 DEFINE_PRIM(PRIVATE_BROADCAST) {
     codegenCall("chpl_comm_broadcast_private",

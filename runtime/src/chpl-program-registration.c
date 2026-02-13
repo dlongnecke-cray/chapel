@@ -19,6 +19,7 @@
  */
 
 #include "chplrt.h"
+#include "chpl-comm.h"
 #include "chpl-dynamic-loading.h"
 #include "chpl-program-registration.h"
 #include <string.h>
@@ -118,7 +119,24 @@ int chpl_program_info_num_data_entries(void) {
 }
 
 static int debug_is_hotspot(const char* function, const char* field_name) {
-  if (!strcmp(function, "chpl_cache_enabled")) return 1;
+  const char* suppressedFieldNames[] = {
+      "chpl_task_getCommDiagsTemporarilyDisabled",
+      NULL
+  };
+
+  const char* suppressedFunctions[] = {
+    "chpl_cache_enabled",
+    NULL
+  };
+
+  const char** cur = NULL;
+  for (cur = suppressedFieldNames; *cur; cur++) {
+    if (!strcmp(field_name, *cur)) return 1;
+  }
+  for (cur = suppressedFunctions; *cur; cur++) {
+    if (!strcmp(function, *cur)) return 1;
+  }
+
   return 0;
 }
 
@@ -138,8 +156,8 @@ void* chpl_program_data_debug_hook(int verbosity, chpl_program_info* prg,
                  (verbosity == 2);
 
   if (do_print) {
-    printf("[%s in %s:%d] P%" PRIu64 ": %s\n",
-           function, file, line, prg->id, field_name);
+    printf("[%s in %s:%d] P%" PRIu64 "@L%d: %s\n",
+           function, file, line, prg->id, chpl_nodeID, field_name);
   }
 
   return ret;

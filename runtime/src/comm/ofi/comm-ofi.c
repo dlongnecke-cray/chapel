@@ -3305,9 +3305,9 @@ void chpl_comm_rollcall(void) {
 // Chapel global and private variable support
 //
 
-wide_ptr_t* chpl_comm_broadcast_global_vars_helper(void) {
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_numGlobalsOnHeap);
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_globals_registry);
+wide_ptr_t* chpl_rt_comm_broadcastGlobalVarsHelper(chpl_program_info* prg) {
+  CHPL_PROGRAM_DATA_TEMP(prg, chpl_numGlobalsOnHeap);
+  CHPL_PROGRAM_DATA_TEMP(prg, chpl_globals_registry);
 
   DBG_PRINTF(DBG_IFACE_SETUP, "%s()", __func__);
 
