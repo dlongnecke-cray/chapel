@@ -30,41 +30,6 @@
 module LocaleModelHelpRuntime {
   private use ChapelStandard, CTypes, ChapelRuntimeInterface;
 
-  // The chpl_localeID_t type is used internally.  It should not be exposed to
-  // the user.  The runtime defines the actual type, as well as a functional
-  // interface for assembling and disassembling chpl_localeID_t values.  This
-  // module then provides the interface the compiler-emitted code uses to do
-  // the same.
-
-  extern record chpl_localeID_t {
-    // We need to know that this is a record type in order to pass it to and
-    // return it from runtime functions properly, but we don't need or want
-    // to see its contents.
-  };
-
-  // runtime stuff about argument bundles
-  extern record chpl_comm_on_bundle_t {
-  };
-
-  extern record chpl_task_bundle_t {
-  };
-
-  // TODO (dlongnecke): Drop and replace with 'c_ptr(chpl_comm_on_bundle_t).
-  extern type chpl_comm_on_bundle_p;
-
-  proc chpl_comm_on_bundle_p.serialize(writer, ref serializer) throws {
-    const ptr = c_ptrToConst(this);
-    ptr.serialize(writer, serializer);
-  }
-
-  // TODO (dlongnecke): Drop and replace with 'c_ptr(chpl_task_bundle_t).
-  extern type chpl_task_bundle_p;
-
-  proc chpl_task_bundle_p.serialize(writer, ref serializer) throws {
-    const ptr = c_ptrToConst(this);
-    ptr.serialize(writer, serializer);
-  }
-
   pragma "fn synchronization free"
   extern proc chpl_comm_on_bundle_task_bundle(bundle:chpl_comm_on_bundle_p):chpl_task_bundle_p;
 
@@ -99,24 +64,6 @@ module LocaleModelHelpRuntime {
   pragma "codegen for CPU and GPU"
   proc chpl_sublocFromLocaleID(in loc: chpl_localeID_t) do
     return chpl_rt_sublocFromLocaleID(loc);
-
-  //////////////////////////////////////////
-  //
-  // support for "on" statements
-  //
-
-  //
-  // runtime interface
-  //
-  pragma "insert line file info"
-  extern proc chpl_comm_execute_on(loc_id: int, subloc_id: int, fn: int,
-                                   args: chpl_comm_on_bundle_p, arg_size: c_size_t);
-  pragma "insert line file info"
-  extern proc chpl_comm_execute_on_fast(loc_id: int, subloc_id: int, fn: int,
-                                        args: chpl_comm_on_bundle_p, args_size: c_size_t);
-  pragma "insert line file info"
-  extern proc chpl_comm_execute_on_nb(loc_id: int, subloc_id: int, fn: int,
-                                      args: chpl_comm_on_bundle_p, args_size: c_size_t);
 
   //////////////////////////////////////////
   //

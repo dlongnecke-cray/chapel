@@ -328,19 +328,25 @@ typedef struct {
   char          arg[0];       // variable-sized data here
 } fork_t;
 
-void chpl_comm_execute_on(c_nodeid_t node, c_sublocid_t subloc,
-                          chpl_fn_int_t fid,
-                          chpl_comm_on_bundle_t *arg, size_t arg_size,
-                          int ln, int32_t fn) {
+void chpl_rt_comm_executeOn(c_nodeid_t node,
+                            c_sublocid_t subloc,
+                            chpl_fn_int_t fid,
+                            chpl_comm_on_bundle_t *arg,
+                            size_t arg_size,
+                            int ln,
+                            int32_t fn) {
   assert(node==0);
 
   chpl_rt_callFtableEntryHere(CHPL_PROGRAM_ROOT, fid, arg);
 }
 
-void chpl_comm_execute_on_nb(c_nodeid_t node, c_sublocid_t subloc,
-                             chpl_fn_int_t fid,
-                             chpl_comm_on_bundle_t *arg, size_t arg_size,
-                             int ln, int32_t fn) {
+void chpl_rt_comm_executeOnNonBlocking(c_nodeid_t node,
+                                       c_sublocid_t subloc,
+                                       chpl_fn_int_t fid,
+                                       chpl_comm_on_bundle_t *arg,
+                                       size_t arg_size,
+                                       int ln,
+                                       int32_t fn) {
   CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_ftable);
   assert(node==0);
 
@@ -349,11 +355,14 @@ void chpl_comm_execute_on_nb(c_nodeid_t node, c_sublocid_t subloc,
                            subloc, chpl_nullTaskID);
 }
 
-// Same as chpl_comm_execute_on()
-void chpl_comm_execute_on_fast(c_nodeid_t node, c_sublocid_t subloc,
-                               chpl_fn_int_t fid,
-                               chpl_comm_on_bundle_t *arg, size_t arg_size,
-                               int ln, int32_t fn) {
+// Same as chpl_rt_comm_executeOn()
+void chpl_rt_comm_executeOnFast(c_nodeid_t node,
+                                c_sublocid_t subloc,
+                                chpl_fn_int_t fid,
+                                chpl_comm_on_bundle_t *arg,
+                                size_t arg_size,
+                                int ln,
+                                int32_t fn) {
   assert(node==0);
 
   chpl_rt_callFtableEntryHere(CHPL_PROGRAM_ROOT, fid, arg);

@@ -118,6 +118,101 @@ int chpl_program_info_num_data_entries(void) {
   return ret;
 }
 
+typedef chpl_program_info prg;
+
+struct printer_entry {
+  const char* tag;
+  void (*fn)(prg*, FILE*, void*);
+};
+
+static struct printer_entry* lookup_printer_entry(const char* tag);
+
+static void print_unknown_tag(prg* prg, FILE* fp, const char* tag) {
+  fprintf(fp, "<unknown RT printer format: %s>", tag);
+}
+
+#define PRINT_FIELD(prg__, fp__, recPtr__,  field__, tag__, sep__) do {   \
+  void* ptr = ((void*) &recPtr__->field__);                               \
+  struct printer_entry* e = lookup_printer_entry(tag__);                  \
+  if (e) {                                                                \
+    fprintf(fp__, "%s=", #field__);                                       \
+    e->fn(prg__, fp__, ptr);                                              \
+  } else {                                                                \
+    print_unknown_tag(prg__, fp__, tag__);                                \
+  }                                                                       \
+  if (sep__) fprintf(fp__, "%s", ", ");                                   \
+} while (0)
+
+static void print_const_char_ptr(prg* prg, FILE* fp, void* ptr) {
+  const char* x = ((const char*) ptr);
+  fprintf(fp, "%s", x);
+}
+
+static void print_chpl_taskID_t(prg* prg, FILE* fp, void* ptr) {
+  chpl_taskID_t x = *((chpl_taskID_t*) ptr);
+  uint64_t as_u64 = (uint64_t) x;
+  if (as_u64 == ((unsigned int) -1)) {
+    fprintf(fp, "%s", "<?>");
+  } else {
+    fprintf(fp, "%" PRId64, as_u64);
+  }
+}
+
+static void print_task_bundle_pointer(prg* prg, FILE* fp, void* ptr) {
+  chpl_task_bundle_p x = *((chpl_task_bundle_p*) ptr);
+  fprintf(fp, "%c", '(');
+  PRINT_FIELD(prg, fp, x, requested_fid, "chpl_fn_int_t", 1);
+  PRINT_FIELD(prg, fp, x, requested_fn, "chpl_fn_p", 1);
+  PRINT_FIELD(prg, fp, x, id, "chpl_taskID_t", 0);
+  fprintf(fp, "%c", ')');
+}
+
+#define DEFINE_PRINT_INTEGRAL(type__, specifier__)            \
+  static void print_##type__(prg* prg, FILE* fp, void* x) {   \
+    type__* casted = ((type__*) x);                           \
+    fprintf(fp, "%" specifier__, *casted);                    \
+  }
+
+DEFINE_PRINT_INTEGRAL(int64_t, PRId64)
+DEFINE_PRINT_INTEGRAL(int32_t, PRId32)
+DEFINE_PRINT_INTEGRAL(int16_t, PRId16)
+DEFINE_PRINT_INTEGRAL(int8_t, PRId8)
+DEFINE_PRINT_INTEGRAL(uint64_t, PRIu64)
+DEFINE_PRINT_INTEGRAL(uint32_t, PRIu32)
+DEFINE_PRINT_INTEGRAL(uint16_t, PRIu16)
+DEFINE_PRINT_INTEGRAL(uint8_t, PRIu8)
+DEFINE_PRINT_INTEGRAL(double, "lf")
+DEFINE_PRINT_INTEGRAL(float, "f")
+DEFINE_PRINT_INTEGRAL(chpl_fn_int_t, PRId32)
+#undef DEFINE_PRINT_INTEGRAAL
+
+struct printer_entry* lookup_printer_entry(const char* tag) {
+  struct printer_entry entries[] = {
+    { .tag="const char*",         .fn=print_const_char_ptr },
+    { .tag="int64_t",             .fn=print_int64_t },
+    { .tag="int32_t",             .fn=print_int32_t },
+    { .tag="int16_t",             .fn=print_int16_t },
+    { .tag="int8_t",              .fn=print_int8_t  },
+    { .tag="uint64_t",            .fn=print_uint64_t },
+    { .tag="uint32_t",            .fn=print_uint32_t },
+    { .tag="uint16_t",            .fn=print_uint16_t },
+    { .tag="uint8_t",             .fn=print_uint8_t },
+    { .tag="double",              .fn=print_double },
+    { .tag="float",               .fn=print_float },
+    { .tag="chpl_task_bundle_p",  .fn=print_task_bundle_pointer },
+    { .tag="chpl_fn_int_t",       .fn=print_chpl_fn_int_t },
+    { .tag="chpl_taskID_t",       .fn=print_chpl_taskID_t },
+    { .tag=NULL,                  .fn=NULL }
+  };
+
+  for (int i = 0; entries[i].tag; i++) {
+    struct printer_entry* e = entries + i;
+    if (!strcmp(e->tag, tag)) return e;
+  }
+
+  return NULL;
+}
+
 static int debug_is_hotspot(const char* function, const char* field_name) {
   const char* suppressedFieldNames[] = {
       "chpl_task_getCommDiagsTemporarilyDisabled",
@@ -161,4 +256,29 @@ void* chpl_program_data_debug_hook(int verbosity, chpl_program_info* prg,
   }
 
   return ret;
+}
+
+// TODO: Eventually, move this entire implementation into Chapel code.
+//       Then, the runtime can just use callbacks from the root program.
+//       A good time to do this would be when we rework IO e.g., 'writeln'
+//       to buffer locally, and provide an API for unsynchronized IO.
+//       Additionally, we need to have zero-copy IO a la 'snprintf'.
+void chpl_rt_debugfChapelHook(chpl_program_info* prg,
+                              chpl_rt_debugf_arg* args,
+                              uint64_t numArgs) {
+  FILE* fp = stdout;
+
+  for (uint64_t i = 0; i < numArgs; i++) {
+    chpl_rt_debugf_arg arg = args[i];
+
+    struct printer_entry* e = lookup_printer_entry(arg.typeStr);
+    if (e) {
+      e->fn(prg, fp, arg.dataPtr);
+    } else {
+      print_unknown_tag(prg, fp, arg.typeStr);
+    }
+  }
+
+  fprintf(stdout, "%c", '\n');
+  fflush(stdout);
 }

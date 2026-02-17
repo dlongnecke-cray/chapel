@@ -6942,13 +6942,15 @@ void do_nic_amo(void* opnd1, void* opnd2, c_nodeid_t locale,
 }
 
 
-void chpl_comm_execute_on(c_nodeid_t locale, c_sublocid_t subloc,
-                          chpl_fn_int_t fid,
-                          chpl_comm_on_bundle_t* arg, size_t arg_size,
-                          int ln, int32_t fn)
-{
+void chpl_rt_comm_executeOn(c_nodeid_t locale,
+                            c_sublocid_t subloc,
+                            chpl_fn_int_t fid,
+                            chpl_comm_on_bundle_t* arg,
+                            size_t arg_size,
+                            int ln,
+                            int32_t fn) {
   DBG_P_LP(DBGF_IFACE|DBGF_RF,
-           "IFACE chpl_comm_execute_on(%d:%d, ftable[%d](%p, %zd))",
+           "IFACE chpl_rt_comm_executeOn(%d:%d, ftable[%d](%p, %zd))",
            (int) locale, (int) subloc, (int) fid, arg, arg_size);
 
   assert(locale != chpl_nodeID); // locale model code should prevent this ...
@@ -6969,13 +6971,15 @@ void chpl_comm_execute_on(c_nodeid_t locale, c_sublocid_t subloc,
 }
 
 
-void chpl_comm_execute_on_nb(c_nodeid_t locale, c_sublocid_t subloc,
-                             chpl_fn_int_t fid,
-                             chpl_comm_on_bundle_t* arg, size_t arg_size,
-                             int ln, int32_t fn)
-{
+void chpl_rt_comm_executeOnNonBlocking(c_nodeid_t locale,
+                                       c_sublocid_t subloc,
+                                       chpl_fn_int_t fid,
+                                       chpl_comm_on_bundle_t* arg,
+                                       size_t arg_size,
+                                       int ln,
+                                       int32_t fn) {
   DBG_P_LP(DBGF_IFACE|DBGF_RF,
-           "IFACE chpl_comm_execute_on_nb(%d:%d, ftable[%d](%p, %zd))",
+           "IFACE chpl_rt_comm_executeOnNonBlocking(%d:%d, ftable[%d](%p, %zd))",
            (int) locale, (int) subloc, (int) fid, arg, arg_size);
 
   assert(locale != chpl_nodeID); // locale model code should prevent this ...
@@ -6996,13 +7000,15 @@ void chpl_comm_execute_on_nb(c_nodeid_t locale, c_sublocid_t subloc,
 }
 
 
-void chpl_comm_execute_on_fast(c_nodeid_t locale, c_sublocid_t subloc,
-                               chpl_fn_int_t fid,
-                               chpl_comm_on_bundle_t* arg, size_t arg_size,
-                               int ln, int32_t fn)
-{
+void chpl_rt_comm_executeOnFast(c_nodeid_t locale,
+                                c_sublocid_t subloc,
+                                chpl_fn_int_t fid,
+                                chpl_comm_on_bundle_t* arg,
+                                size_t arg_size,
+                                int ln,
+                                int32_t fn) {
   DBG_P_LP(DBGF_IFACE|DBGF_RF,
-           "IFACE chpl_comm_execute_on_fast(%d:%d, ftable[%d](%p, %zd))",
+           "IFACE chpl_rt_comm_executeOnFast(%d:%d, ftable[%d](%p, %zd))",
            (int) locale, (int) subloc, (int) fid, arg, arg_size);
 
   assert(locale != chpl_nodeID); // locale model code should prevent this ...

@@ -66,6 +66,18 @@ void* chpl_program_data_debug_hook(int verbosity, chpl_program_info* prg,
                                    const char* function,
                                    int line);
 
+__attribute__ ((format (printf, 1, 2)))
+void chpl_rt_debugf(const char* fmt, ...);
+
+typedef struct chpl_rt_debugf_arg {
+  const char* typeStr;
+  void* dataPtr;
+} chpl_rt_debugf_arg;
+
+void chpl_rt_debugfChapelHook(chpl_program_info* prg,
+                              chpl_rt_debugf_arg* args,
+                              uint64_t numArgs);
+
 #ifdef __cplusplus
 }
 #endif
