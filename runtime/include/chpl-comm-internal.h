@@ -90,6 +90,36 @@ void chpl_comm_really_bcast_rt_private(int id) {
                               chpl_rt_priv_bcast_lens[id]);
 }
 
+// Comm-layer specific implementation.
+void chpl_rt_comm_execute_on_impl(chpl_program_info* prg,
+                                  c_nodeid_t node,
+                                  c_sublocid_t subloc,
+                                  chpl_fn_int_t fid,
+                                  chpl_comm_on_bundle_t *arg,
+                                  size_t arg_size,
+                                  int ln,
+                                  int32_t fn);
+
+// Comm-layer specific implementation.
+void chpl_rt_comm_execute_on_fast_impl(chpl_program_info* prg,
+                                       c_nodeid_t node,
+                                       c_sublocid_t subloc,
+                                       chpl_fn_int_t fid,
+                                       chpl_comm_on_bundle_t *arg,
+                                       size_t arg_size,
+                                       int ln,
+                                       int32_t fn);
+
+// Comm-layer specific implementation.
+void chpl_rt_comm_execute_on_nb_impl(chpl_program_info* prg,
+                                     c_nodeid_t node,
+                                     c_sublocid_t subloc,
+                                     chpl_fn_int_t fid,
+                                     chpl_comm_on_bundle_t *arg,
+                                     size_t arg_size,
+                                     int ln,
+                                     int32_t fn);
+
 #ifdef __cplusplus
 }
 #endif

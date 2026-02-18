@@ -279,3 +279,54 @@ int32_t chpl_get_num_colocales_on_node(void) {
   return numColocalesOnNode;
 }
 
+static void execute_on_family_common_setup(chpl_program_info* prg,
+                                           c_nodeid_t node,
+                                           c_sublocid_t subloc,
+                                           chpl_fn_int_t fid,
+                                           chpl_comm_on_bundle_t *arg,
+                                           size_t arg_size,
+                                           int ln,
+                                           int32_t fn) {
+}
+
+void chpl_rt_comm_execute_on(chpl_program_info* prg,
+                             c_nodeid_t node,
+                             c_sublocid_t subloc,
+                             chpl_fn_int_t fid,
+                             chpl_comm_on_bundle_t *arg,
+                             size_t arg_size,
+                             int ln,
+                             int32_t fn) {
+  execute_on_family_common_setup(prg, node, subloc, fid, arg,
+                                 arg_size, ln, fn);
+  chpl_rt_comm_execute_on_impl(prg, node, subloc, fid, arg,
+                               arg_size, ln, fn);
+}
+
+void chpl_rt_comm_execute_on_fast(chpl_program_info* prg,
+                                  c_nodeid_t node,
+                                  c_sublocid_t subloc,
+                                  chpl_fn_int_t fid,
+                                  chpl_comm_on_bundle_t *arg,
+                                  size_t arg_size,
+                                  int ln,
+                                  int32_t fn) {
+  execute_on_family_common_setup(prg, node, subloc, fid, arg,
+                                 arg_size, ln, fn);
+  chpl_rt_comm_execute_on_fast_impl(prg, node, subloc, fid, arg,
+                                    arg_size, ln, fn);
+}
+
+void chpl_rt_comm_execute_on_nb(chpl_program_info* prg,
+                                c_nodeid_t node,
+                                c_sublocid_t subloc,
+                                chpl_fn_int_t fid,
+                                chpl_comm_on_bundle_t *arg,
+                                size_t arg_size,
+                                int ln,
+                                int32_t fn) {
+  execute_on_family_common_setup(prg, node, subloc, fid, arg,
+                                 arg_size, ln, fn);
+  chpl_rt_comm_execute_on_nb_impl(prg, node, subloc, fid, arg,
+                                  arg_size, ln, fn);
+}

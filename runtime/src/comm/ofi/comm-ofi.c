@@ -4210,43 +4210,45 @@ static void amRequestCommon(c_nodeid_t, amRequest_t*, size_t,
 static void amWaitForDone(amDone_t*);
 
 
-void chpl_rt_comm_executeOn(c_nodeid_t node,
-                            c_sublocid_t subloc,
-                            chpl_fn_int_t fid,
-                            chpl_comm_on_bundle_t *arg,
-                            size_t argSize,
-                            int ln,
-                            int32_t fn) {
+void chpl_rt_comm_execute_on_impl(chpl_program_info* prg,
+                                  c_nodeid_t node,
+                                  c_sublocid_t subloc,
+                                  chpl_fn_int_t fid,
+                                  chpl_comm_on_bundle_t *arg,
+                                  size_t arg_size,
+                                  int ln,
+                                  int32_t fn) {
   DBG_PRINTF(DBG_IFACE,
              "%s(%d, %d, %d, %p, %zd)", __func__,
-             (int) node, (int) subloc, (int) fid, arg, argSize);
+             (int) node, (int) subloc, (int) fid, arg, arg_size);
 
   CHK_TRUE(node != chpl_nodeID); // handled by the locale model
 
   if (chpl_comm_have_callbacks(chpl_comm_cb_event_kind_executeOn)) {
     chpl_comm_cb_info_t cb_data =
       {chpl_comm_cb_event_kind_executeOn, chpl_nodeID, node,
-       .iu.executeOn={subloc, fid, arg, argSize, ln, fn}};
+       .iu.executeOn={subloc, fid, arg, arg_size, ln, fn}};
     chpl_comm_do_callbacks (&cb_data);
   }
 
   chpl_comm_diags_verbose_executeOn("", node, ln, fn);
   chpl_comm_diags_incr(execute_on);
 
-  amRequestExecOn(node, subloc, fid, arg, argSize, false, true);
+  amRequestExecOn(node, subloc, fid, arg, arg_size, false, true);
 }
 
 
-void chpl_rt_comm_executeOnNonBlocking(c_nodeid_t node,
-                                       c_sublocid_t subloc,
-                                       chpl_fn_int_t fid,
-                                       chpl_comm_on_bundle_t *arg,
-                                       size_t argSize,
-                                       int ln,
-                                       int32_t fn) {
+void chpl_rt_comm_execute_on_nb_impl(chpl_program_info* prg,
+                                     c_nodeid_t node,
+                                     c_sublocid_t subloc,
+                                     chpl_fn_int_t fid,
+                                     chpl_comm_on_bundle_t *arg,
+                                     size_t arg_size,
+                                     int ln,
+                                     int32_t fn) {
   DBG_PRINTF(DBG_IFACE,
              "%s(%d, %d, %d, %p, %zd)", __func__,
-             (int) node, (int) subloc, (int) fid, arg, argSize);
+             (int) node, (int) subloc, (int) fid, arg, arg_size);
 
   CHK_TRUE(node != chpl_nodeID); // handled by the locale model
 
@@ -4260,34 +4262,35 @@ void chpl_rt_comm_executeOnNonBlocking(c_nodeid_t node,
   chpl_comm_diags_verbose_executeOn("non-blocking", node, ln, fn);
   chpl_comm_diags_incr(execute_on_nb);
 
-  amRequestExecOn(node, subloc, fid, arg, argSize, false, false);
+  amRequestExecOn(node, subloc, fid, arg, arg_size, false, false);
 }
 
 
-void chpl_rt_comm_executeOnFast(c_nodeid_t node,
-                                c_sublocid_t subloc,
-                                chpl_fn_int_t fid,
-                                chpl_comm_on_bundle_t *arg,
-                                size_t argSize,
-                                int ln,
-                                int32_t fn) {
+void chpl_rt_comm_execute_on_fast_impl(chpl_program_info* prg,
+                                       c_nodeid_t node,
+                                       c_sublocid_t subloc,
+                                       chpl_fn_int_t fid,
+                                       chpl_comm_on_bundle_t *arg,
+                                       size_t arg_size,
+                                       int ln,
+                                       int32_t fn) {
   DBG_PRINTF(DBG_IFACE,
              "%s(%d, %d, %d, %p, %zd)", __func__,
-             (int) node, (int) subloc, (int) fid, arg, argSize);
+             (int) node, (int) subloc, (int) fid, arg, arg_size);
 
   CHK_TRUE(node != chpl_nodeID); // handled by the locale model
 
   if (chpl_comm_have_callbacks(chpl_comm_cb_event_kind_executeOn_fast)) {
     chpl_comm_cb_info_t cb_data =
       {chpl_comm_cb_event_kind_executeOn_fast, chpl_nodeID, node,
-       .iu.executeOn={subloc, fid, arg, argSize, ln, fn}};
+       .iu.executeOn={subloc, fid, arg, arg_size, ln, fn}};
     chpl_comm_do_callbacks (&cb_data);
   }
 
   chpl_comm_diags_verbose_executeOn("fast", node, ln, fn);
   chpl_comm_diags_incr(execute_on_fast);
 
-  amRequestExecOn(node, subloc, fid, arg, argSize, true, true);
+  amRequestExecOn(node, subloc, fid, arg, arg_size, true, true);
 }
 
 

@@ -625,7 +625,7 @@ chpl_comm_nb_handle_t chpl_comm_put_nb(void *addr, c_nodeid_t node, void* raddr,
   }
 
   chpl_comm_diags_verbose_rdma("put_nb", node, size, ln, fn, commID);
-  chpl_comm_diags_incr(put_nb);
+  chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, put_nb);
 
   // TODO GEX consider cases where we could benefit from early re-use of source
   // buffer GEX_EVENT_DEFER means source memory will not change until PUT is
@@ -663,7 +663,7 @@ chpl_comm_nb_handle_t chpl_comm_get_nb(void* addr, c_nodeid_t node, void* raddr,
   }
 
   chpl_comm_diags_verbose_rdma("get_nb", node, size, ln, fn, commID);
-  chpl_comm_diags_incr(get_nb);
+  chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, get_nb);
 
   ret = gex_RMA_GetNB(myteam, addr, node, raddr, size, GEX_NO_FLAGS);
 
@@ -1312,7 +1312,7 @@ void  chpl_comm_put(void* addr, c_nodeid_t node, void* raddr,
     }
 
     chpl_comm_diags_verbose_rdma("put", node, size, ln, fn, commID);
-    chpl_comm_diags_incr(put);
+    chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, put);
 
     // Handle remote address not in remote segment.
 #ifdef GASNET_SEGMENT_EVERYTHING
@@ -1388,7 +1388,7 @@ void  chpl_comm_get(void* addr, c_nodeid_t node, void* raddr,
     }
 
     chpl_comm_diags_verbose_rdma("get", node, size, ln, fn, commID);
-    chpl_comm_diags_incr(get);
+    chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, get);
 
     // Handle remote address not in remote segment.
 
@@ -1527,7 +1527,7 @@ void  chpl_comm_get_strd(void* dstaddr, size_t* dststrides, c_nodeid_t srcnode_i
   // the case (chpl_nodeID == srcnode) is internally managed inside gasnet
   chpl_comm_diags_verbose_rdmaStrd("get", srcnode, ln, fn, commID);
   if (chpl_nodeID != srcnode) {
-    chpl_comm_diags_incr(get);
+    chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, get);
   }
 
   // TODO -- handle strided get for non-registered memory
@@ -1570,7 +1570,7 @@ void  chpl_comm_put_strd(void* dstaddr, size_t* dststrides, c_nodeid_t dstnode_i
   // the case (chpl_nodeID == dstnode) is internally managed inside gasnet
   chpl_comm_diags_verbose_rdmaStrd("put", dstnode, ln, fn, commID);
   if (chpl_nodeID != dstnode) {
-    chpl_comm_diags_incr(put);
+    chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, put);
   }
 
   // TODO -- handle strided put for non-registered memory
@@ -1627,10 +1627,14 @@ void chpl_comm_put_unordered(void* addr, c_nodeid_t node, void* raddr,
 void chpl_comm_getput_unordered_task_fence(void) { }
 
 static inline
-void  execute_on_common(c_nodeid_t node, c_sublocid_t subloc,
-                        chpl_fn_int_t fid,
-                        chpl_comm_on_bundle_t *arg, size_t arg_size,
-                        chpl_bool fast, chpl_bool blocking) {
+void execute_on_common(chpl_program_info* prg,
+                       c_nodeid_t node,
+                       c_sublocid_t subloc,
+                       chpl_fn_int_t fid,
+                       chpl_comm_on_bundle_t *arg,
+                       size_t arg_size,
+                       chpl_bool fast,
+                       chpl_bool blocking) {
   done_t done;
   size_t payload_size = arg_size - sizeof(chpl_comm_on_bundle_t);
   size_t small_msg_size = payload_size + sizeof(small_fork_hdr_t);
@@ -1668,6 +1672,7 @@ void  execute_on_common(c_nodeid_t node, c_sublocid_t subloc,
   if (large) {
     payload_size = sizeof(large_fork_t) - sizeof(small_fork_hdr_t);
   }
+
   arg->kind = CHPL_ARG_BUNDLE_KIND_COMM;
 
   if (small || large) {
@@ -1742,40 +1747,43 @@ void  execute_on_common(c_nodeid_t node, c_sublocid_t subloc,
 
 ////GASNET - introduce locale-int size
 ////GASNET - is caller in chpl_comm_on_bundle_t redundant? active message can determine this.
-void chpl_rt_comm_executeOn(c_nodeid_t node,
-                            c_sublocid_t subloc,
-                            chpl_fn_int_t fid,
-                            chpl_comm_on_bundle_t *arg,
-                            size_t arg_size,
-                            int ln,
-                            int32_t fn) {
+void chpl_rt_comm_execute_on_impl(chpl_program_info* prg,
+                                  c_nodeid_t node,
+                                  c_sublocid_t subloc,
+                                  chpl_fn_int_t fid,
+                                  chpl_comm_on_bundle_t *arg,
+                                  size_t arg_size,
+                                  int ln,
+                                  int32_t fn) {
   if (chpl_nodeID == node) {
     assert(0);
-    chpl_rt_callFtableEntryHere(CHPL_PROGRAM_ROOT, fid, arg);
+    chpl_rt_callFtableEntryHere(prg, fid, arg);
   } else {
     // Communications callback support
     if (chpl_comm_have_callbacks(chpl_comm_cb_event_kind_executeOn)) {
+      assert(0 == "Path not touched yet!");
       chpl_comm_cb_info_t cb_data =
         {chpl_comm_cb_event_kind_executeOn, chpl_nodeID, node,
          .iu.executeOn={subloc, fid, arg, arg_size, ln, fn}};
       chpl_comm_do_callbacks (&cb_data);
     }
 
-    chpl_comm_diags_verbose_executeOn("", node, ln, fn);
-    chpl_comm_diags_incr(execute_on);
+    chpl_comm_diags_verbose_executeOn(prg, "", node, ln, fn);
+    chpl_comm_diags_incr(prg, execute_on);
 
-    execute_on_common(node, subloc, fid, arg, arg_size,
+    execute_on_common(prg, node, subloc, fid, arg, arg_size,
                      /*fast*/ false, /*blocking*/ true);
   }
 }
 
-void chpl_rt_comm_executeOnNonBlocking(c_nodeid_t node,
-                                       c_sublocid_t subloc,
-                                       chpl_fn_int_t fid,
-                                       chpl_comm_on_bundle_t *arg,
-                                       size_t arg_size,
-                                       int ln,
-                                       int32_t fn) {
+void chpl_rt_comm_execute_on_nb_impl(chpl_program_info* prg,
+                                     c_nodeid_t node,
+                                     c_sublocid_t subloc,
+                                     chpl_fn_int_t fid,
+                                     chpl_comm_on_bundle_t *arg,
+                                     size_t arg_size,
+                                     int ln,
+                                     int32_t fn) {
   if (chpl_nodeID == node) {
     assert(0); // locale model code should prevent this...
   } else {
@@ -1787,25 +1795,26 @@ void chpl_rt_comm_executeOnNonBlocking(c_nodeid_t node,
       chpl_comm_do_callbacks (&cb_data);
     }
 
-    chpl_comm_diags_verbose_executeOn("non-blocking", node, ln, fn);
-    chpl_comm_diags_incr(execute_on_nb);
+    chpl_comm_diags_verbose_executeOn(prg, "non-blocking", node, ln, fn);
+    chpl_comm_diags_incr(prg, execute_on_nb);
 
-    execute_on_common(node, subloc, fid, arg, arg_size,
+    execute_on_common(prg, node, subloc, fid, arg, arg_size,
                       /*fast*/ false, /*blocking*/ false);
   }
 }
 
 // GASNET - should only be called for "small" functions
-void chpl_rt_comm_executeOnFast(c_nodeid_t node,
-                                c_sublocid_t subloc,
-                                chpl_fn_int_t fid,
-                                chpl_comm_on_bundle_t *arg,
-                                size_t arg_size,
-                                int ln,
-                                int32_t fn) {
+void chpl_rt_comm_execute_on_fast_impl(chpl_program_info* prg,
+                                       c_nodeid_t node,
+                                       c_sublocid_t subloc,
+                                       chpl_fn_int_t fid,
+                                       chpl_comm_on_bundle_t *arg,
+                                       size_t arg_size,
+                                       int ln,
+                                       int32_t fn) {
   if (chpl_nodeID == node) {
     assert(0);
-    chpl_rt_callFtableEntryHere(CHPL_PROGRAM_ROOT, fid, arg);
+    chpl_rt_callFtableEntryHere(prg, fid, arg);
   } else {
     // Communications callback support
     if (chpl_comm_have_callbacks(chpl_comm_cb_event_kind_executeOn_fast)) {
@@ -1815,10 +1824,10 @@ void chpl_rt_comm_executeOnFast(c_nodeid_t node,
       chpl_comm_do_callbacks (&cb_data);
     }
 
-    chpl_comm_diags_verbose_executeOn("fast", node, ln, fn);
-    chpl_comm_diags_incr(execute_on_fast);
+    chpl_comm_diags_verbose_executeOn(prg, "fast", node, ln, fn);
+    chpl_comm_diags_incr(prg, execute_on_fast);
 
-    execute_on_common(node, subloc, fid, arg, arg_size,
+    execute_on_common(prg, node, subloc, fid, arg, arg_size,
                       /*fast*/ true, /*blocking*/ true);
   }
 }

@@ -272,11 +272,12 @@ module ChapelRuntimeInterface {
 
     pragma "insert line file info"
     pragma "always propagate line file info"
-    extern 'chpl_rt_comm_executeOn'
-      proc fn(node: int, subloc: int, fid: int,
+    extern 'chpl_rt_comm_execute_on'
+      proc fn(prg: c_ptr(chpl_program_info), node: int,
+              subloc: int, fid: int,
               arg: chpl_comm_on_bundle_p,
               arg_size: c_size_t): void;
-    fn(node, subloc, fid, arg, arg_size);
+    fn(infoPtrHere, node, subloc, fid, arg, arg_size);
   }
 
   pragma "chapel runtime shim"
@@ -293,11 +294,12 @@ module ChapelRuntimeInterface {
 
     pragma "insert line file info"
     pragma "always propagate line file info"
-    extern 'chpl_rt_comm_executeOnFast'
-      proc fn(node: int, subloc: int, fid: int,
+    extern 'chpl_rt_comm_execute_on_fast'
+      proc fn(prg: c_ptr(chpl_program_info), node: int,
+              subloc: int, fid: int,
               arg: chpl_comm_on_bundle_p,
               arg_size: c_size_t): void;
-    fn(node, subloc, fid, arg, arg_size);
+    fn(infoPtrHere, node, subloc, fid, arg, arg_size);
   }
 
   pragma "chapel runtime shim"
@@ -314,10 +316,11 @@ module ChapelRuntimeInterface {
 
     pragma "insert line file info"
     pragma "always propagate line file info"
-    extern 'chpl_rt_comm_executeOnNonBlocking'
-      proc fn(node: int, subloc: int, fid: int,
+    extern 'chpl_rt_comm_execute_on_nb'
+      proc fn(prg: c_ptr(chpl_program_info), node: int,
+              subloc: int, fid: int,
               arg: chpl_comm_on_bundle_p,
               arg_size: c_size_t): void;
-    fn(node, subloc, fid, arg, arg_size);
+    fn(infoPtrHere, node, subloc, fid, arg, arg_size);
   }
 }

@@ -971,10 +971,10 @@ static
 void count_unused_prefetches(struct cache_entry_s* z)
 {
   if((z->prefetch_diags_flags & ENTRY_FLAGS_PREFETCHED) != 0) {
-    chpl_comm_diags_incr(cache_prefetch_unused);
+    chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, cache_prefetch_unused);
   }
   if((z->prefetch_diags_flags & ENTRY_FLAGS_READAHEADED) != 0) {
-    chpl_comm_diags_incr(cache_readahead_unused);
+    chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, cache_readahead_unused);
   }
   z->prefetch_diags_flags = 0;
 }
@@ -2061,10 +2061,10 @@ void count_waited_prefetch(struct cache_entry_s* entry,
 {
   if (waited && entry->prefetch_diags_flags != 0) {
     if (entry->prefetch_diags_flags & ENTRY_FLAGS_PREFETCHED) {
-      chpl_comm_diags_incr(cache_prefetch_waited);
+      chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, cache_prefetch_waited);
     }
     if (entry->prefetch_diags_flags & ENTRY_FLAGS_READAHEADED) {
-      chpl_comm_diags_incr(cache_readahead_waited);
+      chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, cache_readahead_waited);
     }
     entry->prefetch_diags_flags = 0;
   }
@@ -3132,11 +3132,11 @@ int cache_get_in_page(struct rdcache_s* cache,
   // Set the flag to indicate whether it was prefetched or readahead-ed
   if (isreadahead && !(entry->prefetch_diags_flags & ENTRY_FLAGS_READAHEADED)) {
     entry->prefetch_diags_flags |= ENTRY_FLAGS_READAHEADED;
-    chpl_comm_diags_incr(cache_num_page_readaheads);
+    chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, cache_num_page_readaheads);
   }
   if (isprefetch && !isreadahead && !(entry->prefetch_diags_flags & ENTRY_FLAGS_PREFETCHED)) {
     entry->prefetch_diags_flags |= ENTRY_FLAGS_PREFETCHED;
-    chpl_comm_diags_incr(cache_num_prefetches);
+    chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, cache_num_prefetches);
   }
 
   // Decide what to store in the readahead trigger for this page
@@ -3880,9 +3880,9 @@ void chpl_cache_comm_put(void* addr, c_nodeid_t node, void* raddr,
 
   if (size != 0) {
     if (all_hits)
-      chpl_comm_diags_incr(cache_put_hits);
+      chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, cache_put_hits);
     else
-      chpl_comm_diags_incr(cache_put_misses);
+      chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, cache_put_misses);
   }
 
   return;
@@ -3928,9 +3928,9 @@ void chpl_cache_comm_get(void *addr, c_nodeid_t node, void* raddr,
 
   if (size != 0) {
     if (all_hits)
-      chpl_comm_diags_incr(cache_get_hits);
+      chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, cache_get_hits);
     else
-      chpl_comm_diags_incr(cache_get_misses);
+      chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, cache_get_misses);
   }
 
   return;

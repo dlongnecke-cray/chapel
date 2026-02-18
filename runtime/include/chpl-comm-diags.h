@@ -123,14 +123,12 @@ void chpl_comm_diags_copy(chpl_commDiagnostics* cd) {
 
 // TODO (dlongnecke): Currently 'getCommDiagsTemporarilyDisabled' is a
 // callback, maybe that ought to change so that it lives in the runtime
-// and becomes a runtime toggled property. Right now it will be per-program
-// and that doesn't really make sense. Another option is that we can just
-// toggle the flag here just from the root program (e.g., make wrappers
-// that just invoke the root program).
-#define chpl_comm_diags_verbose_printf(is_unstable, format, ...)             \
+// and becomes a runtime toggled property.
+//
+// Right now it is toggled per-program.
+#define chpl_comm_diags_verbose_printf(prg__, is_unstable, format, ...)      \
   do {                                                                       \
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,                                \
-                           chpl_task_getCommDiagsTemporarilyDisabled);       \
+    CHPL_PROGRAM_DATA_TEMP(prg__, chpl_task_getCommDiagsTemporarilyDisabled);\
     if (chpl_verbose_comm                                                    \
         && !chpl_task_getCommDiagsTemporarilyDisabled()                      \
         && (!is_unstable || chpl_comm_diags_print_unstable)) {               \
@@ -148,37 +146,36 @@ void chpl_comm_diags_copy(chpl_commDiagnostics* cd) {
   } while(0)
 
 #define chpl_comm_diags_verbose_rdma(op, node, size, ln, fn, commid)          \
-  chpl_comm_diags_verbose_printf(false,                                       \
+  chpl_comm_diags_verbose_printf(CHPL_PROGRAM_ROOT, false,                    \
                                  "%s:%d: remote %s, node %d, %zu bytes, "     \
                                  "commid %d",                                 \
                                  chpl_lookupFilename(fn), ln, op,             \
                                  (int) node, size, (int) commid)
 
 #define chpl_comm_diags_verbose_rdmaStrd(op, node, ln, fn, commid)            \
-  chpl_comm_diags_verbose_printf(false,                                       \
+  chpl_comm_diags_verbose_printf(CHPL_PROGRAM_ROOT, false,                    \
                                  "%s:%d: remote strided %s, node %d, "        \
                                  "commid %d",                                 \
                                  chpl_lookupFilename(fn), ln, op,             \
                                  (int) node, (int) commid)
 
 #define chpl_comm_diags_verbose_amo(op, node, ln, fn)                   \
-  chpl_comm_diags_verbose_printf(true,                                  \
+  chpl_comm_diags_verbose_printf(CHPL_PROGRAM_ROOT, true,               \
                                  "%s:%d: remote %s, node %d",           \
                                  chpl_lookupFilename(fn), ln, op,       \
                                  (int) node)
 
-#define chpl_comm_diags_verbose_executeOn(kind, node, ln, fn)             \
-  chpl_comm_diags_verbose_printf(false,                                   \
+#define chpl_comm_diags_verbose_executeOn(prg__, kind, node, ln, fn)      \
+  chpl_comm_diags_verbose_printf(prg__, false,                            \
                                  "%s:%d: remote %-*sexecuteOn, node %d",  \
                                  chpl_lookupFilename(fn), ln,             \
                                  ((int) strlen(kind)                      \
                                   + ((strlen(kind) == 0) ? 0 : 1)),       \
                                  kind, (int) node)
 
-#define chpl_comm_diags_incr(_ctr)                                           \
+#define chpl_comm_diags_incr(prg__, _ctr)                                    \
   do {                                                                       \
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,                                \
-                           chpl_task_getCommDiagsTemporarilyDisabled);       \
+    CHPL_PROGRAM_DATA_TEMP(prg__, chpl_task_getCommDiagsTemporarilyDisabled);\
     if (chpl_comm_diagnostics &&                                             \
         !chpl_task_getCommDiagsTemporarilyDisabled()) {                      \
       chpl_atomic_uint_least64_t* ctrAddr = &chpl_comm_diags_counters._ctr;  \
