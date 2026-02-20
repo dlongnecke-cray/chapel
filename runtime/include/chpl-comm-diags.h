@@ -26,6 +26,7 @@
 
 #include "chpl-atomics.h"
 #include "chpl-comm.h"
+#include "chpl-linefile-support.h"
 #include "error.h"
 
 #ifdef __cplusplus

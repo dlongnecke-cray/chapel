@@ -72,6 +72,7 @@ ssize_t chpl_comm_getenvMaxHeapSize(void);
 typedef struct {
   chpl_arg_bundle_kind_t kind;  // 'kind' indicator must be first in any bundle
   chpl_comm_bundleData_t comm;  // for comm layer wrappers
+  chpl_prg_id prg_id;
   chpl_task_bundle_t task_bundle;
   uint64_t payload[0];
 } chpl_comm_on_bundle_t;
@@ -91,9 +92,6 @@ chpl_task_bundle_t* chpl_comm_on_bundle_task_bundle(chpl_comm_on_bundle_t* a)
 // This is a convenience function for use by the module code, in which
 // we have function table indices rather than function pointers.
 //
-// TODO: This will have to go bye-bye and the module code will be responsible
-//       for writing a wrapper over this.
-//
 static inline
 void chpl_rt_comm_taskCallFtableEntry(
                         chpl_program_info* prg,     // program info
@@ -108,7 +106,29 @@ void chpl_rt_comm_taskCallFtableEntry(
                                      lineno, filename);
 }
 
+static inline
+void chpl_rt_comm_bundle_call_ftable_entry(chpl_comm_on_bundle_t* bundle) {
+  // TODO: Right now this assumes that the bundle is remote. If we had
+  // comm-layer independent access to the calling node, we could make a
+  // choice to translate via program ID or use the local program pointer.
+  chpl_task_bundle_t* tb = &bundle->task_bundle;
 
+  chpl_prg_id prg_id = bundle->prg_id;
+  if (prg_id == CHPL_PROGRAM_NULL_ID) {
+    chpl_error("Task bundle has NULL program ID", 0, 0);
+  }
+
+  // Translate the numeric ID into a program data pointer on this locale.
+  chpl_program_info* prg = CHPL_PROGRAM_FETCH(prg_id);
+  if (prg == NULL) {
+    chpl_error("Failed to translate program ID to pointer", 0, 0);
+  }
+
+  // At this point, we can just call the entry using the program's ftable.
+  CHPL_PROGRAM_DATA_TEMP(prg, chpl_ftable);
+  int64_t fid = tb->requested_fid;
+  (*chpl_ftable[fid])(bundle);
+}
 
 // Do a GET in a nonblocking fashion, returning a handle which can be used to
 // wait for the GET to complete. The destination buffer must not be modified

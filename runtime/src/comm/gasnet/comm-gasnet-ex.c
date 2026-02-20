@@ -183,6 +183,7 @@ void wait_done_obj(done_t* done, chpl_bool do_yield)
 typedef struct {
   c_nodeid_t    caller;
   c_sublocid_t  subloc;
+  chpl_prg_id   prg_id;
 
   void*         ack;
 
@@ -270,9 +271,8 @@ typedef enum {
 static void AM_fork_fast(gasnet_token_t token, void* buf, size_t nbytes) {
   chpl_comm_on_bundle_t *f = buf;
 
-  // Run the function
-  int64_t fid = f->task_bundle.requested_fid;
-  chpl_rt_callFtableEntryHere(CHPL_PROGRAM_ROOT, fid, f);
+  // Call the function using info from the bundle.
+  chpl_rt_comm_bundle_call_ftable_entry(f);
 
   // Signal that the handler has completed if that was requested.
   if (f->comm.ack)
@@ -285,13 +285,18 @@ size_t setup_small_fork_task(small_fork_task_t* dst, small_fork_hdr_t* f, size_t
 {
   chpl_comm_bundleData_t comm  = { .caller = f->caller,
                                    .ack    = f->ack };
-  chpl_comm_on_bundle_t bundle = { .kind = CHPL_ARG_BUNDLE_KIND_COMM,
-                                   .comm =  comm };
+  chpl_comm_on_bundle_t bundle = { .kind          = CHPL_ARG_BUNDLE_KIND_COMM,
+                                   .comm          = comm,
+                                   .prg_id        = f->prg_id };
+
   chpl_comm_on_bundle_t *bptr  = &dst->bundle;
   size_t payload_size = nbytes - sizeof(small_fork_hdr_t);
 
-  // Copy task-local data to the new task
+  // Copy task-local data to the new task.
   bundle.task_bundle.infoChapel = f->infoChapel;
+
+  // Also set the 'fid'.
+  bundle.task_bundle.requested_fid = f->fid;
 
   dst->bundle = bundle;
 
@@ -307,8 +312,9 @@ size_t setup_large_fork_task(large_fork_task_t* dst, large_fork_t* f, size_t nby
 {
   chpl_comm_bundleData_t comm  = { .caller = f->hdr.caller,
                                    .ack    = f->hdr.ack };
-  chpl_comm_on_bundle_t bundle = { .kind = CHPL_ARG_BUNDLE_KIND_COMM,
-                                   .comm =  comm };
+  chpl_comm_on_bundle_t bundle = { .kind          = CHPL_ARG_BUNDLE_KIND_COMM,
+                                   .comm          = comm,
+                                   .prg_id        = f->hdr.prg_id };
 
   // Copy task-local data to the new task
   bundle.task_bundle.infoChapel = f->hdr.infoChapel;
@@ -329,8 +335,13 @@ static void AM_fork_fast_small(gasnet_token_t token, void* buf, size_t nbytes) {
   // Copy the data into a chpl_comm_on_bundle_t
   setup_small_fork_task(&task, f, nbytes);
 
+  chpl_rt_comm_bundle_call_ftable_entry(bptr);
+
+  /*
+    TODO: May not work cause we'shallow copying around partial on_bundles
   // Run the function
   chpl_rt_callFtableEntryHere(CHPL_PROGRAM_ROOT, f->fid, bptr);
+  */
 
   // Signal that the handler has completed if that was requested.
   if (f->ack)
@@ -340,8 +351,11 @@ static void AM_fork_fast_small(gasnet_token_t token, void* buf, size_t nbytes) {
 
 
 static void fork_wrapper(chpl_comm_on_bundle_t *f) {
+  chpl_rt_comm_bundle_call_ftable_entry(f);
+  /*
   int64_t fid = f->task_bundle.requested_fid;
   chpl_rt_callFtableEntryHere(CHPL_PROGRAM_ROOT, fid, f);
+  */
 
   GASNET_Safe(gasnet_AMRequestShort2(f->comm.caller, SIGNAL,
                                      Arg0(f->comm.ack), Arg1(f->comm.ack)));
@@ -395,8 +409,11 @@ static void fork_large_wrapper(large_fork_task_t* f) {
   chpl_comm_get(arg, caller, arg_on_caller, bundle_size_on_caller,
                 CHPL_COMM_UNKNOWN_ID, 0, CHPL_FILE_IDX_FORK_LARGE);
 
+  chpl_rt_comm_bundle_call_ftable_entry(arg);
+  /*
   // Call the on body function
   chpl_rt_callFtableEntryHere(CHPL_PROGRAM_ROOT, fid, arg);
+  */
 
   // Signal completion
   GASNET_Safe(gasnet_AMRequestShort2(caller, SIGNAL, Arg0(ack), Arg1(ack)));
@@ -423,8 +440,11 @@ static void AM_fork_large(gasnet_token_t token, void* buf, size_t nbytes) {
 }
 
 static void fork_nb_wrapper(chpl_comm_on_bundle_t *f) {
+  chpl_rt_comm_bundle_call_ftable_entry(f);
+  /*
   int64_t fid = f->task_bundle.requested_fid;
   chpl_rt_callFtableEntryHere(CHPL_PROGRAM_ROOT, fid, f);
+  */
 }
 
 static void AM_fork_nb(gasnet_token_t  token,
@@ -481,8 +501,11 @@ static void fork_nb_large_wrapper(large_fork_task_t* f) {
                                      Arg0(arg_on_caller),
                                      Arg1(arg_on_caller)));
 
+  chpl_rt_comm_bundle_call_ftable_entry(arg);
+  /*
   // Call the user function
   chpl_rt_callFtableEntryHere(CHPL_PROGRAM_ROOT, fid, arg);
+  */
 
   // Free the bundle we just allocated
   chpl_mem_free(arg, 0, 0);
@@ -1680,6 +1703,7 @@ void execute_on_common(chpl_program_info* prg,
 
     small_fork_hdr_t hdr = { .caller = chpl_nodeID,
                              .subloc = subloc,
+                             .prg_id = prg->id,
                              .ack = blocking ? &done : NULL,
                              .infoChapel = infoChapel,
                              .fid = fid,
@@ -1755,25 +1779,8 @@ void chpl_rt_comm_execute_on_impl(chpl_program_info* prg,
                                   size_t arg_size,
                                   int ln,
                                   int32_t fn) {
-  if (chpl_nodeID == node) {
-    assert(0);
-    chpl_rt_callFtableEntryHere(prg, fid, arg);
-  } else {
-    // Communications callback support
-    if (chpl_comm_have_callbacks(chpl_comm_cb_event_kind_executeOn)) {
-      assert(0 == "Path not touched yet!");
-      chpl_comm_cb_info_t cb_data =
-        {chpl_comm_cb_event_kind_executeOn, chpl_nodeID, node,
-         .iu.executeOn={subloc, fid, arg, arg_size, ln, fn}};
-      chpl_comm_do_callbacks (&cb_data);
-    }
-
-    chpl_comm_diags_verbose_executeOn(prg, "", node, ln, fn);
-    chpl_comm_diags_incr(prg, execute_on);
-
-    execute_on_common(prg, node, subloc, fid, arg, arg_size,
-                     /*fast*/ false, /*blocking*/ true);
-  }
+  execute_on_common(prg, node, subloc, fid, arg, arg_size,
+                   /*fast*/ false, /*blocking*/ true);
 }
 
 void chpl_rt_comm_execute_on_nb_impl(chpl_program_info* prg,
@@ -1784,23 +1791,8 @@ void chpl_rt_comm_execute_on_nb_impl(chpl_program_info* prg,
                                      size_t arg_size,
                                      int ln,
                                      int32_t fn) {
-  if (chpl_nodeID == node) {
-    assert(0); // locale model code should prevent this...
-  } else {
-    // Communications callback support
-    if (chpl_comm_have_callbacks(chpl_comm_cb_event_kind_executeOn_nb)) {
-      chpl_comm_cb_info_t cb_data =
-        {chpl_comm_cb_event_kind_executeOn_nb, chpl_nodeID, node,
-         .iu.executeOn={subloc, fid, arg, arg_size, ln, fn}};
-      chpl_comm_do_callbacks (&cb_data);
-    }
-
-    chpl_comm_diags_verbose_executeOn(prg, "non-blocking", node, ln, fn);
-    chpl_comm_diags_incr(prg, execute_on_nb);
-
-    execute_on_common(prg, node, subloc, fid, arg, arg_size,
-                      /*fast*/ false, /*blocking*/ false);
-  }
+  execute_on_common(prg, node, subloc, fid, arg, arg_size,
+                    /*fast*/ false, /*blocking*/ false);
 }
 
 // GASNET - should only be called for "small" functions
@@ -1812,24 +1804,8 @@ void chpl_rt_comm_execute_on_fast_impl(chpl_program_info* prg,
                                        size_t arg_size,
                                        int ln,
                                        int32_t fn) {
-  if (chpl_nodeID == node) {
-    assert(0);
-    chpl_rt_callFtableEntryHere(prg, fid, arg);
-  } else {
-    // Communications callback support
-    if (chpl_comm_have_callbacks(chpl_comm_cb_event_kind_executeOn_fast)) {
-      chpl_comm_cb_info_t cb_data =
-        {chpl_comm_cb_event_kind_executeOn_fast, chpl_nodeID, node,
-         .iu.executeOn={subloc, fid, arg, arg_size, ln, fn}};
-      chpl_comm_do_callbacks (&cb_data);
-    }
-
-    chpl_comm_diags_verbose_executeOn(prg, "fast", node, ln, fn);
-    chpl_comm_diags_incr(prg, execute_on_fast);
-
-    execute_on_common(prg, node, subloc, fid, arg, arg_size,
-                      /*fast*/ true, /*blocking*/ true);
-  }
+  execute_on_common(prg, node, subloc, fid, arg, arg_size,
+                    /*fast*/ true, /*blocking*/ true);
 }
 
 void chpl_comm_ensure_progress(void) { }

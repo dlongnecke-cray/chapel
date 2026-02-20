@@ -100,10 +100,19 @@ chpl_program_info* chpl_program_info_from_id_here(chpl_prg_id id) {
   if (id == CHPL_PROGRAM_NULL_ID) return NULL;
   if (id == CHPL_PROGRAM_ROOT_ID) return chpl_prg_root;
 
-  // TODO...
-  abort();
+  // Fetch pointers from the root program.
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_getPtrForIdxHere);
 
-  return NULL;
+  chpl_program_info* ret = chpl_getPtrForIdxHere(id);
+
+  if (ret == NULL) {
+    chpl_error("Failed to fetch program data for ID", 0, 0);
+  }
+
+  // This should hold...
+  assert(ret->id == id);
+
+  return ret;
 }
 
 chpl_prg_id chpl_program_info_id(const chpl_program_info* prg) {

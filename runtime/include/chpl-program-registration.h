@@ -30,7 +30,7 @@ extern "C" {
 // Uncomment this to embed debugging information.
 // LEVELS: 0 = none, 1 = reasonable, 2 = ALL
 //
-// #define CHPL_RT_DEBUG_PROGRAM_ACCESS 1
+#define CHPL_RT_DEBUG_PROGRAM_ACCESS 1
 
 #ifdef LAUNCHER
   // Except, never bother in the launcher...
@@ -139,7 +139,8 @@ typedef uint64_t chpl_prg_id;
 #define CHPL_PROGRAM_FETCH(id__) (chpl_program_info_from_id_here(id__))
 
 /** Retrieve data from a program. */
-#ifndef CHPL_RT_DEBUG_PROGRAM_ACCESS
+#if !defined(CHPL_RT_DEBUG_PROGRAM_ACCESS) || \
+             CHPL_RT_DEBUG_PROGRAM_ACCESS <= 0
   #define CHPL_PROGRAM_DATA(prg__, data_name__) (prg__->data.data_name__)
 #else
   #define CHPL_PROGRAM_DATA(prg__, data_name__)                         \

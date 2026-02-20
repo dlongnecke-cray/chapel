@@ -76,7 +76,6 @@ typedef struct chpl_task_bundle {
   int lineno;
   int filename;
   chpl_program_info* prg;
-  chpl_prg_id prgId;
   c_sublocid_t requestedSubloc;
   chpl_fn_int_t requested_fid;
   chpl_fn_p requested_fn;

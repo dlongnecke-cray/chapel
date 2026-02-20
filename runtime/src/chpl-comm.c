@@ -26,9 +26,12 @@
 
 #include "chpl-align.h"
 #include "chpl-comm.h"
+#include "chpl-comm-callbacks.h"
+#include "chpl-comm-callbacks-internal.h"
 #include "chpl-comm-compiler-macros.h"
 #include "chpl-comm-diags.h"
 #include "chpl-comm-internal.h"
+#include "chpl-gen-includes.h"
 #include "chpl-gpu-diags.h"
 #include "chpl-env.h"
 #include "chpl-mem.h"
@@ -287,6 +290,16 @@ static void execute_on_family_common_setup(chpl_program_info* prg,
                                            size_t arg_size,
                                            int ln,
                                            int32_t fn) {
+  chpl_task_bundle_t* tb = &arg->task_bundle;
+
+  // This is needed so that we can translate program info across locales.
+  arg->prg_id = prg->id;
+
+  // Local pointer is probably not needed, but just set it anyway.
+  tb->prg = prg;
+
+  // Also set the 'arg->kind'. It can be overridden by a comm-layer if needed.
+  arg->kind = CHPL_ARG_BUNDLE_KIND_COMM;
 }
 
 void chpl_rt_comm_execute_on(chpl_program_info* prg,
@@ -299,6 +312,22 @@ void chpl_rt_comm_execute_on(chpl_program_info* prg,
                              int32_t fn) {
   execute_on_family_common_setup(prg, node, subloc, fid, arg,
                                  arg_size, ln, fn);
+
+  if (node == chpl_nodeID) {
+    assert(0 && "Should have been handled by locale model!");
+    chpl_rt_callFtableEntryHere(prg, fid, arg);
+  }
+
+  if (chpl_comm_have_callbacks(chpl_comm_cb_event_kind_executeOn)) {
+    chpl_comm_cb_info_t cb_data =
+      {chpl_comm_cb_event_kind_executeOn, chpl_nodeID, node,
+       .iu.executeOn={subloc, fid, arg, arg_size, ln, fn}};
+    chpl_comm_do_callbacks (&cb_data);
+  }
+
+  chpl_comm_diags_verbose_executeOn(prg, "", node, ln, fn);
+  chpl_comm_diags_incr(prg, execute_on);
+
   chpl_rt_comm_execute_on_impl(prg, node, subloc, fid, arg,
                                arg_size, ln, fn);
 }
@@ -313,6 +342,22 @@ void chpl_rt_comm_execute_on_fast(chpl_program_info* prg,
                                   int32_t fn) {
   execute_on_family_common_setup(prg, node, subloc, fid, arg,
                                  arg_size, ln, fn);
+
+  if (node == chpl_nodeID) {
+    assert(0 && "Should have been handled by locale model!");
+    chpl_rt_callFtableEntryHere(prg, fid, arg);
+  }
+
+  if (chpl_comm_have_callbacks(chpl_comm_cb_event_kind_executeOn_fast)) {
+    chpl_comm_cb_info_t cb_data =
+      {chpl_comm_cb_event_kind_executeOn_fast, chpl_nodeID, node,
+       .iu.executeOn={subloc, fid, arg, arg_size, ln, fn}};
+    chpl_comm_do_callbacks (&cb_data);
+  }
+
+  chpl_comm_diags_verbose_executeOn(prg, "fast", node, ln, fn);
+  chpl_comm_diags_incr(prg, execute_on_fast);
+
   chpl_rt_comm_execute_on_fast_impl(prg, node, subloc, fid, arg,
                                     arg_size, ln, fn);
 }
@@ -327,6 +372,22 @@ void chpl_rt_comm_execute_on_nb(chpl_program_info* prg,
                                 int32_t fn) {
   execute_on_family_common_setup(prg, node, subloc, fid, arg,
                                  arg_size, ln, fn);
+
+  if (node == chpl_nodeID) {
+    assert(0 && "Should have been handled by locale model!");
+    chpl_rt_callFtableEntryHere(prg, fid, arg);
+  }
+
+  if (chpl_comm_have_callbacks(chpl_comm_cb_event_kind_executeOn_nb)) {
+    chpl_comm_cb_info_t cb_data =
+      {chpl_comm_cb_event_kind_executeOn_nb, chpl_nodeID, node,
+       .iu.executeOn={subloc, fid, arg, arg_size, ln, fn}};
+    chpl_comm_do_callbacks (&cb_data);
+  }
+
+  chpl_comm_diags_verbose_executeOn(prg, "non-blocking", node, ln, fn);
+  chpl_comm_diags_incr(prg, execute_on_nb);
+
   chpl_rt_comm_execute_on_nb_impl(prg, node, subloc, fid, arg,
                                   arg_size, ln, fn);
 }

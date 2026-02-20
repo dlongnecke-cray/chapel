@@ -263,6 +263,7 @@ module ChapelProgramRegistration {
     info.setCallback('chpl_qio_get_locales_for_region');
     info.setCallback('chpl_qio_file_close');
     info.setCallback('chpl_mapPtrToIdxHere');
+    info.setCallback('chpl_getPtrForIdxHere');
   }
 
   export proc chpl_prepareProgramInfoHere(): c_ptr(chpl_program_info) {

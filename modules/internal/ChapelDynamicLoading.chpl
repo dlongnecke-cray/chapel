@@ -1064,6 +1064,17 @@ module ChapelDynamicLoading {
     return ret;
   }
 
+  export proc chpl_getPtrForIdxHere(idx: int): c_ptr(void) {
+    if idx <= 0 then return nil;
+
+    local do manage chpl_localPtrCache.guard.read() as m {
+      var ret: c_ptr(void);
+      if m.get(idx, ret) then return ret;
+    }
+
+    return nil;
+  }
+
   // This function is called by the compiler to lookup wide pointer indices.
   export proc chpl_dynamicProcIdxToLocalPtr(idx: int): c_ptr(void) {
     const ret = if isDynamicLoadingSupported
