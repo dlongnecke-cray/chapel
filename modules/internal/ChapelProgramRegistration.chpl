@@ -264,6 +264,7 @@ module ChapelProgramRegistration {
     info.setCallback('chpl_qio_file_close');
     info.setCallback('chpl_mapPtrToIdxHere');
     info.setCallback('chpl_getPtrForIdxHere');
+    info.setCallback('chpl_areAnyChapelProgramsLoaded');
   }
 
   export proc chpl_prepareProgramInfoHere(): c_ptr(chpl_program_info) {

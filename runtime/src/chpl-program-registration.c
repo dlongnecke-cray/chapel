@@ -22,6 +22,7 @@
 #include "chpl-comm.h"
 #include "chpl-dynamic-loading.h"
 #include "chpl-program-registration.h"
+#include <dlfcn.h>
 #include <string.h>
 
 static chpl_program_info* chpl_prg_root;
@@ -51,6 +52,10 @@ static chpl_program_info* chpl_prg_root;
 #undef SETTER
 #undef CONCAT
 
+// Only requirement is ID should be set.
+static void program_registration_common_setup(chpl_program_info* prg) {
+}
+
 chpl_prg_id
 chpl_program_register_here_nosync(chpl_prg_id id, chpl_program_info* prg) {
   chpl_prg_id ret = CHPL_PROGRAM_NULL_ID;
@@ -64,6 +69,7 @@ chpl_program_register_here_nosync(chpl_prg_id id, chpl_program_info* prg) {
   // ERROR: The program's ID is already set!
   if (prg->id != CHPL_PROGRAM_NULL_ID) return ret;
 
+  // Map the pointer to the index using code in the root program.
   int requestingNewIdx = (id == CHPL_PROGRAM_NULL_ID);
   int64_t idxToUse = requestingNewIdx ? 0 : ((int64_t) id);
   int64_t got = chpl_rootPrgMapPtrToIdxHere(prg, idxToUse);
@@ -78,13 +84,19 @@ chpl_program_register_here_nosync(chpl_prg_id id, chpl_program_info* prg) {
   // Set the program's ID. It should be writeable memory.
   prg->id = ret;
 
+  program_registration_common_setup(prg);
+
   return ret;
 }
 
 int chpl_program_register_root_here(chpl_program_info* prg) {
   if (chpl_prg_root == NULL) {
+    // Bind and set the ID.
     chpl_prg_root = prg;
     prg->id = CHPL_PROGRAM_ROOT_ID;
+
+    program_registration_common_setup(prg);
+
     return 1;
   }
 
@@ -115,8 +127,19 @@ chpl_program_info* chpl_program_info_from_id_here(chpl_prg_id id) {
   return ret;
 }
 
-chpl_prg_id chpl_program_info_id(const chpl_program_info* prg) {
+chpl_prg_id chpl_program_info_id(chpl_program_info* prg) {
   return prg ? prg->id : CHPL_PROGRAM_NULL_ID;
+}
+
+const char* chpl_program_info_load_path(chpl_program_info* prg) {
+  Dl_info info;
+  int ecode = 0;
+
+  ecode = dladdr(prg, &info);
+  if (ecode == 0 || info.dli_fname == NULL) return NULL;
+
+  // This should be valid as long as 'prg' is loaded.
+  return info.dli_fname;
 }
 
 int chpl_program_info_num_data_entries(void) {

@@ -87,6 +87,7 @@
   typedef void (*chpl__heapAllocateGlobals_type)(void);
   typedef int64_t (*chpl_mapPtrToIdxHere_type)(void* ptr, int64_t idx);
   typedef void* (*chpl_getPtrForIdxHere_type)(int64_t idx);
+  typedef int (*chpl_areAnyChapelProgramsLoaded_type)(void);
 
   #define E_CALLBACK(name__)
   #define E_CONSTANT(name__, type__) typedef type__ name__##_type;
@@ -426,3 +427,5 @@ E_CALLBACK_RT(chpl_qio_file_close)
 E_CALLBACK_RT(chpl_mapPtrToIdxHere)
 
 E_CALLBACK_RT(chpl_getPtrForIdxHere)
+
+E_CALLBACK_RT(chpl_areAnyChapelProgramsLoaded)

@@ -1064,6 +1064,12 @@ module ChapelDynamicLoading {
     return ret;
   }
 
+  export proc chpl_areAnyChapelProgramsLoaded(): c_int {
+    // TODO: Cannot lock - will lead to deadlock. Need reentrant locks.
+    ref m = chpl_binaryInfoStore.handleToInfo.unsafeAccess();
+    return m.size != 0;
+  }
+
   export proc chpl_getPtrForIdxHere(idx: int): c_ptr(void) {
     if idx <= 0 then return nil;
 

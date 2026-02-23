@@ -173,7 +173,10 @@ typedef struct chpl_program_info {
 chpl_program_info* chpl_program_info_from_id_here(chpl_prg_id id);
 
 /** Get the ID of a program info. */
-chpl_prg_id chpl_program_info_id(const chpl_program_info* prg);
+chpl_prg_id chpl_program_info_id(chpl_program_info* prg);
+
+/** Get the load path of a program info. */
+const char* chpl_program_info_load_path(chpl_program_info* prg);
 
 /** Get the number of data entries in a program info. */
 int chpl_program_info_num_data_entries(void);
