@@ -1,0 +1,5 @@
+#!/bin/bash
+
+commonArgs="-suseProcedurePointers=true --no-inline --no-builtin-runtime"
+chpl $commonArgs --library --dynamic ChapelLibrary.chpl --lldb --break-on-id 2030527
+chpl $commonArgs LoadChapelLibrary.chpl
