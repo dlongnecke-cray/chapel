@@ -33,6 +33,7 @@
 #include "chpl-env.h"
 #include "chpl-exec.h"
 
+#include <math.h>
 #include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
@@ -59,6 +60,18 @@
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
 #include <dlfcn.h>
+
+#define STACK_UNWIND_MAX_SYMBOL_LENGTH 1023
+#define STACK_UNWIND_MAX_LINE_NUMBER_LENGTH 127
+#define STACK_UNWIND_START_SYMBOL "chpl_rt_stack_unwind"
+#define STACK_UNWIND_DUMP_ALL_ENV "CHPL_RT_UNWIND_ALL"
+
+//
+// TODO: Switch environment getters to use builtin 'chpl_env' ones..
+// TODO: Detect runtime symbols regardless of name.
+// TODO: Unwind to start frame.
+// ...
+//
 
 static void*
 stack_unwind_get_cursor_addr(unw_cursor_t* cursor, unw_word_t ip_offset) {
@@ -337,15 +350,16 @@ enum stack_unwind_mode {
   STACK_UNWIND_MODE_STRING
 };
 
-#define STACK_UNWIND_MAX_SYMBOL_LENGTH 1023
-#define STACK_UNWIND_MAX_LINE_NUMBER_LENGTH 127
-
 typedef struct stack_unwind_state {
+  bool is_initialized;
+
   bool print_all_frames;
   bool any_programs_loaded;
   bool has_printed_header;
   enum stack_unwind_mode mode;
-  int64_t num_stack_frames;
+  int64_t num_frames;
+  int64_t num_displayed_frames;
+  int32_t print_alignment;
 
   // Pointer to output, interpreted based on 'mode'.
   void* out;
@@ -354,7 +368,8 @@ typedef struct stack_unwind_state {
   unw_context_t uc;           // Must only initialized once.
   unw_cursor_t cursor;        // Can be assigned to "reset" traversal.
   unw_word_t ip_offset;       // Offset of instruction pointer.
-  int64_t printed_frame_num;  // Number of current _printed_ frame.
+  int64_t frame_idx;          // Number of current frame.
+  int64_t display_frame_idx;  // Number of current _printed_ frame.
 
   // Symbol name buffer.
   char symbol_buffer[STACK_UNWIND_MAX_SYMBOL_LENGTH + 1];
@@ -381,6 +396,10 @@ typedef struct stack_unwind_state {
 static bool stack_unwind_advance(stack_unwind_state* st);
 static bool stack_unwind_should_print_frame(stack_unwind_state* st);
 
+static inline int compute_digits_int64_t(int64_t x) {
+  return (llabs(x)) < 10 ? 1 : (floor(log10(llabs(x))) + 1);
+}
+
 // Returns 'true' on success.
 static bool stack_unwind_state_init(stack_unwind_state* st,
                                     enum stack_unwind_mode mode,
@@ -389,7 +408,8 @@ static bool stack_unwind_state_init(stack_unwind_state* st,
                                     void* out) {
   memset(st, 0, sizeof(*st));
 
-  int64_t num_stack_frames = 0;
+  int64_t num_displayed_frames = 0;
+  int64_t num_frames = 0;
 
   if (unw_getcontext(&st->uc) != 0) {
     DEBUG_PRINT(("unw_getcontext failed\n"));
@@ -404,33 +424,46 @@ static bool stack_unwind_state_init(stack_unwind_state* st,
   // Create a temp cursor to restore with later.
   unw_cursor_t temp_cursor = st->cursor;
 
+  // Initialize some state to help count frames.
+  st->display_frame_idx = -1;
+  st->frame_idx = -1;
+  st->print_all_frames = print_all_frames;
+
   // Count the number of frames we should print.
-  st->printed_frame_num = -1;
-  st->print_all_frames  = print_all_frames;
   while (stack_unwind_advance(st)) {
-    if (stack_unwind_should_print_frame(st)) num_stack_frames++;
+    if (stack_unwind_should_print_frame(st)) num_displayed_frames++;
+    num_frames++;
   }
+
+  assert(num_frames == (st->frame_idx + 1));
 
   // Restore the temp cursor.
   st->cursor = temp_cursor;
+
+  // Compute the number of offset spaces to use when printing frame #.
+  int print_alignment = compute_digits_int64_t(num_displayed_frames);
 
   // This module code checks to see if the Chapel program has loaded anything.
   CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_areAnyChapelProgramsLoaded);
 
   // Initialize all the remaining fields.
-  st->any_programs_loaded = chpl_areAnyChapelProgramsLoaded();
-  st->mode                = mode;
-  st->out                 = out;
-  st->str_ptr             = (char**) out;
-  st->sep                 = sep;
-  st->sepstr[0]           = sep;
-  st->sepstr[1]           = '\0';
-  st->num_stack_frames    = num_stack_frames;
-  st->printed_frame_num   = -1;
-  st->chapel_symbol_name  = NULL;
-  st->chapel_file_idx     = 0;
-  st->chapel_file_name    = NULL;
-  st->chapel_line         = 0;
+  st->any_programs_loaded   = chpl_areAnyChapelProgramsLoaded();
+  st->mode                  = mode;
+  st->out                   = out;
+  st->str_ptr               = (char**) out;
+  st->sep                   = sep;
+  st->sepstr[0]             = sep;
+  st->sepstr[1]             = '\0';
+  st->num_frames            = num_frames;
+  st->num_displayed_frames  = num_displayed_frames;
+  st->frame_idx             = -1;
+  st->display_frame_idx     = -1;
+  st->print_alignment       = print_alignment;
+  st->chapel_symbol_name    = NULL;
+  st->chapel_file_idx       = 0;
+  st->chapel_file_name      = NULL;
+  st->chapel_line           = 0;
+  st->is_initialized        = true;
 
   return true;
 }
@@ -439,6 +472,10 @@ static bool stack_unwind_state_init(stack_unwind_state* st,
 static bool stack_unwind_advance(stack_unwind_state* st) {
   // The implementation is done stepping, so the unwind is done.
   if (unw_step(&st->cursor) <= 0) return false;
+
+  // We stepped, so bump the frame count.
+  st->frame_idx++;
+  assert(!st->is_initialized || st->frame_idx < st->num_frames);
 
   // Clear Chapel state from the last frame.
   st->chapel_symbol_name  = NULL;
@@ -513,31 +550,55 @@ static bool stack_unwind_should_print_frame(stack_unwind_state* st) {
 
 static void stack_unwind_print_header_if_needed(stack_unwind_state* st) {
   if (st->has_printed_header) return;
-
   st->has_printed_header = true;
+
+  int64_t num_displayed_frames = st->num_displayed_frames;
+  int32_t num_omitted_frames = st->num_frames - st->num_displayed_frames;
+  bool any_omitted = num_omitted_frames != 0;
 
   switch (st->mode) {
     case STACK_UNWIND_MODE_FILE: {
       FILE* fp = (FILE*) st->out;
-      fprintf(fp, "Stacktrace (%" PRId64 " frames) %c%c",
-              st->num_stack_frames,
-              st->sep,
-              st->sep);
+      fprintf(fp, "Stacktrace (%" PRId64 " frames", num_displayed_frames);
+
+      if (any_omitted) {
+        fprintf(fp, ", %d omitted", num_omitted_frames);
+      }
+
+      fprintf(fp, ")%c%c", st->sep, st->sep);
     } break;
 
     case STACK_UNWIND_MODE_STRING: {
-      char line_num_buffer[STACK_UNWIND_MAX_LINE_NUMBER_LENGTH + 1];
+      char buffer[STACK_UNWIND_MAX_LINE_NUMBER_LENGTH + 1];
 
-      // Print out the line as a string.
-      int buffersz = snprintf(line_num_buffer, sizeof(line_num_buffer),
-                              "%" PRId32,
-                              st->chapel_line);
-      if (buffersz < 0) line_num_buffer[0] = '\0';
+      // Print number of frames as a string.
+      int buffersz = snprintf(buffer, sizeof(buffer), "%" PRId64,
+                              num_displayed_frames);
+      if (buffersz < 0) {
+        assert(0 && "Failed to print number, buffer too small!");
+        buffer[0] = '\0';
+      }
 
       append_to_string(&st->bufsz, &st->strsz, st->str_ptr, "Stacktrace (");
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                       line_num_buffer);
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, " frames)");
+      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, buffer);
+      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, " frames");
+
+      if (any_omitted) {
+        append_to_string(&st->bufsz, &st->strsz, st->str_ptr, ", ");
+
+        // Print omitted frame number as a string.
+        int buffersz = snprintf(buffer, sizeof(buffer), "%" PRId32,
+                                num_omitted_frames);
+        if (buffersz < 0) {
+          assert(0 && "Failed to print number, buffer too small!");
+          buffer[0] = '\0';
+        }
+
+        append_to_string(&st->bufsz, &st->strsz, st->str_ptr, buffer);
+        append_to_string(&st->bufsz, &st->strsz, st->str_ptr, " omitted");
+      }
+
+      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, ")");
       append_to_string(&st->bufsz, &st->strsz, st->str_ptr, st->sepstr);
       append_to_string(&st->bufsz, &st->strsz, st->str_ptr, st->sepstr);
     } break;
@@ -620,7 +681,10 @@ stack_unwind_print_chapel_symbol_with_info(stack_unwind_state* st) {
       // Print out the line as a string.
       int buffersz = snprintf(line_num_buffer, sizeof(line_num_buffer), "%d",
                               st->chapel_line);
-      if (buffersz < 0) line_num_buffer[0] = '\0';
+      if (buffersz < 0) {
+        assert(0 && "Failed to print number, buffer too small!");
+        line_num_buffer[0] = '\0';
+      }
 
       append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
                        st->chapel_symbol_name);
@@ -642,39 +706,53 @@ stack_unwind_print_chapel_symbol_with_info(stack_unwind_state* st) {
   }
 }
 
-static void stack_unwind_print_printed_frame_number(stack_unwind_state* st) {
-  // Increment the displayed frame counter. TODO: Can count descending...
-  st->printed_frame_num++;
+static void stack_unwind_print_display_frame_idx(stack_unwind_state* st) {
+  // Increment the displayed frame counter.
+  st->display_frame_idx++;
+
+  // TODO: Can count descending...
+  int64_t frame_num = st->display_frame_idx;
+  int alignment = st->print_alignment;
 
   switch (st->mode) {
     case STACK_UNWIND_MODE_FILE: {
       FILE* fp = ((FILE*) st->out);
-      fprintf(fp, "[%" PRId64 "] ", st->printed_frame_num);
+      fprintf(fp, "[%*" PRId64 "] ", alignment, frame_num);
     } break;
 
     case STACK_UNWIND_MODE_STRING: {
-      char printed_frame_num_buffer[STACK_UNWIND_MAX_LINE_NUMBER_LENGTH + 1];
+      int start_column = compute_digits_int64_t(frame_num);
+      char display_frame_idx_buffer[STACK_UNWIND_MAX_LINE_NUMBER_LENGTH + 1];
 
       // Print out the frame number as a string.
-      int buffersz = snprintf(printed_frame_num_buffer, sizeof(printed_frame_num_buffer),
+      int buffersz = snprintf(display_frame_idx_buffer,
+                              sizeof(display_frame_idx_buffer),
                               "%" PRId64,
-                              st->printed_frame_num);
-      if (buffersz < 0) printed_frame_num_buffer[0] = '\0';
+                              frame_num);
+      if (buffersz < 0) {
+        assert(0 && "Failed to print number, buffer too small!");
+        display_frame_idx_buffer[0] = '\0';
+      }
+
+      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, "[");
+
+      for (int32_t i = start_column; i < alignment; i++) {
+        append_to_string(&st->bufsz, &st->strsz, st->str_ptr, " ");
+      }
 
       append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                       "[");
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                       printed_frame_num_buffer);
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                       "] ");
+                       display_frame_idx_buffer);
+      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, "] ");
     } break;
   }
 }
 
 static void stack_unwind_print_frame(stack_unwind_state* st) {
+  if (!st->is_initialized) return;
+
   stack_unwind_print_header_if_needed(st);
 
-  stack_unwind_print_printed_frame_number(st);
+  stack_unwind_print_display_frame_idx(st);
 
   bool is_foreign_symbol = st->prg == NULL;
   bool have_chapel_info = st->chapel_symbol_name != NULL;
@@ -709,13 +787,17 @@ static void stack_unwind_epilogue(stack_unwind_state* st) {
 // Since this stack trace is printed out a program exit, we do not believe it
 // is performance sensitive. Additionally, this initial implementation favors
 // simplicity over performance.
-static void stack_unwind_helper(enum stack_unwind_mode mode,
-                                bool print_all_frames,
-                                char sep,
-                                void* out) {
+//
+// Returns 'true' if there were any omitted frames during the trace.
+static bool stack_unwind(enum stack_unwind_mode mode,
+                         bool print_all_frames,
+                         char sep,
+                         void* out) {
   stack_unwind_state st;
 
-  if (!stack_unwind_state_init(&st, mode, print_all_frames, sep, out)) return;
+  if (!stack_unwind_state_init(&st, mode, print_all_frames, sep, out)) {
+    return false;
+  }
 
   while (stack_unwind_advance(&st)) {
     if (stack_unwind_should_print_frame(&st)) {
@@ -724,6 +806,10 @@ static void stack_unwind_helper(enum stack_unwind_mode mode,
   }
 
   stack_unwind_epilogue(&st);
+
+  bool ret = st.is_initialized && st.num_frames != st.num_displayed_frames;
+
+  return ret;
 }
 
 void chpl_rt_stack_unwind(FILE* out, char sep) {
@@ -739,18 +825,21 @@ void chpl_rt_stack_unwind(FILE* out, char sep) {
   }
 
   // Always print if 'CHPL_DEVELOPER' is set. TODO: Also check root program?
-  bool print_all_frames = getenv("CHPL_DEVELOPER") != NULL;
+  bool print_all_frames = getenv(STACK_UNWIND_DUMP_ALL_ENV) != NULL;
 
-  // Dump the stack trace now.
-  stack_unwind_helper(STACK_UNWIND_MODE_FILE, print_all_frames, sep, out);
+  // Run the stack trace now.
+  bool any_omitted_frames = stack_unwind(STACK_UNWIND_MODE_FILE,
+                                         print_all_frames,
+                                         sep, out);
 
   if (!user_set && strcmp(CHPL_UNWIND, "none") != 0) {
     fprintf(out, "%cDisable full stacktrace by setting 'CHPL_RT_UNWIND=0'%c",
             sep, sep);
   }
 
-  if (getenv("CHPL_DEVELOPER") == NULL) {
-    fprintf(out, "Show complete stacktrace by setting 'CHPL_DEVELOPER=1'%c",
+  if (any_omitted_frames && getenv(STACK_UNWIND_DUMP_ALL_ENV) == NULL) {
+    fprintf(out, "Show complete stacktrace by setting '%s=1'%c",
+            STACK_UNWIND_DUMP_ALL_ENV,
             sep);
   }
 }
@@ -760,9 +849,9 @@ char* chpl_rt_stack_unwind_to_string(char sep) {
   void* out = ((void*) &str);
 
   // Always print if 'CHPL_DEVELOPER' is set. TODO: Also check root program?
-  bool print_all_frames = getenv("CHPL_DEVELOPER") != NULL;
+  bool print_all_frames = getenv(STACK_UNWIND_DUMP_ALL_ENV) != NULL;
 
-  stack_unwind_helper(STACK_UNWIND_MODE_STRING, print_all_frames, sep, out);
+  stack_unwind(STACK_UNWIND_MODE_STRING, print_all_frames, sep, out);
 
   return str;
 }
