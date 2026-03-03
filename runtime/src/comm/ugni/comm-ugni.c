@@ -94,6 +94,11 @@
 
 #include "chpl-env.h"
 
+// TODO (dlongnecke): Placeholder because I am not ready to touch this code.
+static const char* chpl_lookupFilename(int32_t idx) {
+  return chpl_rt_lookup_filename(CHPL_PROGRAM_ROOT, idx);
+}
+
 #define DEBUG_STATS 1
 
 static uint64_t debug_flag = 0;
@@ -5120,7 +5125,7 @@ void chpl_comm_put(void* addr, c_nodeid_t locale, void* raddr,
       chpl_comm_do_callbacks (&cb_data);
   }
 
-  chpl_comm_diags_verbose_rdma("put", locale, size, ln, fn, commID);
+  chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "put", locale, size, ln, fn, commID);
   chpl_comm_diags_incr(put);
 
   do_remote_put(addr, locale, raddr, size, NULL, may_proxy_true);
@@ -5646,7 +5651,7 @@ void chpl_comm_get_unordered(void* addr, c_nodeid_t locale, void* raddr,
       chpl_comm_do_callbacks (&cb_data);
   }
 
-  chpl_comm_diags_verbose_rdma("unordered get", locale, size, ln, fn, commID);
+  chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "unordered get", locale, size, ln, fn, commID);
   chpl_comm_diags_incr(get);
 
   do_remote_get_buff(addr, locale, raddr, size, may_proxy_true);
@@ -5677,7 +5682,7 @@ void chpl_comm_put_unordered(void* addr, c_nodeid_t locale, void* raddr,
       chpl_comm_do_callbacks (&cb_data);
   }
 
-  chpl_comm_diags_verbose_rdma("unordered put", locale, size, ln, fn, commID);
+  chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "unordered put", locale, size, ln, fn, commID);
   chpl_comm_diags_incr(put);
 
   do_remote_put_buff(addr, locale, raddr, size, may_proxy_true);
@@ -5712,7 +5717,7 @@ void chpl_comm_get(void* addr, c_nodeid_t locale, void* raddr,
       chpl_comm_do_callbacks (&cb_data);
   }
 
-  chpl_comm_diags_verbose_rdma("get", locale, size, ln, fn, commID);
+  chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "get", locale, size, ln, fn, commID);
   chpl_comm_diags_incr(get);
 
   do_remote_get(addr, locale, raddr, size, may_proxy_true);

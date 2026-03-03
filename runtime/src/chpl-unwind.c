@@ -436,14 +436,14 @@ static void chpl_stack_unwind_helper(enum chpl_stack_unwind_mode mode,
               if (any_programs_loaded) {
                 fprintf((FILE*)out, "%s() at %s:%d in program at %s%c",
                          chpl_funSymTable[t+1],
-                         chpl_lookupFilename(chpl_filenumSymTable[t]),
+                         chpl_rt_lookup_filename(prg, chpl_filenumSymTable[t]),
                          line,
                          path,
                          sep);
               } else {
                 fprintf((FILE*)out, "%s() at %s:%d%c",
                          chpl_funSymTable[t+1],
-                         chpl_lookupFilename(chpl_filenumSymTable[t]),
+                         chpl_rt_lookup_filename(prg, chpl_filenumSymTable[t]),
                          line,
                          sep);
               }
@@ -456,7 +456,7 @@ static void chpl_stack_unwind_helper(enum chpl_stack_unwind_mode mode,
               append_to_string(&bufsz, &strsz, str_ptr, chpl_funSymTable[t+1]);
               append_to_string(&bufsz, &strsz, str_ptr, "() at ");
               append_to_string(&bufsz, &strsz, str_ptr,
-                              chpl_lookupFilename(chpl_filenumSymTable[t]));
+                              chpl_rt_lookup_filename(prg, chpl_filenumSymTable[t]));
               append_to_string(&bufsz, &strsz, str_ptr, ":");
               append_to_string(&bufsz, &strsz, str_ptr, buffer); // line number
               if (any_programs_loaded) {
@@ -479,7 +479,7 @@ static void chpl_stack_unwind_helper(enum chpl_stack_unwind_mode mode,
   }
 }
 
-void chpl_stack_unwind(FILE* out, char sep) {
+void chpl_rt_stack_unwind(FILE* out, char sep) {
   // Consult the root program to see if we are unwinding.
   CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_UNWIND);
 
@@ -500,7 +500,7 @@ void chpl_stack_unwind(FILE* out, char sep) {
   }
 }
 
-char* chpl_stack_unwind_to_string(char sep) {
+char* chpl_rt_stack_unwind_to_string(char sep) {
   char* str = NULL;
   chpl_stack_unwind_helper(CHPL_STACK_UNWIND_MODE_STRING, sep, (void*)&str);
   return str;
@@ -508,10 +508,10 @@ char* chpl_stack_unwind_to_string(char sep) {
 
 #else
 
-void chpl_stack_unwind(FILE* out, char sep) {
+void chpl_rt_stack_unwind(FILE* out, char sep) {
 }
 
-char* chpl_stack_unwind_to_string(char sep) {
+char* chpl_rt_stack_unwind_to_string(char sep) {
   return NULL;
 }
 

@@ -113,6 +113,11 @@ void chpl_rt_comm_bundle_call_ftable_entry(chpl_comm_on_bundle_t* bundle) {
   // choice to translate via program ID or use the local program pointer.
   chpl_task_bundle_t* tb = &bundle->task_bundle;
 
+  // Need these things to do a call at all...
+  assert(bundle->prg_id != CHPL_PROGRAM_NULL_ID);
+  assert(tb != NULL);
+  assert(tb->requested_fid != 0);
+
   chpl_prg_id prg_id = bundle->prg_id;
   if (prg_id == CHPL_PROGRAM_NULL_ID) {
     chpl_error("Task bundle has NULL program ID", 0, 0);

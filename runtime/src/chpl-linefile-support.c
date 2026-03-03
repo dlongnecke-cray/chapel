@@ -28,15 +28,16 @@
 
 #include "chpl-linefile-support.h"
 
-static const char *savedFilename;
+static const char *saved_filename;
 
-typedef char fileBuff[48];
-CHPL_TLS_DECL(fileBuff, unknownFileBuffer);
+typedef char file_buff[64];
+CHPL_TLS_DECL(file_buff, unknown_file_buffer);
 
-// See note in chpl-linefile-support.h
-void chpl_saveFilename(const char *filename) { savedFilename = filename; }
+void chpl_rt_save_filename(chpl_program_info* prg, const char *filename) {
+  saved_filename = filename;
+}
 
-c_string chpl_rt_lookupBuiltinFilenameDescriptor(int32_t idx) {
+const char* chpl_rt_lookup_builtin_filename_descriptor(int32_t idx) {
   if (idx >= 0) return NULL;
 
   switch (idx) {
@@ -59,34 +60,32 @@ c_string chpl_rt_lookupBuiltinFilenameDescriptor(int32_t idx) {
     case CHPL_FILE_IDX_ON_BODY_TASK:
       return "on-body task";
     case CHPL_FILE_IDX_SAVED_FILENAME:
-      return savedFilename;
+      return saved_filename;
     default: {
-      snprintf(CHPL_TLS_GET(unknownFileBuffer), 48,
-               "<unknown file idx %" PRId32 ">", idx);
-      // There is a possibility of unknownFileBuffer changing before it is
-      // used, not a very good one though.
-      return CHPL_TLS_GET(unknownFileBuffer);
+      char* buffer = CHPL_TLS_GET(unknown_file_buffer);
+      snprintf(buffer, 48, "<unknown file idx %" PRId32 ">", idx);
+      // TODO...
+      // There is a possibility of the TLS buffer changing before it is
+      // used (not a very good one though).
+      return buffer;
     }
   }
 
   return NULL;
 }
 
-c_string chpl_lookupFilename(int32_t idx) {
+c_string chpl_rt_lookup_filename(chpl_program_info* prg, int32_t idx) {
   if (idx < 0) {
-    return chpl_rt_lookupBuiltinFilenameDescriptor(idx);
-
-  } else {
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_filenameTableSize);
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_filenameTable);
-
-    if (idx < chpl_filenameTableSize) {
-      return chpl_filenameTable[idx];
-    } else {
-      snprintf(CHPL_TLS_GET(unknownFileBuffer), 48,
-               "<unknown file idx %" PRId32 ">", idx);
-      return CHPL_TLS_GET(unknownFileBuffer);
-    }
+    return chpl_rt_lookup_builtin_filename_descriptor(idx);
   }
+
+  CHPL_PROGRAM_DATA_TEMP(prg, chpl_filenameTableSize);
+  CHPL_PROGRAM_DATA_TEMP(prg, chpl_filenameTable);
+
+  if (idx < chpl_filenameTableSize) return chpl_filenameTable[idx];
+
+  char* buffer = CHPL_TLS_GET(unknown_file_buffer);
+  snprintf(buffer, 48, "<unknown file idx %" PRId32 ">", idx);
+  return buffer;
 }
 

@@ -483,10 +483,12 @@ static void fork_nb_large_wrapper(large_fork_task_t* f) {
   void* arg_on_caller;
   chpl_fn_int_t fid;
 
+  // May need to reconstruct more bundle fields here...
+  (void) fid;
+
   caller = lg->hdr.caller;
   bundle_size_on_caller = lg->arg_size;
   arg_on_caller = lg->arg;
-  fid = lg->hdr.fid;
 
   // Allocate the bundle
   arg = chpl_mem_allocMany(1, bundle_size_on_caller,
@@ -647,7 +649,7 @@ chpl_comm_nb_handle_t chpl_comm_put_nb(void *addr, c_nodeid_t node, void* raddr,
     return (chpl_comm_nb_handle_t) ret;
   }
 
-  chpl_comm_diags_verbose_rdma("put_nb", node, size, ln, fn, commID);
+  chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "put_nb", node, size, ln, fn, commID);
   chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, put_nb);
 
   // TODO GEX consider cases where we could benefit from early re-use of source
@@ -685,7 +687,7 @@ chpl_comm_nb_handle_t chpl_comm_get_nb(void* addr, c_nodeid_t node, void* raddr,
     return (chpl_comm_nb_handle_t) ret;
   }
 
-  chpl_comm_diags_verbose_rdma("get_nb", node, size, ln, fn, commID);
+  chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "get_nb", node, size, ln, fn, commID);
   chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, get_nb);
 
   ret = gex_RMA_GetNB(myteam, addr, node, raddr, size, GEX_NO_FLAGS);
@@ -1334,7 +1336,7 @@ void  chpl_comm_put(void* addr, c_nodeid_t node, void* raddr,
       chpl_comm_do_callbacks (&cb_data);
     }
 
-    chpl_comm_diags_verbose_rdma("put", node, size, ln, fn, commID);
+    chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "put", node, size, ln, fn, commID);
     chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, put);
 
     // Handle remote address not in remote segment.
@@ -1410,7 +1412,7 @@ void  chpl_comm_get(void* addr, c_nodeid_t node, void* raddr,
       chpl_comm_do_callbacks (&cb_data);
     }
 
-    chpl_comm_diags_verbose_rdma("get", node, size, ln, fn, commID);
+    chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "get", node, size, ln, fn, commID);
     chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, get);
 
     // Handle remote address not in remote segment.
@@ -1548,7 +1550,7 @@ void  chpl_comm_get_strd(void* dstaddr, size_t* dststrides, c_nodeid_t srcnode_i
   }
 
   // the case (chpl_nodeID == srcnode) is internally managed inside gasnet
-  chpl_comm_diags_verbose_rdmaStrd("get", srcnode, ln, fn, commID);
+  chpl_comm_diags_verbose_rdmaStrd(CHPL_PROGRAM_ROOT, "get", srcnode, ln, fn, commID);
   if (chpl_nodeID != srcnode) {
     chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, get);
   }
@@ -1591,7 +1593,7 @@ void  chpl_comm_put_strd(void* dstaddr, size_t* dststrides, c_nodeid_t dstnode_i
   }
 
   // the case (chpl_nodeID == dstnode) is internally managed inside gasnet
-  chpl_comm_diags_verbose_rdmaStrd("put", dstnode, ln, fn, commID);
+  chpl_comm_diags_verbose_rdmaStrd(CHPL_PROGRAM_ROOT, "put", dstnode, ln, fn, commID);
   if (chpl_nodeID != dstnode) {
     chpl_comm_diags_incr(CHPL_PROGRAM_ROOT, put);
   }

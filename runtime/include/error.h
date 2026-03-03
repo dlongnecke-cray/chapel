@@ -106,8 +106,8 @@ void chpl_msg(int verbose_level, const char* fmt, ...)
 void chpl_error_init(void);
 #endif
 
-char* chpl_stack_unwind_to_string(char sep);
-void chpl_stack_unwind(FILE* out, char sep);
+char* chpl_rt_stack_unwind_to_string(char sep);
+void chpl_rt_stack_unwind(FILE* out, char sep);
 
 #ifdef __cplusplus
 }

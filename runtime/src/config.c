@@ -506,8 +506,9 @@ void parseConfigFile(const char* configFilename,
     char* message = chpl_glom_strings(2, "Unable to open ", configFilename);
     chpl_error(message, lineno, filename);
   }
-  chpl_saveFilename(configFilename); // CHPL_FILE_IDX_SAVED_FILENAME will now
-                                     // give us configFilename
+
+  chpl_rt_save_filename(CHPL_PROGRAM_ROOT, configFilename);
+
   while (!feof(argFile)) {
     int numScans = 0;
     char setConfigBuffer[_default_string_length];

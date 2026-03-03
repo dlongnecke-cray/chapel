@@ -22,23 +22,32 @@
 #define _chpl_linefile_support_h_
 
 #include "chpltypes.h"
+#include "chpl-program-registration.h"
 
+// NOTE: This is a weird header that exists so that it can also be used in
+//       the compiler code?! As in the actual compiler code, not generated
+//       code. IMO we should stop doing that and simplify the compiler's
+//       responsibility here.
+// TODO: Get rid of this.
 #include "fileinfo/chpl-linefile-defs.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// chpl_saveFilename stores the passed in char*, subsequent calls to
-// chpl_lookupFilename(CHPL_FILE_IDX_SAVED_FILENAME) will return that stored
+// This function stores the passed in char*, and subsequent calls to
+// chpl_rt_lookup_filename(CHPL_FILE_IDX_SAVED_FILENAME) will return the
 // pointer. CHPL_FILE_IDX_SAVED_FILENAME may only be used while the original
-// filename pointer is still valid.  This was added to support reporting errors
-// in a user-supplied file for config vars.
-void chpl_saveFilename(const char *filename);
+// filename pointer is still valid.  This was added to support reporting
+// errors in a user-supplied file for config vars.
+//
+// TODO: This will have to do something different, e.g., write-back to
+//       per-program memory.
+void chpl_rt_save_filename(chpl_program_info* prg, const char* filename);
 
-c_string chpl_lookupFilename(int32_t idx);
+const char* chpl_rt_lookup_filename(chpl_program_info* prg, int32_t idx);
 
-c_string chpl_rt_lookupBuiltinFilenameDescriptor(int32_t idx);
+const char* chpl_rt_lookup_builtin_filename_descriptor(int32_t idx);
 
 #ifdef __cplusplus
 }

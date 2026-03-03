@@ -35,7 +35,7 @@ module ChapelRuntimeInterface {
   use ChapelBase, CTypes, ChapelProgramRegistration;
   use Reflection;
 
-  param debugRuntimeCalls = true;
+  param debugRuntimeCalls = false;
 
   // Alias for 'char**' to be used as the type of 'argv'.
   type c_argArray = c_ptr(c_ptr(c_char));
@@ -78,18 +78,21 @@ module ChapelRuntimeInterface {
   }
 
   // Lookup a filename without calling the runtime on the per-program path.
-  inline proc chpl_filenameFromIdx(idx: int(32)): string {
-    if idx < 0 {
-      const ptr = chpl_lookupBuiltinFilenameDescriptor(idx);
-      return try! string.createBorrowingBuffer(ptr);
-    }
+  // TODO: Switch return-type to 'c_ptrConst(c_char)' (compiler not happy).
+  export proc chpl_lookupFilename(idx: int(32)): chpl_c_string {
+    if idx < 0 then return chpl_lookupBuiltinFilenameDescriptor(idx);
 
+    // These are defined in our program, so we can safely access them.
     extern const chpl_filenameTableSize: int(32);
     extern const chpl_filenameTable: c_ptr(c_ptrConst(c_char));
 
     if idx >= chpl_filenameTableSize then return '<unknown file>';
+    return chpl_filenameTable[idx];
+  }
 
-    const ptr = chpl_filenameTable[idx];
+  inline proc chpl_filenameFromIdx(idx: int(32)): string {
+    const cstr = chpl_lookupFilename(idx);
+    const ptr = cstr : c_ptrConst(c_char);
     return try! string.createBorrowingBuffer(ptr);
   }
 
@@ -159,7 +162,7 @@ module ChapelRuntimeInterface {
   // TODO: Have this pragma imply "always propagate..." and "insert line...".
   pragma "chapel runtime shim"
   proc chpl_lookupBuiltinFilenameDescriptor(idx: int(32)): c_ptrConst(c_char) {
-    extern 'chpl_rt_lookupBuiltinFilenameDescriptor'
+    extern 'chpl_rt_lookup_builtin_filename_descriptor'
       proc fn(idx: int(32)): c_ptrConst(c_char);
     return fn(idx);
   }

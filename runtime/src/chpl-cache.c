@@ -376,6 +376,11 @@ static void print_time(void)
   printf("%li.%09li ", t.tv_sec, t.tv_nsec);
 }
 
+// TODO (dlongnecke): Placeholder because I am not ready to touch this code.
+static const char* chpl_lookupFilename(int32_t idx) {
+  return chpl_rt_lookup_filename(CHPL_PROGRAM_ROOT, idx);
+}
+
 static long time_duration(const struct timespec* t1, const struct timespec* t2)
 {
   long duration = 1000000000*(t2->tv_sec-t1->tv_sec) + t2->tv_nsec - t1->tv_nsec;
@@ -442,7 +447,7 @@ static long time_duration(const struct timespec* t1, const struct timespec* t2)
   do {                                                            \
     if (!x) {                                                     \
       char* stack = NULL;                                         \
-      stack = chpl_stack_unwind_to_string('\n');                  \
+      stack = chpl_rt_stack_unwind_to_string('\n');               \
       if (stack != NULL) {                                        \
         fprintf(stderr, "assertion failed. Trace: %s", stack);    \
       }                                                           \
@@ -3868,7 +3873,7 @@ void chpl_cache_comm_put(void* addr, c_nodeid_t node, void* raddr,
                "from %p\n",
                chpl_nodeID, (int)chpl_task_getId(), chpl_lookupFilename(fn), ln,
                (int)size, node, raddr, addr));
-  chpl_comm_diags_verbose_rdma("cache-put", node, size, ln, fn, commID);
+  chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "cache-put", node, size, ln, fn, commID);
 
 #ifdef DUMP
   chpl_cache_print();
@@ -3916,7 +3921,7 @@ void chpl_cache_comm_get(void *addr, c_nodeid_t node, void* raddr,
                "%d:%p to %p\n",
                chpl_nodeID, (int)chpl_task_getId(), chpl_lookupFilename(fn), ln,
                (int)size, node, raddr, addr));
-  chpl_comm_diags_verbose_rdma("cache-get", node, size, ln, fn, commID);
+  chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "cache-get", node, size, ln, fn, commID);
 
 #ifdef DUMP
   chpl_cache_print();
@@ -3947,7 +3952,7 @@ void chpl_cache_comm_prefetch(c_nodeid_t node, void* raddr,
 
   TRACE_PRINT(("%d: in chpl_cache_comm_prefetch\n", chpl_nodeID));
 
-  chpl_comm_diags_verbose_rdma("prefetch", node, size, ln, fn, commID);
+  chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "prefetch", node, size, ln, fn, commID);
 
   // Always use the cache for prefetches.
   cache_get(cache, task_local,

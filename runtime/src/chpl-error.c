@@ -43,6 +43,11 @@
 
 int verbosity = 1;
 
+// TODO (dlongnecke): Placeholder because I am not ready to touch this code.
+static const char* chpl_lookupFilename(int32_t idx) {
+  return chpl_rt_lookup_filename(CHPL_PROGRAM_ROOT, idx);
+}
+
 void chpl_warning(const char* message, int32_t lineno, int32_t filenameIdx) {
   const char* filename = NULL;
   // squash warnings if --quiet flag is used
@@ -100,7 +105,7 @@ void chpl_error_explicit(const char *message, int32_t lineno,
   fprintf(stderr, "\n");
 
 #ifdef CHPL_UNWIND_NOT_LAUNCHER
-  chpl_stack_unwind(stderr, '\n');
+  chpl_rt_stack_unwind(stderr, '\n');
 #endif
 
   chpl_exit_any(1);
@@ -164,7 +169,7 @@ void chpl_error_preformatted(const char* message) {
   fprintf(stderr, "%s\n", message);
 
 #ifdef CHPL_UNWIND_NOT_LAUNCHER
-  chpl_stack_unwind(stderr, '\n');
+  chpl_rt_stack_unwind(stderr, '\n');
 #endif
 
   chpl_exit_any(1);

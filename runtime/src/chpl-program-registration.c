@@ -18,10 +18,16 @@
  * limitations under the License.
  */
 
+// Must define to get access to 'dladdr'.
+#ifndef _GNU_SOURCE
+  #define _GNU_SOURCE
+#endif
+
 #include "chplrt.h"
 #include "chpl-comm.h"
 #include "chpl-dynamic-loading.h"
 #include "chpl-program-registration.h"
+
 #include <dlfcn.h>
 #include <string.h>
 
@@ -135,6 +141,11 @@ const char* chpl_program_info_load_path(chpl_program_info* prg) {
   Dl_info info;
   int ecode = 0;
 
+  // TODO: Note that 'dladdr' is NOT portable...if there is a situation where
+  //       we run into a platform that does NOT support it, then we can fall
+  //       back on having the program info record the path that was used when
+  //       it was created (perhaps should be doing that anyways).
+  // NOTE: But it is portable under POSIX 2024 :D.
   ecode = dladdr(prg, &info);
   if (ecode == 0 || info.dli_fname == NULL) return NULL;
 

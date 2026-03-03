@@ -135,7 +135,7 @@ void chpl_comm_diags_copy(chpl_commDiagnostics* cd) {
         && (!is_unstable || chpl_comm_diags_print_unstable)) {               \
       char* stack = NULL;                                                    \
       if (chpl_verbose_comm_stacktrace) {                                    \
-        stack = chpl_stack_unwind_to_string(' ');                            \
+        stack = chpl_rt_stack_unwind_to_string(' ');                         \
       }                                                                      \
       if (stack != NULL) {                                                   \
         printf("%d: " format " <%s>\n", chpl_nodeID, __VA_ARGS__, stack);    \
@@ -146,30 +146,30 @@ void chpl_comm_diags_copy(chpl_commDiagnostics* cd) {
     }                                                                        \
   } while(0)
 
-#define chpl_comm_diags_verbose_rdma(op, node, size, ln, fn, commid)          \
-  chpl_comm_diags_verbose_printf(CHPL_PROGRAM_ROOT, false,                    \
+#define chpl_comm_diags_verbose_rdma(prg__, op, node, size, ln, fn, commid)   \
+  chpl_comm_diags_verbose_printf(prg__, false,                                \
                                  "%s:%d: remote %s, node %d, %zu bytes, "     \
                                  "commid %d",                                 \
-                                 chpl_lookupFilename(fn), ln, op,             \
-                                 (int) node, size, (int) commid)
+                                 chpl_rt_lookup_filename(prg__, fn),          \
+                                 ln, op, (int) node, size, (int) commid)
 
-#define chpl_comm_diags_verbose_rdmaStrd(op, node, ln, fn, commid)            \
-  chpl_comm_diags_verbose_printf(CHPL_PROGRAM_ROOT, false,                    \
+#define chpl_comm_diags_verbose_rdmaStrd(prg__, op, node, ln, fn, commid)     \
+  chpl_comm_diags_verbose_printf(prg__, false,                                \
                                  "%s:%d: remote strided %s, node %d, "        \
                                  "commid %d",                                 \
-                                 chpl_lookupFilename(fn), ln, op,             \
+                                 chpl_rt_lookup_filename(prg__, fn), ln, op,  \
                                  (int) node, (int) commid)
 
-#define chpl_comm_diags_verbose_amo(op, node, ln, fn)                   \
-  chpl_comm_diags_verbose_printf(CHPL_PROGRAM_ROOT, true,               \
-                                 "%s:%d: remote %s, node %d",           \
-                                 chpl_lookupFilename(fn), ln, op,       \
+#define chpl_comm_diags_verbose_amo(prg__, op, node, ln, fn)                  \
+  chpl_comm_diags_verbose_printf(prg__, true,                                 \
+                                 "%s:%d: remote %s, node %d",                 \
+                                 chpl_rt_lookup_filename(prg__, fn), ln, op,  \
                                  (int) node)
 
 #define chpl_comm_diags_verbose_executeOn(prg__, kind, node, ln, fn)      \
   chpl_comm_diags_verbose_printf(prg__, false,                            \
                                  "%s:%d: remote %-*sexecuteOn, node %d",  \
-                                 chpl_lookupFilename(fn), ln,             \
+                                 chpl_rt_lookup_filename(prg__, fn), ln,  \
                                  ((int) strlen(kind)                      \
                                   + ((strlen(kind) == 0) ? 0 : 1)),       \
                                  kind, (int) node)

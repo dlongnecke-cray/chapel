@@ -27,6 +27,7 @@ int chpl_gpu_num_devices = -1;
 bool chpl_gpu_sync_with_host = true;
 bool chpl_gpu_use_stream_per_task = true;
 
+
 #ifdef HAS_GPU_LOCALE
 
 
@@ -48,6 +49,11 @@ bool chpl_gpu_use_stream_per_task = true;
 #include "gpu/chpl-gpu-reduce-util.h"
 
 #include <inttypes.h>
+
+// TODO (dlongnecke): Placeholder because I am not ready to touch this code.
+static const char* chpl_lookupFilename(int32_t idx) {
+  return chpl_rt_lookup_filename(CHPL_PROGRAM_ROOT, idx);
+}
 
 static chpl_atomic_spinlock_t* priv_table_lock = NULL;
 

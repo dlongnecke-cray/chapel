@@ -88,6 +88,11 @@
 #endif
 #endif
 
+// TODO (dlongnecke): Placeholder because I am not ready to touch this code.
+static const char* chpl_lookupFilename(int32_t idx) {
+  return chpl_rt_lookup_filename(CHPL_PROGRAM_ROOT, idx);
+}
+
 ////////////////////////////////////////
 //
 // Data global to all comm-ofi*.c files
@@ -5549,7 +5554,7 @@ chpl_bool put_prologue(void* addr, c_nodeid_t node, void* raddr, size_t size,
       chpl_comm_do_callbacks (&cb_data);
   }
 
-  chpl_comm_diags_verbose_rdma("put", node, size, ln, fn, commID);
+  chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "put", node, size, ln, fn, commID);
   return true;
 }
 
@@ -5615,7 +5620,7 @@ chpl_bool get_prologue(void* addr, c_nodeid_t node, void* raddr, size_t size,
       chpl_comm_do_callbacks (&cb_data);
   }
 
-  chpl_comm_diags_verbose_rdma("get", node, size, ln, fn, commID);
+  chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "get", node, size, ln, fn, commID);
   return true;
 }
 
@@ -5895,7 +5900,7 @@ void chpl_comm_get_unordered(void* addr, c_nodeid_t node, void* raddr,
       chpl_comm_do_callbacks (&cb_data);
   }
 
-  chpl_comm_diags_verbose_rdma("unordered get", node, size, ln, fn, commID);
+  chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "unordered get", node, size, ln, fn, commID);
   chpl_comm_diags_incr(get);
 
   do_remote_get_buff(addr, node, raddr, size);
@@ -5933,7 +5938,7 @@ void chpl_comm_put_unordered(void* addr, c_nodeid_t node, void* raddr,
       chpl_comm_do_callbacks (&cb_data);
   }
 
-  chpl_comm_diags_verbose_rdma("unordered put", node, size, ln, fn, commID);
+  chpl_comm_diags_verbose_rdma(CHPL_PROGRAM_ROOT, "unordered put", node, size, ln, fn, commID);
   chpl_comm_diags_incr(put);
 
   do_remote_put_buff(addr, node, raddr, size);

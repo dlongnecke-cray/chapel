@@ -46,6 +46,11 @@
 int chpl_verbose_mem = 0;
 int chpl_memTrack = 0;
 
+// TODO (dlongnecke): Placeholder because I am not ready to touch this code.
+static const char* chpl_lookupFilename(int32_t idx) {
+  return chpl_rt_lookup_filename(CHPL_PROGRAM_ROOT, idx);
+}
+
 static void
 printMemAllocs(chpl_mem_descInt_t description, int64_t threshold,
                int32_t lineno, int32_t filename);
