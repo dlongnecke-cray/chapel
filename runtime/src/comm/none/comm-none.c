@@ -244,7 +244,7 @@ void chpl_comm_rollcall(void) {
   chpl_msg(2, "executing on a single node\n");
 }
 
-wide_ptr_t* chpl_rt_comm_broadcastGlobalVarsHelper(chpl_program_info* prg) {
+wide_ptr_t* chpl_rt_comm_broadcast_global_vars_impl(chpl_program_info* prg) {
   return NULL;
 }
 

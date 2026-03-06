@@ -383,7 +383,7 @@ chpl_bool chpl_comm_regMemFree(void* p, size_t size) {
 // function in order to broadcast and set the wide pointers on each
 // locale.
 //
-void chpl_rt_comm_broadcastGlobalVars(chpl_program_info* prg);
+void chpl_rt_comm_broadcast_global_vars(chpl_program_info* prg);
 
 //
 // This routine is used by the generated Chapel code to broadcast

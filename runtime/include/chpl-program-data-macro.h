@@ -148,8 +148,6 @@ E_CONSTANT_RT(chpl_global_serialize_table, void**)
 
     // chpl_globals_registry is an array of size chpl_numGlobalsOnHeap
     // storing ptr_wide_ptr_t, that is, local addresses of wide pointers.
-    // It is filled in and used by chpl_comm_register_global_var() and
-    // chpl_comm_broadcast_global_vars(), respectively, declared below.
 */
 E_CONSTANT_RT(chpl_globals_registry, wide_ptr_t**)
 

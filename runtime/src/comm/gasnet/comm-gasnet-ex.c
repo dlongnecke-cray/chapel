@@ -1189,7 +1189,7 @@ void chpl_comm_impl_regMemHeapInfo(void** start_p, size_t* size_p) {
 #endif
 }
 
-wide_ptr_t* chpl_rt_comm_broadcastGlobalVarsHelper(chpl_program_info* prg) {
+wide_ptr_t* chpl_rt_comm_broadcast_global_vars_impl(chpl_program_info* prg) {
   //
   // Gather the global variables' wide pointers on node 0 into the
   // buffer at the front of our communicable segment.  We don't have

@@ -38,7 +38,7 @@ extern "C" {
 // buffer's address (if it wants it freed later) or NULL.  On all other
 // nodes it should return the node-0 local address of that buffer.
 //
-wide_ptr_t* chpl_rt_comm_broadcastGlobalVarsHelper(chpl_program_info* prg);
+wide_ptr_t* chpl_rt_comm_broadcast_global_vars_impl(chpl_program_info* prg);
 
 //
 // These are runtime-private copies of chpl_private_broadcast_table[]

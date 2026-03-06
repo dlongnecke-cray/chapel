@@ -51,7 +51,7 @@ static int32_t   numLocalesOnNode = -1;
 static int32_t   localRank = -1;
 static int32_t   numColocalesOnNode = 1;
 
-void chpl_rt_comm_broadcastGlobalVars(chpl_program_info* prg) {
+void chpl_rt_comm_broadcast_global_vars(chpl_program_info* prg) {
   //
   // On node 0: gather up the global variables' wide pointers into a
   //            buffer; return that buffer if it needs deallocating
@@ -59,7 +59,7 @@ void chpl_rt_comm_broadcastGlobalVars(chpl_program_info* prg) {
   // On other nodes: retrieve the node 0 local address of that buffer.
   //
   wide_ptr_t* buf_on_0;
-  buf_on_0 = chpl_rt_comm_broadcastGlobalVarsHelper(prg);
+  buf_on_0 = chpl_rt_comm_broadcast_global_vars_impl(prg);
 
   //
   // On node 0: barrier to ensure the other nodes have the global vars;

@@ -184,7 +184,7 @@ module ChapelRuntimeInterface {
   pragma "chapel runtime shim"
   export /** So compiler can see it easily at codegen. */
   proc chpl_comm_broadcastGlobalVars(): void {
-    extern 'chpl_rt_comm_broadcastGlobalVars'
+    extern 'chpl_rt_comm_broadcast_global_vars'
       proc fn(prg: c_ptr(chpl_program_info)): void;
     fn(infoPtrHere);
   }
