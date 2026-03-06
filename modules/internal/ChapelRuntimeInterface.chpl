@@ -326,4 +326,14 @@ module ChapelRuntimeInterface {
               arg_size: c_size_t): void;
     fn(infoPtrHere, node, subloc, fid, arg, arg_size);
   }
+
+  // Widget that gets a stack trace that can be printed in module code.
+  inline proc chpl_stackTraceString(): string {
+    extern 'chpl_rt_stack_unwind_to_string'
+      proc fn(sep: c_char): c_ptr(c_char);
+    const sep = '\n'.toByte() : c_char;
+    const buf = fn(sep);
+    const ret = try! string.createAdoptingBuffer(buf);
+    return ret;
+  }
 }

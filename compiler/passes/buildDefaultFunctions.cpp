@@ -756,6 +756,7 @@ static FnSymbol* buildInitProgramCommandLineModulesFn() {
 
   auto ret = new FnSymbol(fnName);
   ret->addFlag(FLAG_EXPORT);
+  ret->addFlag(FLAG_LOCAL_ARGS);
   ret->retType = dtVoid;
   ret->cname = fnName;
   ret->addFlag(FLAG_COMPILER_GENERATED);

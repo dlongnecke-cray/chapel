@@ -49,6 +49,7 @@ COMMON_NOGEN_SRCS = \
 	chpl-gpu.c \
 	chpl-gpu-diags.c \
 	chplio.c \
+	chpl-iostr.c \
 	chpl-mem.c \
 	chpl-mem-desc.c \
 	chpl-mem-hook.c \

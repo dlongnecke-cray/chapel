@@ -1,0 +1,7 @@
+Stacktrace (4 frames, n omitted)
+
+[0] test0() at TestStackTraceModuleCall.chpl:1
+[1] test1() at TestStackTraceModuleCall.chpl:7
+[2] test2() at TestStackTraceModuleCall.chpl:8
+[3] test3() at TestStackTraceModuleCall.chpl:9
+

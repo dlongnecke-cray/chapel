@@ -18,12 +18,32 @@
  * limitations under the License.
  */
 
-// Needed for 'dladdr'.
+// Define to make sure we enable 'dladdr'.
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
 
 #include "chplrt.h"
+
+#include <stdio.h>
+
+#ifndef LAUNCHER
+#include "chpl-atomics.h"
+#ifdef CHPL_DO_UNWIND
+#define STACK_UNWIND_CODE_IS_ENABLED
+#endif
+#endif
+
+#ifdef STACK_UNWIND_CODE_IS_ENABLED
+
+///
+/// -- HAVE ACCESS TO LIBUNWIND AT THIS POINT --
+///
+
+// Defined because we are only unwinding the stack of this process.
+#define UNW_LOCAL_ONLY
+
+#include "chpl-iostr.h"
 #include "chpl-linefile-support.h"
 #include "chpl-program-registration.h"
 
@@ -33,33 +53,14 @@
 #include "chpl-env.h"
 #include "chpl-exec.h"
 
+#include <dlfcn.h>
 #include <math.h>
 #include <stdarg.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
-
-#ifndef LAUNCHER
-#include "chpl-atomics.h"
-#ifdef CHPL_DO_UNWIND
-#define CHPL_UNWIND_NOT_LAUNCHER
-#endif
-#endif
-
-// #define DEBUG
-#ifdef DEBUG
-#define DEBUG_PRINT(x) printf x
-#endif
-#ifndef DEBUG
-#define DEBUG_PRINT(x) do {} while (0)
-#endif
-
-#ifdef CHPL_UNWIND_NOT_LAUNCHER
-// Necessary for instruct libunwind to use only the local unwind
-#define UNW_LOCAL_ONLY
 #include <libunwind.h>
-#include <dlfcn.h>
 
 #define STACK_UNWIND_MAX_SYMBOL_LENGTH 1023
 #define STACK_UNWIND_MAX_LINE_NUMBER_LENGTH 127
@@ -69,7 +70,10 @@
 //
 // TODO: Switch environment getters to use builtin 'chpl_env' ones..
 // TODO: Detect runtime symbols regardless of name.
-// TODO: Unwind to start frame.
+// TODO: Always unwind to start frame.
+// TODO: Provide a way to force dump all frames (e.g., just basic unwind).
+// TODO: Consider adding a 'frame' type that can be aggregated.
+// TODO: Generate a frame for 'main'.
 // ...
 //
 
@@ -317,52 +321,19 @@ static unsigned int stack_unwind_get_line_num(chpl_program_info* prg,
   return line;
 }
 
-// bufsz is the allocate size of the buffer
-// strsz is the number of bytes in the buffer currently used
-// str is the buffer
-// append is a 0-terminated string to append
-static void append_to_string(size_t* bufszArg, size_t* strszArg, char** strArg,
-                             const char* append) {
-  size_t toadd = strlen(append);
-  size_t bufsz = *bufszArg;
-  size_t strsz = *strszArg;
-  char* str = *strArg;
-
-  // allocate/reallocate the buffer if necessary
-  if (str == NULL) {
-    bufsz = 128 + toadd;
-    str = chpl_mem_alloc(bufsz, CHPL_RT_MD_IO_BUFFER, __LINE__, 0);
-    strsz = 0;
-  } else if (strsz + toadd + 1 > bufsz) {
-    bufsz = 2*bufsz + strsz + toadd;
-    str = chpl_mem_realloc(str, bufsz, CHPL_RT_MD_IO_BUFFER, __LINE__, 0);
-  }
-  strncpy(str + strsz, append, toadd);
-  strsz += toadd;
-
-  *bufszArg = bufsz;
-  *strszArg = strsz;
-  *strArg = str;
-}
-
-enum stack_unwind_mode {
-  STACK_UNWIND_MODE_FILE,
-  STACK_UNWIND_MODE_STRING
-};
-
 typedef struct stack_unwind_state {
   bool is_initialized;
 
   bool print_all_frames;
   bool any_programs_loaded;
   bool has_printed_header;
-  enum stack_unwind_mode mode;
   int64_t num_frames;
   int64_t num_displayed_frames;
   int32_t print_alignment;
 
-  // Pointer to output, interpreted based on 'mode'.
-  void* out;
+  // Output stream and line seperator.
+  chpl_rt_iostr* io;
+  char sep;
 
   // These are used to manage the stack traversal.
   unw_context_t uc;           // Must only initialized once.
@@ -385,12 +356,6 @@ typedef struct stack_unwind_state {
   const char* chapel_file_name;
   int32_t chapel_line;
 
-  // These are only used with 'STACK_UNWIND_MODE_STRING'.
-  size_t bufsz;
-  size_t strsz;
-  char** str_ptr;
-  char sep;
-  char sepstr[2];
 } stack_unwind_state;
 
 static bool stack_unwind_advance(stack_unwind_state* st);
@@ -402,7 +367,7 @@ static inline int compute_digits_int64_t(int64_t x) {
 
 // Returns 'true' on success.
 static bool stack_unwind_state_init(stack_unwind_state* st,
-                                    enum stack_unwind_mode mode,
+                                    chpl_rt_iostr* io,
                                     bool print_all_frames,
                                     char sep,
                                     void* out) {
@@ -412,12 +377,10 @@ static bool stack_unwind_state_init(stack_unwind_state* st,
   int64_t num_frames = 0;
 
   if (unw_getcontext(&st->uc) != 0) {
-    DEBUG_PRINT(("unw_getcontext failed\n"));
     return false;
   }
 
   if (unw_init_local(&st->cursor, &st->uc) != 0) {
-    DEBUG_PRINT(("unw_init_local failed\n"));
     return false;
   }
 
@@ -448,12 +411,8 @@ static bool stack_unwind_state_init(stack_unwind_state* st,
 
   // Initialize all the remaining fields.
   st->any_programs_loaded   = chpl_areAnyChapelProgramsLoaded();
-  st->mode                  = mode;
-  st->out                   = out;
-  st->str_ptr               = (char**) out;
+  st->io                    = io;
   st->sep                   = sep;
-  st->sepstr[0]             = sep;
-  st->sepstr[1]             = '\0';
   st->num_frames            = num_frames;
   st->num_displayed_frames  = num_displayed_frames;
   st->frame_idx             = -1;
@@ -520,13 +479,14 @@ static bool stack_unwind_advance(stack_unwind_state* st) {
 
     if (found) {
       int32_t file_idx = chpl_filenumSymTable[i];
+      int32_t line_num = stack_unwind_get_line_num(st->prg, &st->cursor,
+                                                   st->ip_offset, i);
 
       // Attach extra information about the Chapel symbol.
       st->chapel_symbol_name  = symbol_name_chapel;
       st->chapel_file_idx     = file_idx;
       st->chapel_file_name    = chpl_rt_lookup_filename(st->prg, file_idx);
-      st->chapel_line         = stack_unwind_get_line_num(st->prg, &st->cursor,
-                                                          st->ip_offset, i);
+      st->chapel_line         = line_num;
     }
   }
 
@@ -548,162 +508,63 @@ static bool stack_unwind_should_print_frame(stack_unwind_state* st) {
   return ret;
 }
 
-static void stack_unwind_print_header_if_needed(stack_unwind_state* st) {
-  if (st->has_printed_header) return;
+static void
+stack_unwind_print_header_if_needed(stack_unwind_state* st,
+                                    int num_seps_to_print) {
+  if (!st->is_initialized || st->has_printed_header) return;
   st->has_printed_header = true;
 
   int64_t num_displayed_frames = st->num_displayed_frames;
   int32_t num_omitted_frames = st->num_frames - st->num_displayed_frames;
   bool any_omitted = num_omitted_frames != 0;
 
-  switch (st->mode) {
-    case STACK_UNWIND_MODE_FILE: {
-      FILE* fp = (FILE*) st->out;
-      fprintf(fp, "Stacktrace (%" PRId64 " frames", num_displayed_frames);
+  chpl_rt_iostr_printf(st->io, "Stacktrace (%" PRId64 " frames",
+                       num_displayed_frames);
 
-      if (any_omitted) {
-        fprintf(fp, ", %d omitted", num_omitted_frames);
-      }
+  if (any_omitted) {
+    chpl_rt_iostr_printf(st->io, ", %d omitted", num_omitted_frames);
+  }
 
-      fprintf(fp, ")%c%c", st->sep, st->sep);
-    } break;
+  chpl_rt_iostr_printf(st->io, ")");
 
-    case STACK_UNWIND_MODE_STRING: {
-      char buffer[STACK_UNWIND_MAX_LINE_NUMBER_LENGTH + 1];
-
-      // Print number of frames as a string.
-      int buffersz = snprintf(buffer, sizeof(buffer), "%" PRId64,
-                              num_displayed_frames);
-      if (buffersz < 0) {
-        assert(0 && "Failed to print number, buffer too small!");
-        buffer[0] = '\0';
-      }
-
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, "Stacktrace (");
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, buffer);
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, " frames");
-
-      if (any_omitted) {
-        append_to_string(&st->bufsz, &st->strsz, st->str_ptr, ", ");
-
-        // Print omitted frame number as a string.
-        int buffersz = snprintf(buffer, sizeof(buffer), "%" PRId32,
-                                num_omitted_frames);
-        if (buffersz < 0) {
-          assert(0 && "Failed to print number, buffer too small!");
-          buffer[0] = '\0';
-        }
-
-        append_to_string(&st->bufsz, &st->strsz, st->str_ptr, buffer);
-        append_to_string(&st->bufsz, &st->strsz, st->str_ptr, " omitted");
-      }
-
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, ")");
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, st->sepstr);
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, st->sepstr);
-    } break;
+  for (int i = 0; i < num_seps_to_print; i++) {
+    chpl_rt_iostr_printf(st->io, "%c", st->sep);
   }
 }
 
 static void
 stack_unwind_print_foreign_symbol(stack_unwind_state* st) {
-  switch (st->mode) {
-    case STACK_UNWIND_MODE_FILE: {
-      FILE* fp = (FILE*) st->out;
-      fprintf(fp, "(external symbol): %s%c", st->symbol_buffer, st->sep);
-    } break;
-
-    case STACK_UNWIND_MODE_STRING: {
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                       "(external symbol): ");
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                       st->symbol_buffer);
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, st->sepstr);
-    } break;
-  }
+  chpl_rt_iostr_printf(st->io, "(external symbol): %s%c",
+                               st->symbol_buffer,
+                               st->sep);
 }
 
 static void
 stack_unwind_print_chapel_symbol_no_info(stack_unwind_state* st) {
-  switch (st->mode) {
-    case STACK_UNWIND_MODE_FILE: {
-      FILE* fp = (FILE*) st->out;
+  chpl_rt_iostr_printf(st->io, "(stripped Chapel symbol): %s",
+                               st->symbol_buffer);
 
-      fprintf(fp, "(stripped Chapel symbol): %s", st->symbol_buffer);
-
-      if (st->any_programs_loaded) {
-        fprintf(fp, " in Chapel program at %s", st->chapel_program_path);
-      }
-
-      fprintf(fp, "%c", st->sep);
-    } break;
-
-    case STACK_UNWIND_MODE_STRING: {
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                       "(stripped Chapel symbol): ");
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                       st->symbol_buffer);
-
-      if (st->any_programs_loaded) {
-        append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                         " in Chapel program at ");
-        append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                         st->chapel_program_path);
-      }
-
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, st->sepstr);
-    } break;
+  if (st->any_programs_loaded) {
+    chpl_rt_iostr_printf(st->io, " in Chapel program at %s",
+                                 st->chapel_program_path);
   }
+
+  chpl_rt_iostr_printf(st->io, "%c", st->sep);
 }
 
 static void
 stack_unwind_print_chapel_symbol_with_info(stack_unwind_state* st) {
-  switch (st->mode) {
-    case STACK_UNWIND_MODE_FILE: {
-      FILE* fp = (FILE*) st->out;
+  chpl_rt_iostr_printf(st->io, "%s() at %s:%d",
+                               st->chapel_symbol_name,
+                               st->chapel_file_name,
+                               st->chapel_line);
 
-      fprintf(fp, "%s() at %s:%d",
-              st->chapel_symbol_name,
-              st->chapel_file_name,
-              st->chapel_line);
-
-      if (st->any_programs_loaded) {
-        fprintf(fp, " in Chapel program at %s", st->chapel_program_path);
-      }
-
-      fprintf(fp, "%c", st->sep);
-
-    } break;
-
-    case STACK_UNWIND_MODE_STRING: {
-      char line_num_buffer[STACK_UNWIND_MAX_LINE_NUMBER_LENGTH + 1];
-
-      // Print out the line as a string.
-      int buffersz = snprintf(line_num_buffer, sizeof(line_num_buffer), "%d",
-                              st->chapel_line);
-      if (buffersz < 0) {
-        assert(0 && "Failed to print number, buffer too small!");
-        line_num_buffer[0] = '\0';
-      }
-
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                       st->chapel_symbol_name);
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, "() at ");
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                       st->chapel_file_name);
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, ":");
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, line_num_buffer);
-
-      if (st->any_programs_loaded) {
-        append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                         " in Chapel program at ");
-        append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                         st->chapel_program_path);
-      }
-
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, st->sepstr);
-    } break;
+  if (st->any_programs_loaded) {
+    chpl_rt_iostr_printf(st->io, " in Chapel program at %s",
+                                 st->chapel_program_path);
   }
+
+  chpl_rt_iostr_printf(st->io, "%c", st->sep);
 }
 
 static void stack_unwind_print_display_frame_idx(stack_unwind_state* st) {
@@ -714,43 +575,11 @@ static void stack_unwind_print_display_frame_idx(stack_unwind_state* st) {
   int64_t frame_num = st->display_frame_idx;
   int alignment = st->print_alignment;
 
-  switch (st->mode) {
-    case STACK_UNWIND_MODE_FILE: {
-      FILE* fp = ((FILE*) st->out);
-      fprintf(fp, "[%*" PRId64 "] ", alignment, frame_num);
-    } break;
-
-    case STACK_UNWIND_MODE_STRING: {
-      int start_column = compute_digits_int64_t(frame_num);
-      char display_frame_idx_buffer[STACK_UNWIND_MAX_LINE_NUMBER_LENGTH + 1];
-
-      // Print out the frame number as a string.
-      int buffersz = snprintf(display_frame_idx_buffer,
-                              sizeof(display_frame_idx_buffer),
-                              "%" PRId64,
-                              frame_num);
-      if (buffersz < 0) {
-        assert(0 && "Failed to print number, buffer too small!");
-        display_frame_idx_buffer[0] = '\0';
-      }
-
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, "[");
-
-      for (int32_t i = start_column; i < alignment; i++) {
-        append_to_string(&st->bufsz, &st->strsz, st->str_ptr, " ");
-      }
-
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr,
-                       display_frame_idx_buffer);
-      append_to_string(&st->bufsz, &st->strsz, st->str_ptr, "] ");
-    } break;
-  }
+  chpl_rt_iostr_printf(st->io, "[%*" PRId64 "] ", alignment, frame_num);
 }
 
 static void stack_unwind_print_frame(stack_unwind_state* st) {
   if (!st->is_initialized) return;
-
-  stack_unwind_print_header_if_needed(st);
 
   stack_unwind_print_display_frame_idx(st);
 
@@ -763,15 +592,6 @@ static void stack_unwind_print_frame(stack_unwind_state* st) {
     stack_unwind_print_chapel_symbol_no_info(st);
   } else {
     stack_unwind_print_chapel_symbol_with_info(st);
-  }
-}
-
-static void stack_unwind_epilogue(stack_unwind_state* st) {
-  if (st->mode == STACK_UNWIND_MODE_STRING) {
-    if (*st->str_ptr != NULL) {
-      // Null terminate the string.
-      (*st->str_ptr)[st->strsz] = '\0';
-    }
   }
 }
 
@@ -789,25 +609,77 @@ static void stack_unwind_epilogue(stack_unwind_state* st) {
 // simplicity over performance.
 //
 // Returns 'true' if there were any omitted frames during the trace.
-static bool stack_unwind(enum stack_unwind_mode mode,
+static bool stack_unwind(chpl_rt_iostr* io,
                          bool print_all_frames,
                          char sep,
                          void* out) {
-  stack_unwind_state st;
+  stack_unwind_state state;
+  stack_unwind_state* st = &state;
 
-  if (!stack_unwind_state_init(&st, mode, print_all_frames, sep, out)) {
+  if (!stack_unwind_state_init(st, io, print_all_frames, sep, out)) {
     return false;
   }
 
-  while (stack_unwind_advance(&st)) {
-    if (stack_unwind_should_print_frame(&st)) {
-      stack_unwind_print_frame(&st);
+  while (stack_unwind_advance(st)) {
+    if (stack_unwind_should_print_frame(st)) {
+      int num_seps_to_print = 2;
+      stack_unwind_print_header_if_needed(st, num_seps_to_print);
+      stack_unwind_print_frame(st);
     }
   }
 
-  stack_unwind_epilogue(&st);
+  bool ret = st->is_initialized && st->num_frames != st->num_displayed_frames;
 
-  bool ret = st.is_initialized && st.num_frames != st.num_displayed_frames;
+  if (ret && !st->has_printed_header) {
+    // Print the header if we printed nothing and there were omitted frames.
+    int num_seps_to_print = 1;
+    stack_unwind_print_header_if_needed(st, num_seps_to_print);
+    assert(st->has_printed_header);
+  }
+
+  return ret;
+}
+
+static char* stack_unwind_entrypoint(FILE* out,
+                                     bool hint_disable,
+                                     bool hint_omitted,
+                                     char sep) {
+  // Always print if this flag is set. TODO: Also check root program?
+  bool print_all_frames = getenv(STACK_UNWIND_DUMP_ALL_ENV) != NULL;
+
+  chpl_rt_iostr iostr;
+  chpl_rt_iostr_flags flags = CHPL_RT_IOSTR_CRASH_ON_ERROR;
+  bool need_buffer = false;
+
+  if (out != NULL) {
+    iostr = chpl_rt_iostr_init_file(out, flags);
+  } else {
+    iostr = chpl_rt_iostr_init(flags);
+    need_buffer = true;
+  }
+
+  chpl_rt_iostr* io = &iostr;
+  assert(chpl_rt_iostr_error(io) == NULL);
+
+  // Run the stack trace now.
+  bool any_omitted_frames = stack_unwind(io, print_all_frames, sep, out);
+
+  if (hint_disable) {
+    chpl_rt_iostr_printf(io, "%cDisable stacktrace by setting "
+                             "'CHPL_RT_UNWIND=0'%c",
+                             sep, sep);
+  }
+
+  if (hint_omitted && any_omitted_frames) {
+    chpl_rt_iostr_printf(io, "Show complete stacktrace by setting '%s=1'%c",
+                             STACK_UNWIND_DUMP_ALL_ENV,
+                             sep);
+  }
+
+  // Finalize the stream and get the buffer if needed.
+  char* ret = NULL;
+  char** out_allocated_buffer = need_buffer ? &ret : NULL;
+  chpl_rt_iostr_fini(io, out_allocated_buffer);
 
   return ret;
 }
@@ -817,43 +689,21 @@ void chpl_rt_stack_unwind(FILE* out, char sep) {
   CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_UNWIND);
 
   const char* chpl_rt_unwind = chpl_env_rt_get("UNWIND", NULL);
-  chpl_bool should_print = chpl_env_str_to_bool("UNWIND", chpl_rt_unwind, true);
+  chpl_bool do_print = chpl_env_str_to_bool("UNWIND", chpl_rt_unwind, true);
   chpl_bool user_set = chpl_rt_unwind != NULL;
 
-  if (!should_print) {
-    return;
-  }
+  if (!do_print) return;
 
-  // Always print if 'CHPL_DEVELOPER' is set. TODO: Also check root program?
-  bool print_all_frames = getenv(STACK_UNWIND_DUMP_ALL_ENV) != NULL;
+  bool hint_disable = !user_set && strcmp(CHPL_UNWIND, "none") != 0;
+  bool hint_omitted = true;
 
-  // Run the stack trace now.
-  bool any_omitted_frames = stack_unwind(STACK_UNWIND_MODE_FILE,
-                                         print_all_frames,
-                                         sep, out);
-
-  if (!user_set && strcmp(CHPL_UNWIND, "none") != 0) {
-    fprintf(out, "%cDisable full stacktrace by setting 'CHPL_RT_UNWIND=0'%c",
-            sep, sep);
-  }
-
-  if (any_omitted_frames && getenv(STACK_UNWIND_DUMP_ALL_ENV) == NULL) {
-    fprintf(out, "Show complete stacktrace by setting '%s=1'%c",
-            STACK_UNWIND_DUMP_ALL_ENV,
-            sep);
-  }
+  stack_unwind_entrypoint(out, hint_disable, hint_omitted, sep);
 }
 
 char* chpl_rt_stack_unwind_to_string(char sep) {
-  char* str = NULL;
-  void* out = ((void*) &str);
-
-  // Always print if 'CHPL_DEVELOPER' is set. TODO: Also check root program?
-  bool print_all_frames = getenv(STACK_UNWIND_DUMP_ALL_ENV) != NULL;
-
-  stack_unwind(STACK_UNWIND_MODE_STRING, print_all_frames, sep, out);
-
-  return str;
+  bool hint_disable = false;
+  bool hint_omitted = false;
+  return stack_unwind_entrypoint(NULL, hint_disable, hint_omitted, sep);
 }
 
 #else
