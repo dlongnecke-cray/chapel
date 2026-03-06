@@ -101,7 +101,6 @@ static void iostr_init_common(chpl_rt_iostr* st,
   st->is_using_file = file != NULL;
 
   if (st->buffer_is_owned) {
-    st->buffer_increment_size = CHPL_RT_IOSTR_DEFAULT_BUFFER_INCREMENT_SIZE;
     st->buffer_size = CHPL_RT_IOSTR_BUILTIN_BUFFER_SIZE;
 
   } else if (st->is_using_file) {
@@ -224,8 +223,8 @@ static bool iostr_resize_buffer(chpl_rt_iostr* st, size_t additional) {
   if (truncate) {
     new_buffer_size = minimum_new_size;
 
-  } else if (additional < st->buffer_increment_size) {
-    new_buffer_size = st->buffer_size + st->buffer_increment_size;
+  } else if (additional < CHPL_RT_IOSTR_MINIMUM_INCREMENT_SIZE) {
+    new_buffer_size = st->buffer_size + CHPL_RT_IOSTR_MINIMUM_INCREMENT_SIZE;
   } else {
     // TODO: Could use all sorts of resize strategies here.
     new_buffer_size = minimum_new_size;

@@ -37,8 +37,8 @@ extern "C" {
 // This type is currently write-only at the moment and doesn't check for
 // permissions bits on supplied files/buffers, but that can be added... 
 //
-#define CHPL_RT_IOSTR_BUILTIN_BUFFER_SIZE 128
-#define CHPL_RT_IOSTR_DEFAULT_BUFFER_INCREMENT_SIZE 256
+#define CHPL_RT_IOSTR_BUILTIN_BUFFER_SIZE 64
+#define CHPL_RT_IOSTR_MINIMUM_INCREMENT_SIZE 256
 
 typedef enum chpl_rt_iostr_flags {
   CHPL_RT_IOSTR_EXACT_RESIZE      = 0x00001,
@@ -50,7 +50,6 @@ typedef struct chpl_rt_iostr {
 
   char      builtin_buffer[CHPL_RT_IOSTR_BUILTIN_BUFFER_SIZE];
   bool      buffer_is_owned;
-  size_t    buffer_increment_size;
   size_t    buffer_size;
   size_t    buffer_offset;
   bool      is_using_file;
@@ -66,9 +65,8 @@ chpl_rt_iostr chpl_rt_iostr_init(int32_t flags);
 
 chpl_rt_iostr chpl_rt_iostr_init_file(FILE* file, int32_t flags);
 
-chpl_rt_iostr
-chpl_rt_iostr_init_using(char* buffer, size_t buffer_size,
-                         int32_t flags);
+chpl_rt_iostr chpl_rt_iostr_init_using(char* buffer, size_t buffer_size,
+                                       int32_t flags);
 
 // Finalizer. If 'out_allocated_buffer' is not NULL, then it will be set to
 // a pointer containing a null-terminated, Chapel heap allocated buffer
