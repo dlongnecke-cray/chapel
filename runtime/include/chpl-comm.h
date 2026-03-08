@@ -408,7 +408,9 @@ void chpl_rt_comm_broadcast_global_vars(chpl_program_info* prg);
 // values, and during execution to do things like enabling and disabling
 // memory tracking/reporting and comm diagnostics.
 //
-void chpl_comm_broadcast_private(int id, size_t size);
+void chpl_rt_comm_broadcast_private(chpl_program_info* prg,
+                                    int32_t id,
+                                    size_t size);
 
 //
 // Barrier for synchronization between all top-level locales; currently

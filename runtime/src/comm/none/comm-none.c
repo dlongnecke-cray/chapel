@@ -248,7 +248,9 @@ wide_ptr_t* chpl_rt_comm_broadcast_global_vars_impl(chpl_program_info* prg) {
   return NULL;
 }
 
-void chpl_comm_broadcast_private(int id, size_t size) { }
+void chpl_rt_comm_broadcast_private_impl(chpl_program_info* prg, int32_t id,
+                                         size_t size) {
+}
 
 void chpl_comm_impl_barrier(const char *msg) { }
 

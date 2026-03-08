@@ -35,7 +35,7 @@ module ChapelRuntimeInterface {
   use ChapelBase, CTypes, ChapelProgramRegistration;
   use Reflection;
 
-  param debugRuntimeCalls = false;
+  param debugRuntimeCalls = true;
 
   // Alias for 'char**' to be used as the type of 'argv'.
   type c_argArray = c_ptr(c_ptr(c_char));
@@ -106,13 +106,7 @@ module ChapelRuntimeInterface {
   pragma "chapel runtime shim"
   pragma "insert line file info"
   pragma "always propagate line file info"
-  proc debugf(param procName: string, args...?n) {
-    if !debugRuntimeCalls then return;
-
-    const lineInfo = __primitive('_get_user_line');
-    const fileIdx = __primitive('_get_user_file');
-    const fileName = chpl_filenameFromIdx(fileIdx);
-
+  proc debugf(args...?n) {
     extern record chpl_rt_debugf_arg {
       var typeStr: c_ptrConst(c_char);
       var dataPtr: c_ptr(void);
@@ -151,12 +145,45 @@ module ChapelRuntimeInterface {
       return ret;
     }
 
-    var arr = prepareArgs('[', procName, ' in modules ', fileName, ':',
-                          lineInfo, '] P', chpl_programInfoHere.id, '@L',
-                          chpl_nodeID, ': ', (...args));
+    var arr = prepareArgs((...args));
     var ptr = arr : c_ptr(chpl_rt_debugf_arg);
 
     fn(infoPtrHere, ptr, arr.size);
+  }
+
+  pragma "insert line file info"
+  pragma "always propagate line file info"
+  private inline proc debugRtShimImpl(param procName: string,
+                                      param hasArgs: bool,
+                                      args...?n) {
+    if debugRuntimeCalls {
+      const lineInfo = __primitive('_get_user_line');
+      const fileIdx = __primitive('_get_user_file');
+      const fileName = chpl_filenameFromIdx(fileIdx);
+
+      if hasArgs {
+        debugf('[', procName, ' in modules ', fileName, ':',
+               lineInfo, '] P', chpl_programInfoHere.id, '@L',
+               chpl_nodeID, ': ', (...args));
+      } else {
+        debugf('[', procName, ' in modules ', fileName, ':',
+               lineInfo, '] P', chpl_programInfoHere.id, '@L',
+               chpl_nodeID);
+      }
+    }
+  }
+
+  pragma "insert line file info"
+  pragma "always propagate line file info"
+  private inline proc debugRtShim(param procName: string,
+                                  args...?n) {
+    debugRtShimImpl(procName, hasArgs=true, (...args));
+  }
+
+  pragma "insert line file info"
+  pragma "always propagate line file info"
+  private inline proc debugRtShim(param procName: string) {
+    debugRtShimImpl(procName, hasArgs=false, (false,));
   }
 
   // TODO: Have this pragma imply "always propagate..." and "insert line...".
@@ -178,14 +205,20 @@ module ChapelRuntimeInterface {
   proc chpl_initChapelRuntime(argc: c_int, argv: c_argArray): void {
     extern 'chpl_rt_init'
       proc fn(argc: c_int, argv: c_argArray): void;
+
     fn(argc, argv);
   }
 
   pragma "chapel runtime shim"
+  pragma "insert line file info"
+  pragma "always propagate line file info"
   export /** So compiler can see it easily at codegen. */
   proc chpl_comm_broadcastGlobalVars(): void {
+    debugRtShim(getRoutineName());
+
     extern 'chpl_rt_comm_broadcast_global_vars'
       proc fn(prg: c_ptr(chpl_program_info)): void;
+
     fn(infoPtrHere);
   }
 
@@ -195,6 +228,10 @@ module ChapelRuntimeInterface {
   proc chpl_task_addTask(fid: int, args: chpl_task_bundle_p,
                          args_size: c_size_t,
                          subloc_id: int) {
+    debugRtShim(getRoutineName(), 'fid: ', fid, ', args: ', args,
+                                  ', args_size: ', args_size,
+                                  ', subloc_id: ', subloc_id);
+
     pragma "insert line file info"
     pragma "always propagate line file info"
     extern 'chpl_rt_task_addTask'
@@ -202,12 +239,6 @@ module ChapelRuntimeInterface {
               args: chpl_task_bundle_p,
               args_size: c_size_t,
               subloc_id: int): void;
-
-    if debugRuntimeCalls {
-      debugf(getRoutineName(), 'fid: ', fid, ', args: ', args,
-                               ', args_size: ', args_size,
-                               ', subloc_id: ', subloc_id);
-    }
 
     fn(infoPtrHere, fid, args, args_size, subloc_id);
   }
@@ -218,6 +249,10 @@ module ChapelRuntimeInterface {
   proc chpl_comm_taskCallFtableEntry(fid: int, args: chpl_comm_on_bundle_p,
                                      args_size: c_size_t,
                                      subloc_id: int) {
+    debugRtShim(getRoutineName(), 'fid: ', fid, ', args: ', args,
+                                  ', args_size: ', args_size,
+                                  ', subloc_id: ', subloc_id);
+
     pragma "insert line file info"
     pragma "always propagate line file info"
     extern 'chpl_rt_comm_taskCallFtableEntry'
@@ -226,12 +261,6 @@ module ChapelRuntimeInterface {
               args_size: c_size_t,
               subloc_id: int): void;
 
-    if debugRuntimeCalls {
-      debugf(getRoutineName(), 'fid: ', fid, ', args: ', args,
-                               ', args_size: ', args_size,
-                               ', subloc_id: ', subloc_id);
-    }
-
     fn(infoPtrHere, fid, args, args_size, subloc_id);
   }
 
@@ -239,14 +268,12 @@ module ChapelRuntimeInterface {
   pragma "insert line file info"
   pragma "always propagate line file info"
   proc chpl_callFtableEntryHere(fid: int, args: c_ptr(void)) {
+    debugRtShim(getRoutineName(), 'fid: ', fid, ', args: ', args);
+
     // TODO: No need to actually call into the runtime to do this.
     extern 'chpl_rt_callFtableEntryHere'
       proc fn(prg: c_ptr(chpl_program_info), fid: int,
               bundle: c_ptr(void)): void;
-
-    if debugRuntimeCalls {
-      debugf(getRoutineName(), 'fid: ', fid, ', args: ', args);
-    }
 
     fn(infoPtrHere, fid, args);
   }
@@ -267,11 +294,9 @@ module ChapelRuntimeInterface {
   proc chpl_comm_execute_on(node: int, subloc: int, fid: int,
                             arg: chpl_comm_on_bundle_p,
                             arg_size: c_size_t) {
-    if debugRuntimeCalls {
-      debugf(getRoutineName(), 'node: ', node, ', subloc: ', subloc,
-                               ', fid: ', fid, ', arg: ', arg, ', arg_size: ',
-                               arg_size);
-    }
+    debugRtShim(getRoutineName(), 'node: ', node, ', subloc: ', subloc,
+                ', fid: ', fid, ', arg: ', arg, ', arg_size: ',
+                arg_size);
 
     pragma "insert line file info"
     pragma "always propagate line file info"
@@ -280,6 +305,7 @@ module ChapelRuntimeInterface {
               subloc: int, fid: int,
               arg: chpl_comm_on_bundle_p,
               arg_size: c_size_t): void;
+
     fn(infoPtrHere, node, subloc, fid, arg, arg_size);
   }
 
@@ -289,11 +315,9 @@ module ChapelRuntimeInterface {
   proc chpl_comm_execute_on_fast(node: int, subloc: int, fid: int,
                                  arg: chpl_comm_on_bundle_p,
                                  arg_size: c_size_t) {
-    if debugRuntimeCalls {
-      debugf(getRoutineName(), 'node: ', node, ', subloc: ', subloc,
-                               ', fid: ', fid, ', arg: ', arg, ', arg_size: ',
-                               arg_size);
-    }
+    debugRtShim(getRoutineName(), 'node: ', node, ', subloc: ', subloc,
+                ', fid: ', fid, ', arg: ', arg, ', arg_size: ',
+                arg_size);
 
     pragma "insert line file info"
     pragma "always propagate line file info"
@@ -302,6 +326,7 @@ module ChapelRuntimeInterface {
               subloc: int, fid: int,
               arg: chpl_comm_on_bundle_p,
               arg_size: c_size_t): void;
+
     fn(infoPtrHere, node, subloc, fid, arg, arg_size);
   }
 
@@ -311,11 +336,9 @@ module ChapelRuntimeInterface {
   proc chpl_comm_execute_on_nb(node: int, subloc: int, fid: int,
                                arg: chpl_comm_on_bundle_p,
                                arg_size: c_size_t) {
-    if debugRuntimeCalls {
-      debugf(getRoutineName(), 'node: ', node, ', subloc: ', subloc,
-                               ', fid: ', fid, ', arg: ', arg, ', arg_size: ',
-                               arg_size);
-    }
+    debugRtShim(getRoutineName(), 'node: ', node, ', subloc: ', subloc,
+                ', fid: ', fid, ', arg: ', arg, ', arg_size: ',
+                arg_size);
 
     pragma "insert line file info"
     pragma "always propagate line file info"
@@ -324,7 +347,21 @@ module ChapelRuntimeInterface {
               subloc: int, fid: int,
               arg: chpl_comm_on_bundle_p,
               arg_size: c_size_t): void;
+
     fn(infoPtrHere, node, subloc, fid, arg, arg_size);
+  }
+
+  pragma "insert line file info"
+  pragma "always propagate line file info"
+  pragma "chapel runtime shim"
+  export proc chpl_comm_broadcastPrivate(idx: int(32), size: c_size_t) {
+    debugRtShim(getRoutineName(), 'idx: ', idx, ', size: ', size);
+
+    extern 'chpl_rt_comm_broadcast_private'
+      proc fn(prg: c_ptr(chpl_program_info), idx: int(32),
+              size: c_size_t): void;
+
+    fn(infoPtrHere, idx, size);
   }
 
   // Widget that gets a stack trace that can be printed in module code.

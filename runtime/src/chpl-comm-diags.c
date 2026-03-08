@@ -51,7 +51,7 @@ void broadcast_print_unstable(void) {
                          chpl_task_setCommDiagsTemporarilyDisabled);
 
   chpl_bool prevDisabled = chpl_task_setCommDiagsTemporarilyDisabled(true);
-  chpl_comm_bcast_rt_private(chpl_comm_diags_print_unstable);
+  chpl_rt_comm_broadcast_rt_constant(chpl_comm_diags_print_unstable);
   (void)chpl_task_setCommDiagsTemporarilyDisabled(prevDisabled);
 }
 
@@ -75,8 +75,8 @@ void chpl_comm_startVerbose(chpl_bool stacktrace,
   chpl_verbose_comm = 1;
 
   chpl_bool prevDisabled = chpl_task_setCommDiagsTemporarilyDisabled(true);
-  chpl_comm_bcast_rt_private(chpl_verbose_comm);
-  chpl_comm_bcast_rt_private(chpl_verbose_comm_stacktrace);
+  chpl_rt_comm_broadcast_rt_constant(chpl_verbose_comm);
+  chpl_rt_comm_broadcast_rt_constant(chpl_verbose_comm_stacktrace);
   (void)chpl_task_setCommDiagsTemporarilyDisabled(prevDisabled);
 }
 
@@ -92,7 +92,7 @@ void chpl_comm_stopVerbose(int32_t lineno,
   chpl_verbose_comm = 0;
 
   chpl_bool prevDisabled = chpl_task_setCommDiagsTemporarilyDisabled(true);
-  chpl_comm_bcast_rt_private(chpl_verbose_comm);
+  chpl_rt_comm_broadcast_rt_constant(chpl_verbose_comm);
   (void)chpl_task_setCommDiagsTemporarilyDisabled(prevDisabled);
 }
 
@@ -141,7 +141,7 @@ void chpl_comm_startDiagnostics(chpl_bool print_unstable,
   chpl_comm_diagnostics = 1;
 
   chpl_bool prevDisabled = chpl_task_setCommDiagsTemporarilyDisabled(true);
-  chpl_comm_bcast_rt_private(chpl_comm_diagnostics);
+  chpl_rt_comm_broadcast_rt_constant(chpl_comm_diagnostics);
   (void)chpl_task_setCommDiagsTemporarilyDisabled(prevDisabled);
 }
 
@@ -159,7 +159,7 @@ void chpl_comm_stopDiagnostics(int32_t lineno, int32_t filename) {
   chpl_comm_diagnostics = 0;
 
   chpl_bool prevDisabled = chpl_task_setCommDiagsTemporarilyDisabled(true);
-  chpl_comm_bcast_rt_private(chpl_comm_diagnostics);
+  chpl_rt_comm_broadcast_rt_constant(chpl_comm_diagnostics);
   (void)chpl_task_setCommDiagsTemporarilyDisabled(prevDisabled);
 }
 

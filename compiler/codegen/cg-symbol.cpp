@@ -1108,10 +1108,10 @@ static Type* getFormalCodegenType(ArgSymbol* formal) {
 // return type of exported functions, or arguments of those functions.
 //
 // TODO: apply to _ddata as well?
-static std::string
-transformTypeForPointer(Type* type) {
+static std::string transformTypeForPointer(Type* type, bool makeConst=false) {
   Type* underlying = nullptr;
   bool isConst = false;
+  std::string ret;
 
   if (type->symbol->hasFlag(FLAG_REF)) {
     underlying = type->getValType();
@@ -1119,14 +1119,23 @@ transformTypeForPointer(Type* type) {
   } else if (type->symbol->hasFlag(FLAG_C_PTR_CLASS)) {
     underlying = getDataClassType(type->symbol)->typeInfo();
     isConst = type->symbol->hasFlag(FLAG_C_PTRCONST_CLASS);
-
-  } else {
-    // Base case: Just print the codegen'd type.
-    return type->codegen().c;
   }
 
-  std::string ret = isConst ? "const " : "";
-  ret += transformTypeForPointer(underlying) + "*";
+  // Consider 'a pointer to a const pointer to a const int(64)':
+  //
+  // const int64_t * const * ptr;
+  //
+  // So we start by recursing to the left if need be. If the underlying is
+  // a pointer, we attach 'const' to the right of it. Otherwise, we attach
+  // 'const' to the left of it. The outermost pointer can never be 'const'.
+  if (underlying != nullptr) {
+    ret += transformTypeForPointer(underlying, isConst);
+    ret += " *";
+    if (makeConst) ret += " const";
+  } else {
+    if (makeConst) ret += "const ";
+    ret += type->codegen().c;
+  }
 
   return ret;
 }

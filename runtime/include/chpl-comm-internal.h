@@ -18,13 +18,14 @@
  * limitations under the License.
  */
 
-#ifndef _chpl_comm_internal_h_
-#define _chpl_comm_internal_h_
+#ifndef CHPL_RT_COMM_INTERNAL_H
+#define CHPL_RT_COMM_INTERNAL_H
 
-#include <stdint.h>
 #include "chpltypes.h"
 #include "chpl-mem-desc.h"
 #include "chpl-program-registration.h"
+
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,54 +42,92 @@ extern "C" {
 wide_ptr_t* chpl_rt_comm_broadcast_global_vars_impl(chpl_program_info* prg);
 
 //
-// These are runtime-private copies of chpl_private_broadcast_table[]
-// and chpl_private_broadcast_table_len, extended with a few more
-// addresses of runtime-specific variables we also want to be able
-// broadcast around.
+// Much as each program maintains a private broadcast table, the runtime
+// also maintains a table of broadcast constants.
 //
-// TODO (dlongnecke): This may need to be adjusted to be made extensible.
-//
-extern void** chpl_rt_priv_bcast_tab;
-extern int chpl_rt_priv_bcast_tab_len;
-extern size_t chpl_rt_priv_bcast_lens[];
-
-#define CHPL_RT_PRV_BCAST_TAB_ENTRIES(MACRO) \
-  MACRO(chpl_verbose_comm)                   \
-  MACRO(chpl_comm_diagnostics)               \
-  MACRO(chpl_comm_diags_print_unstable)      \
-  MACRO(chpl_verbose_comm_stacktrace)        \
-  MACRO(chpl_verbose_gpu)                   \
-  MACRO(chpl_gpu_diagnostics)               \
-  MACRO(chpl_gpu_diags_print_unstable)      \
-  MACRO(chpl_verbose_gpu_stacktrace)        \
-  MACRO(chpl_verbose_mem)
-
-#define _RT_PRV_BCAST_M(sym)  chpl_rt_prv_tab_ ## sym ## _idx,
-typedef enum {
-  CHPL_RT_PRV_BCAST_TAB_ENTRIES(_RT_PRV_BCAST_M)
-  chpl_rt_prv_tab_num_idxs,
-} chpl_rt_prv_bcast_tab_idx_t;
-#undef _RT_PRV_BCAST_M
+extern void* chpl_rt_private_broadcast_table_for_rt[];
+extern size_t chpl_rt_private_broadcast_table_for_rt_len;
+extern size_t chpl_rt_private_broadcast_table_for_rt_byte_lens[];
 
 //
-// This is in chpl-comm.c.
+// These are entries for broadcast constants that the runtime needs.
+// They do NOT include any per-program constants.
 //
-void chpl_comm_init_prv_bcast_tab(void);
+#define CHPL_RT_RUNTIME_PRIVATE_BROADCAST_TABLE_ENTRIES(MACRO__)  \
+  MACRO__(chpl_verbose_comm)                                      \
+  MACRO__(chpl_comm_diagnostics)                                  \
+  MACRO__(chpl_comm_diags_print_unstable)                         \
+  MACRO__(chpl_verbose_comm_stacktrace)                           \
+  MACRO__(chpl_verbose_gpu)                                       \
+  MACRO__(chpl_gpu_diagnostics)                                   \
+  MACRO__(chpl_gpu_diags_print_unstable)                          \
+  MACRO__(chpl_verbose_gpu_stacktrace)                            \
+  MACRO__(chpl_verbose_mem)
+
+// Expand out an enum that can be used to produce a unique index for a symbol.
+#define CHPL_RT_TABLE_PREFIX chpl_rt_runtime_private_broadcast_table_for_rt_
+#define CHPL_RT_TABLE_ENTRY(sym__) CHPL_RT_TABLE_PREFIX ## sym__ ## _idx,
+typedef enum chpl_rt_private_broadcast_table_entries_for_rt {
+  CHPL_RT_RUNTIME_PRIVATE_BROADCAST_TABLE_ENTRIES(CHPL_RT_TABLE_ENTRY)
+  chpl_rt_runtime_private_broadcast_table_for_rt_num_entries
+} chpl_rt_private_broadcast_table_entries_for_rt;
+
+static inline
+void chpl_rt_comm_broadcast_rt_constant_hook(int32_t idx) {
+  assert(idx >= 0 && idx < chpl_rt_private_broadcast_table_for_rt_len);
+
+  // No program indicates we are asking for a runtime constant.
+  chpl_program_info* no_prg = NULL;
+  size_t size = chpl_rt_private_broadcast_table_for_rt_byte_lens[idx];
+
+  chpl_rt_comm_broadcast_private(no_prg, idx, size);
+}
 
 //
 // Broadcast one of our runtime-specific variables.
 //
-#define chpl_comm_bcast_rt_private(var) \
-  chpl_comm_really_bcast_rt_private(chpl_rt_prv_tab_ ## var ## _idx)
+#define chpl_rt_comm_broadcast_rt_constant(sym__) do {    \
+  int32_t idx = CHPL_RT_TABLE_PREFIX ## sym__ ## _idx;    \
+  chpl_rt_comm_broadcast_rt_constant_hook(idx);           \
+} while (0)
 
+// Done with both of these helper macros now.
+#undef CHPL_RT_TABLE_PREFIX
+#undef CHPL_RT_TABLE_ENTRY
+
+// If 'prg' is non-null, then try to fetch a broadcast table using 'prg'.
+// Otherwise, if 'prg_id' is not zero, try to fetch using 'prg_id'.
+// Else, if no program is provided then fetch the table of runtime constants.
+// Writes the table length to 'out_table_len' if it is non-null.
 static inline
-void chpl_comm_really_bcast_rt_private(int id) {
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
-                         chpl_private_broadcast_table_len);
+void* chpl_rt_comm_fetch_broadcast_table(chpl_program_info* prg,
+                                         chpl_prg_id prg_id,
+                                         size_t* out_table_len) {
+  size_t table_len = 0;
+  void** ret = NULL;
+  bool use_rt_table = prg_id == CHPL_PROGRAM_NULL_ID && prg == NULL;
 
-  chpl_comm_broadcast_private(chpl_private_broadcast_table_len + id,
-                              chpl_rt_priv_bcast_lens[id]);
+  if (use_rt_table) {
+    ret = chpl_rt_private_broadcast_table_for_rt;
+    table_len = chpl_rt_private_broadcast_table_for_rt_len;
+
+  } else {
+    chpl_program_info* use_prg = prg ? prg : CHPL_PROGRAM_FETCH(prg_id);
+    assert(use_prg != NULL);
+    ret = CHPL_PROGRAM_DATA(use_prg, chpl_private_broadcast_table);
+    table_len = CHPL_PROGRAM_DATA(use_prg, chpl_private_broadcast_table_len);
+  }
+
+  assert(ret != NULL && table_len != 0);
+
+  if (out_table_len != NULL) *out_table_len = table_len;
+
+  return ret;
 }
+
+// Comm-layer specific implementation.
+void chpl_rt_comm_broadcast_private_impl(chpl_program_info* prg, int32_t id,
+                                         size_t size);
 
 // Comm-layer specific implementation.
 void chpl_rt_comm_execute_on_impl(chpl_program_info* prg,

@@ -223,18 +223,21 @@ typedef struct {
 } large_fork_task_t;
 
 typedef struct {
-  void*   ack;
-  int     id;       // private broadcast table entry to update
-  int     size;     // size of data
-  char    data[0];  // data
+  void*         ack;
+  int           idx;      // private broadcast table entry to update
+  int           size;     // size of data
+  chpl_prg_id   prg_id;   // id of program requesting
+} priv_bcast_hdr_t;
+
+typedef struct {
+  priv_bcast_hdr_t hdr;
+  char    data[0];
 } priv_bcast_t;
 
 typedef struct {
-  void* ack;
-  int   id;       // private broadcast table entry to update
-  int   size;     // size of data
+  priv_bcast_hdr_t hdr;
   int   offset;   // offset of piece of data
-  char  data[0];  // data
+  char  data[0];
 } priv_bcast_large_t;
 
 typedef struct {
@@ -548,20 +551,40 @@ static void AM_signal_long(gasnet_token_t token, void *buf, size_t nbytes,
 
 static void AM_priv_bcast(gasnet_token_t token, void* buf, size_t nbytes) {
   priv_bcast_t* pbp = buf;
-  chpl_memcpy(chpl_rt_priv_bcast_tab[pbp->id], pbp->data, pbp->size);
+  priv_bcast_hdr_t hdr = pbp->hdr;
+  void** table = NULL;
+  size_t table_len = 0;
 
-  // Signal that the handler has completed
+  // Get the broadcast table to write to on this node.
+  table = chpl_rt_comm_fetch_broadcast_table(NULL, hdr.prg_id, &table_len);
+
+  // Copy the value into the table.
+  chpl_memcpy(table[hdr.idx], pbp->data, hdr.size);
+
+  // Signal that the handler has completed.
   GASNET_Safe(gasnet_AMReplyShort2(token, SIGNAL,
-                                   Arg0(pbp->ack), Arg1(pbp->ack)));
+                                   Arg0(hdr.ack),
+                                   Arg1(hdr.ack)));
 }
 
-static void AM_priv_bcast_large(gasnet_token_t token, void* buf, size_t nbytes) {
+static void AM_priv_bcast_large(gasnet_token_t token, void* buf,
+                                size_t nbytes) {
   priv_bcast_large_t* pblp = buf;
-  chpl_memcpy((char*)chpl_rt_priv_bcast_tab[pblp->id]+pblp->offset, pblp->data, pblp->size);
+  priv_bcast_hdr_t hdr = pblp->hdr;
+  void** table = NULL;
+  size_t table_len = 0;
 
-  // Signal that the handler has completed
+  // Get the broadcast table to write to on this node.
+  table = chpl_rt_comm_fetch_broadcast_table(NULL, hdr.prg_id, &table_len);
+  char* start = ((char*) table[hdr.idx] + pblp->offset);
+
+  // Copy over part of the value into the table.
+  chpl_memcpy(start, pblp->data, hdr.size);
+
+  // Signal that the handler has completed.
   GASNET_Safe(gasnet_AMReplyShort2(token, SIGNAL,
-                                   Arg0(pblp->ack), Arg1(pblp->ack)));
+                                   Arg0(hdr.ack),
+                                   Arg1(hdr.ack)));
 }
 
 static void AM_free(gasnet_token_t token, gasnet_handlerarg_t a0, gasnet_handlerarg_t a1) {
@@ -1021,9 +1044,7 @@ void chpl_comm_pre_mem_init(void) {
   gasnet_set_waitmode(GASNET_WAIT_BLOCK);
 }
 
-void chpl_comm_post_mem_init(void) {
-  chpl_comm_init_prv_bcast_tab();
-}
+void chpl_comm_post_mem_init(void) {}
 
 //
 // No support for gdb for now
@@ -1212,53 +1233,79 @@ wide_ptr_t* chpl_rt_comm_broadcast_global_vars_impl(chpl_program_info* prg) {
   }
 }
 
-void chpl_comm_broadcast_private(int id, size_t size) {
-  int  node, offset;
-  int  payloadSize = size + sizeof(priv_bcast_t);
-  done_t* done;
-  int numOffsets=1;
+void chpl_rt_comm_broadcast_private_impl(chpl_program_info* prg,
+                                         int32_t idx,
+                                         size_t size) {
+  chpl_mem_descInt_t dsc = CHPL_RT_MD_COMM_PRV_BCAST_DATA;
+  void** table = NULL;
+  size_t table_len = 0;
+  int node = 0;
+  int offset = 0;
+  int payload_size = size + sizeof(priv_bcast_t);
+  done_t* done = NULL;
+  int num_offsets = 1;
+
+  // Get the table to use.
+  table = chpl_rt_comm_fetch_broadcast_table(prg, 0, &table_len);
 
   // This can use the system allocator because it involves internode communication.
   done = (done_t*) chpl_mem_allocManyZero(chpl_numNodes, sizeof(*done),
                                           CHPL_RT_MD_COMM_FRK_DONE_FLAG,
                                           0, 0);
-  if (payloadSize <= gasnet_AMMaxMedium()) {
-    priv_bcast_t* pbp = chpl_mem_allocMany(1, payloadSize, CHPL_RT_MD_COMM_PRV_BCAST_DATA, 0, 0);
-    chpl_memcpy(pbp->data, chpl_rt_priv_bcast_tab[id], size);
-    pbp->id = id;
-    pbp->size = size;
+
+  if (payload_size <= gasnet_AMMaxMedium()) {
+    priv_bcast_t* pbp = chpl_mem_allocMany(1, payload_size, dsc, 0, 0);
+
+    chpl_memcpy(pbp->data, table[idx], size);
+
+    pbp->hdr.prg_id = prg ? prg->id : CHPL_PROGRAM_NULL_ID;
+    pbp->hdr.idx = idx;
+    pbp->hdr.size = size;
+
     for (node = 0; node < chpl_numNodes; node++) {
       if (node != chpl_nodeID) {
-        pbp->ack = &done[node];
+        pbp->hdr.ack = &done[node];
         init_done_obj(&done[node], 1);
-        GASNET_Safe(gasnet_AMRequestMedium0(node, PRIV_BCAST, pbp, payloadSize));
+        GASNET_Safe(gasnet_AMRequestMedium0(node, PRIV_BCAST, pbp,
+                                            payload_size));
       }
     }
     chpl_mem_free(pbp, 0, 0);
   } else {
+
     size_t maxpayloadsize = gasnet_AMMaxMedium();
     size_t maxsize = maxpayloadsize - sizeof(priv_bcast_large_t);
-    priv_bcast_large_t* pblp = chpl_mem_allocMany(1, maxpayloadsize, CHPL_RT_MD_COMM_PRV_BCAST_DATA, 0, 0);
-    pblp->id = id;
-    numOffsets = (size+maxsize)/maxsize;
+    priv_bcast_large_t* pblp = chpl_mem_allocMany(1, maxpayloadsize, dsc, 0, 0);
+
+    pblp->hdr.prg_id = prg ? prg->id : CHPL_PROGRAM_NULL_ID;
+    pblp->hdr.idx = idx;
+
+    num_offsets = (size + maxsize) / maxsize;
+
     for (node = 0; node < chpl_numNodes; node++) {
-      if (node != chpl_nodeID)
-        init_done_obj(&done[node], numOffsets);
+      if (node != chpl_nodeID) init_done_obj(&done[node], num_offsets);
     }
+
+    // TODO: Do we really have to do this multi-write manually?
     for (offset = 0; offset < size; offset += maxsize) {
-      size_t thissize = size - offset;
-      if (thissize > maxsize)
-        thissize = maxsize;
+      size_t this_size = size - offset;
+      if (this_size > maxsize) this_size = maxsize;
+
       pblp->offset = offset;
-      pblp->size = thissize;
-      chpl_memcpy(pblp->data, (char*)chpl_rt_priv_bcast_tab[id]+offset, thissize);
+      pblp->hdr.size = this_size;
+
+      char* start = ((char*) table[idx] + offset);
+      chpl_memcpy(pblp->data, start, this_size);
+
       for (node = 0; node < chpl_numNodes; node++) {
         if (node != chpl_nodeID) {
-          pblp->ack = &done[node];
-          GASNET_Safe(gasnet_AMRequestMedium0(node, PRIV_BCAST_LARGE, pblp, sizeof(priv_bcast_large_t)+thissize));
+          pblp->hdr.ack = &done[node];
+          GASNET_Safe(gasnet_AMRequestMedium0(node, PRIV_BCAST_LARGE, pblp,
+                      sizeof(priv_bcast_large_t) + this_size));
         }
       }
     }
+
     chpl_mem_free(pblp, 0, 0);
   }
   // wait for the handlers to complete
@@ -1266,6 +1313,7 @@ void chpl_comm_broadcast_private(int id, size_t size) {
     if (node != chpl_nodeID)
       GASNET_BLOCKUNTIL(done[node].flag);
   }
+
   chpl_mem_free(done, 0, 0);
 }
 

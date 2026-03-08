@@ -94,44 +94,30 @@ void chpl_rt_comm_broadcast_global_vars(chpl_program_info* prg) {
   }
 }
 
+// Populate the runtime's table of private broadcast constants.
+void* chpl_rt_private_broadcast_table_for_rt[] = {
+  #define EXPAND_PER_ENTRY(sym__) ((void*) &sym__),
+  CHPL_RT_RUNTIME_PRIVATE_BROADCAST_TABLE_ENTRIES(EXPAND_PER_ENTRY)
+  NULL
+  #undef EXPAND_PER_ENTRY
+};
 
-void** chpl_rt_priv_bcast_tab;
-int chpl_rt_priv_bcast_tab_len;
+// Length of table (TODO: Can remove?).
+size_t chpl_rt_private_broadcast_table_for_rt_len =
+          chpl_rt_runtime_private_broadcast_table_for_rt_num_entries;
 
-#define _RT_PRV_BCAST_M(sym) sizeof(sym),
-size_t chpl_rt_priv_bcast_lens[chpl_rt_prv_tab_num_idxs] =
-         { CHPL_RT_PRV_BCAST_TAB_ENTRIES(_RT_PRV_BCAST_M) };
-#undef _RT_PRV_BCAST_M
+// Byte lengths of table entries.
+size_t chpl_rt_private_broadcast_table_for_rt_byte_lens[] = {
+  #define EXPAND_PER_ENTRY(sym__) sizeof(sym__),
+  CHPL_RT_RUNTIME_PRIVATE_BROADCAST_TABLE_ENTRIES(EXPAND_PER_ENTRY)
+  0
+  #undef EXPAND_PER_ENTRY
+};
 
-void chpl_comm_init_prv_bcast_tab(void) {
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_private_broadcast_table_len);
-  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_private_broadcast_table);
-
-  //
-  // Make a copy of chpl_private_broadcast_table[], but with some more of
-  // our own entries following the compiler-emitted ones.
-  //
-  chpl_rt_priv_bcast_tab_len = chpl_private_broadcast_table_len
-                               + chpl_rt_prv_tab_num_idxs;
-  chpl_rt_priv_bcast_tab =
-    chpl_mem_allocMany(chpl_rt_priv_bcast_tab_len,
-                       sizeof(chpl_rt_priv_bcast_tab[0]),
-                       CHPL_RT_MD_COMM_UTIL, 0, 0);
-
-  // Duplicate the compiler-emitted entries.
-  memcpy(chpl_rt_priv_bcast_tab,
-         chpl_private_broadcast_table,
-         chpl_private_broadcast_table_len
-         * sizeof(chpl_private_broadcast_table[0]));
-
-  // Fill in our entries that follow those.
-#define _RT_PRV_BCAST_M(sym)                                            \
-  chpl_rt_priv_bcast_tab[chpl_private_broadcast_table_len               \
-                         + chpl_rt_prv_tab_ ## sym ## _idx] = &sym;
-  CHPL_RT_PRV_BCAST_TAB_ENTRIES(_RT_PRV_BCAST_M)
-#undef _RT_PRV_BCAST_M
+void chpl_rt_comm_broadcast_private(chpl_program_info* prg, int32_t idx,
+                                    size_t size) {
+  chpl_rt_comm_broadcast_private_impl(prg, idx, size);
 }
-
 
 static pthread_once_t maxHeapSize_once = PTHREAD_ONCE_INIT;
 static ssize_t maxHeapSize;

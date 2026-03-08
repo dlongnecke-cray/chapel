@@ -6191,12 +6191,22 @@ DEFINE_PRIM(REGISTER_GLOBAL_VAR) {
                 codegenCast("ptr_wide_ptr_t", ptr_wide_ptr));
 }
 DEFINE_PRIM(BROADCAST_GLOBAL_VARS) {
-    codegenCall("chpl_comm_broadcastGlobalVars");
+    // Call the module code wrapper.
+    const char* fname = "chpl_comm_broadcastGlobalVars";
+    std::vector<GenRet> args(2);
+    args[0] = call->linenum();
+    args[1] = new_IntSymbol(getFilenameTableIndex(call->fname()), INT_SIZE_32);
+    codegenCallWithArgs(fname, args);
 }
 DEFINE_PRIM(PRIVATE_BROADCAST) {
-    codegenCall("chpl_comm_broadcast_private",
-                call->get(1),
-                codegenSizeof(call->get(2)->typeInfo()));
+    // Call the module code wrapper.
+    const char* fname = "chpl_comm_broadcastPrivate";
+    std::vector<GenRet> args(4);
+    args[0] = call->get(1);
+    args[1] = codegenSizeof(call->get(2)->typeInfo());
+    args[2] = call->linenum();
+    args[3] = new_IntSymbol(getFilenameTableIndex(call->fname()), INT_SIZE_32);
+    codegenCallWithArgs(fname, args);
 }
 
 DEFINE_PRIM(INT_ERROR) {

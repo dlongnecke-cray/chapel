@@ -6,29 +6,13 @@ module ChapelLibrary {
   config param numProcPtrsToConstructPreBuffering = 0;
   config param useWritelnForPrinter = false;
 
-  proc printer(fmt: c_ptrConst(c_char)) {
-    printerImpl(fmt, hasArgs=false, 0);
+  proc printer(args...?n) {
+    use ChapelRuntimeInterface;
+    debugf((...args));
   }
 
-  proc printer(fmt: c_ptrConst(c_char), args...) {
-    printerImpl(fmt, hasArgs=true, (...args));
-  }
-
-  proc printerImpl(fmt: c_ptrConst(c_char), hasArgs: bool, args...) {
-    extern proc printf(fmt: c_ptrConst(c_char), args...);
-    if useWritelnForPrinter {
-      // TODO: Have to implement a little 'writeln' or just change calls.
-      halt('Not implemented yet!');
-    } else if hasArgs {
-      printf(fmt, (...args));
-    } else {
-      // If I don't do this the C backend complains about a security risk.
-      printf('%s', fmt);
-    }
-  }
-
-  inline proc printTestName(testNum: int(32)) {
-    printer('test%d\n', testNum);
+  proc printTestName(param x: int) {
+    debugf('test', x, '\n');
   }
 
   proc preBufferPtrCache(param upto: int) {
@@ -53,7 +37,8 @@ module ChapelLibrary {
 
     preBufferPtrCache(upto=num);
 
-    printer('-- locales array is: %p\n', c_ptrToConst(Locales));
+    const localesPtr = c_ptrToConst(Locales) : c_ptr(void);
+    printer('-- locales array is: %p\n', localesPtr);
   }
 
   // Call this in our module code.
