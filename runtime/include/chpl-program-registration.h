@@ -21,6 +21,7 @@
 #ifndef CHPL_PROGRAM_REGISTRATION_H
 #define CHPL_PROGRAM_REGISTRATION_H
 
+#include "chpl-debug-print.h"
 #include "chpl-program-data-macro-includes.h"
 
 #ifdef __cplusplus
@@ -30,7 +31,7 @@ extern "C" {
 // Uncomment this to embed debugging information.
 // LEVELS: 0 = none, 1 = reasonable, 2 = ALL
 //
-#define CHPL_RT_DEBUG_PROGRAM_ACCESS 0
+#define CHPL_RT_DEBUG_PROGRAM_ACCESS 1
 
 #ifdef LAUNCHER
   // Except, never bother in the launcher...
@@ -42,7 +43,7 @@ extern "C" {
   runtime requires from compiled Chapel programs. This includes data such as
   a program's function table or its broadcast constants table. It also
   includes constants such the value of 'CHPL_HOME' that the program was
-  compiled with such as 'CHPL_COMM' or the value of other compiler flags.
+  compiled with, 'CHPL_COMM', and additional compiler flags.
 
   The runtime no longer references these symbols in a compiled Chapel program
   directly (they are not linked against). Instead it references values from a
@@ -143,14 +144,15 @@ typedef uint64_t chpl_prg_id;
              CHPL_RT_DEBUG_PROGRAM_ACCESS <= 0
   #define CHPL_PROGRAM_DATA(prg__, data_name__) (prg__->data.data_name__)
 #else
-  #define CHPL_PROGRAM_DATA(prg__, data_name__)                         \
-    (*((data_name__##_type*)                                            \
-      chpl_program_data_debug_hook(CHPL_RT_DEBUG_PROGRAM_ACCESS, prg__, \
-                                   &(prg__->data.data_name__),          \
-                                   #data_name__,                        \
-                                   __FILE__,                            \
-                                   __FUNCTION__,                        \
-                                   __LINE__)))
+  #define CHPL_PROGRAM_DATA(prg__, data_name__)                             \
+    (*((data_name__##_type*)                                                \
+      chpl_rt_program_data_debug_print_hook(CHPL_RT_DEBUG_PROGRAM_ACCESS,   \
+                                            prg__,                          \
+                                            &(prg__->data.data_name__),     \
+                                            #data_name__,                   \
+                                            __FILE__,                       \
+                                            __FUNCTION__,                   \
+                                            __LINE__)))
 #endif
 
 /** Declares a local that is a copy of a program data, with the same name. */

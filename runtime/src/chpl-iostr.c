@@ -32,6 +32,7 @@ typedef enum iostr_error {
   IOSTR_ERROR_BAD_FORMAT,
   IOSTR_ERROR_USER_BUFFER_OUT_OF_SPACE,
   IOSTR_ERROR_ALLOCATION_FAILED,
+  IOSTR_ERROR_NO_FILES,
   IOSTR_ERROR_UNKNOWN
 } iostr_error;
 
@@ -45,6 +46,8 @@ static const char* iostr_error_code_string(iostr_error e) {
       return "the user-provided buffer ran out of space";
     case IOSTR_ERROR_ALLOCATION_FAILED:
       return "memory allocation failed";
+    case IOSTR_ERROR_NO_FILES:
+      return "no valid files were provided";
     case IOSTR_ERROR_UNKNOWN:
       return "an unknown error occurred";
     default: break;
@@ -80,6 +83,8 @@ iostr_check_for_flag_conflicts(chpl_rt_iostr_flags flags) {
 
 static void iostr_init_common(chpl_rt_iostr* st,
                               FILE* file,
+                              FILE** owned_file_list,
+                              size_t num_files,
                               char* buffer,
                               size_t buffer_size,
                               int32_t flags) {
@@ -96,15 +101,18 @@ static void iostr_init_common(chpl_rt_iostr* st,
 
   // Configure the initial state.
   st->flags = flags;
-  st->buffer_is_owned = (buffer == NULL && file == NULL);
+  st->buffer_is_owned = (buffer == NULL && num_files == 0);
   st->buffer_size = CHPL_RT_IOSTR_BUILTIN_BUFFER_SIZE;
-  st->is_using_file = file != NULL;
+  st->num_files = num_files;
 
   if (st->buffer_is_owned) {
     st->buffer_size = CHPL_RT_IOSTR_BUILTIN_BUFFER_SIZE;
 
-  } else if (st->is_using_file) {
+  } else if (st->num_files == 1) {
     st->as.file = file;
+
+  } else if (st->num_files > 1) {
+    st->as.many_files = owned_file_list;
 
   } else {
     // On this path the increment size is '0' since we don't own it.
@@ -116,17 +124,90 @@ static void iostr_init_common(chpl_rt_iostr* st,
 chpl_rt_iostr chpl_rt_iostr_init(int32_t flags) {
   chpl_rt_iostr ret;
   FILE* file = NULL;
+  FILE** owned_file_list = NULL;
+  size_t num_files = 0;
   char* buffer = NULL;
   size_t buffer_size = 0;
-  iostr_init_common(&ret, file, buffer, buffer_size, flags);
+  iostr_init_common(&ret, file, owned_file_list, num_files, buffer,
+                    buffer_size, flags);
   return ret;
 }
 
 chpl_rt_iostr chpl_rt_iostr_init_file(FILE* file, int32_t flags) {
   chpl_rt_iostr ret;
+  FILE** owned_file_list = NULL;
+  size_t num_files = 1;
   char* buffer = NULL;
   size_t buffer_size = 0;
-  iostr_init_common(&ret, file, buffer, buffer_size, flags);
+  iostr_init_common(&ret, file, owned_file_list, num_files, buffer,
+                    buffer_size, flags);
+  return ret;
+}
+
+chpl_rt_iostr chpl_rt_iostr_init_files(int32_t flags, size_t num_files, ...) {
+  // State to initialize this 'iostr'.
+  chpl_rt_iostr ret;
+  FILE* file = NULL;
+  FILE** owned_file_list = NULL;
+  char* buffer = NULL;
+  size_t buffer_size = 0;
+
+  // State to count the number of non-null files.
+  va_list vl;
+  va_list vl_copy;
+  size_t real_num_files = 0;
+
+  va_start(vl, num_files);
+  va_copy(vl_copy, vl);
+
+  for (size_t i = 0; i < num_files; i++) {
+    // Only count the non-null files. Track the last non-null file.
+    FILE* arg = va_arg(vl_copy, FILE*);
+    if (arg != NULL) {
+      real_num_files++;
+      file = arg;
+    }
+  }
+
+  // Done with the copy.
+  va_end(vl_copy);
+
+  if (real_num_files == 0) {
+    va_end(vl);
+    iostr_set_error(&ret, IOSTR_ERROR_NO_FILES);
+    return ret;
+  }
+
+  if (real_num_files == 1) {
+    va_end(vl);
+    assert(file != NULL);
+    return chpl_rt_iostr_init_file(file, flags);
+  }
+
+  chpl_mem_descInt_t dsc = CHPL_RT_MD_STR_COPY_DATA;
+  size_t num_bytes = real_num_files * sizeof(FILE*);
+  size_t file_list_idx = 0;
+
+  owned_file_list = chpl_mem_alloc(num_bytes, dsc, 0, 0);
+
+  if (owned_file_list == NULL) {
+    va_end(vl);
+    iostr_set_error(&ret, IOSTR_ERROR_ALLOCATION_FAILED);
+    return ret;
+  }
+
+  for (size_t i = 0; i < num_files; i++) {
+    FILE* arg = va_arg(vl, FILE*);
+    if (arg != NULL) owned_file_list[file_list_idx++] = arg;
+  }
+
+  assert(file_list_idx == real_num_files);
+
+  iostr_init_common(&ret, file, owned_file_list, real_num_files, buffer,
+                    buffer_size, flags);
+
+  va_end(vl);
+
   return ret;
 }
 
@@ -135,23 +216,26 @@ chpl_rt_iostr_init_using(char* buffer, size_t buffer_size,
                          int32_t flags) {
   chpl_rt_iostr ret;
   FILE* file = NULL;
-  iostr_init_common(&ret, file, buffer, buffer_size, flags);
+  FILE** owned_file_list = NULL;
+  size_t num_files = 0;
+  iostr_init_common(&ret, file, owned_file_list, num_files, buffer,
+                    buffer_size, flags);
   return ret;
 }
 
 inline static bool iostr_buffer_is_allocated(chpl_rt_iostr* st) {
-  return !st->is_using_file && st->as.allocated_buffer != NULL;
+  return st->num_files == 0 && st->as.allocated_buffer != NULL;
 }
 
 inline static char* iostr_buffer_at_start(chpl_rt_iostr* st) {
-  if (st->is_using_file) return NULL;
+  if (st->num_files != 0) return NULL;
   if (st->as.allocated_buffer != NULL) return st->as.allocated_buffer;
   return &st->builtin_buffer[0];
 }
 
 static char*
 iostr_buffer_at_offset(chpl_rt_iostr* st, size_t* out_buffer_space_left) {
-  if (st->is_using_file) return NULL;
+  if (st->num_files != 0) return NULL;
 
   char* start = iostr_buffer_at_start(st);
   char* ret = start + st->buffer_offset;
@@ -190,6 +274,10 @@ void chpl_rt_iostr_fini(chpl_rt_iostr* st, char** out_allocated_buffer) {
   } else if (iostr_buffer_is_allocated(st)) {
     // Otherwise just free the allocated buffer if needed.
     chpl_mem_free(st->as.allocated_buffer, 0, 0);
+  }
+
+  if (st->num_files > 1) {
+    chpl_mem_free(st->as.many_files, 0, 0);
   }
 }
 
@@ -248,7 +336,7 @@ static bool iostr_resize_buffer(chpl_rt_iostr* st, size_t additional) {
 
   if (new_buffer == NULL) {
     iostr_set_error(st, IOSTR_ERROR_ALLOCATION_FAILED);
-    return false; 
+    return false;
   }
 
   st->as.allocated_buffer = new_buffer;
@@ -319,13 +407,13 @@ static bool iostr_vfmt_buffer_ops(chpl_rt_iostr* st, iostr_op op,
   return false;
 }
 
-static bool iostr_vfmt_file_ops(chpl_rt_iostr* st, iostr_op op,
+static bool iostr_vfmt_file_ops(chpl_rt_iostr* st, FILE* out, iostr_op op,
                                 const char* fmt,
                                 va_list vl,
                                 bool* out_cleanup_vl) {
   switch (op) {
     case IOSTR_OP_PRINTF: {
-      int n = vfprintf(st->as.file, fmt, vl);
+      int n = vfprintf(out, fmt, vl);
       if (n < 0) {
         iostr_set_error(st, IOSTR_ERROR_BAD_FORMAT);
         return false;
@@ -335,6 +423,10 @@ static bool iostr_vfmt_file_ops(chpl_rt_iostr* st, iostr_op op,
 
   // No need to clean up, list was consumed.
   *out_cleanup_vl = false;
+
+  if (st->flags & CHPL_RT_IOSTR_FLUSH_OFTEN) {
+    chpl_rt_iostr_flush(st);
+  }
 
   // Assume the operation succeeded if we get here.
   return true;
@@ -351,8 +443,29 @@ static bool iostr_vfmt_ops(chpl_rt_iostr* st, iostr_op op,
   bool cleanup_vl = false;
   bool ret = false;
 
-  if (st->is_using_file) {
-    ret = iostr_vfmt_file_ops(st, op, fmt, vl, &cleanup_vl);
+  if (st->num_files == 1) {
+    ret = iostr_vfmt_file_ops(st, st->as.file, op, fmt, vl, &cleanup_vl);
+
+  } else if (st->num_files > 1) {
+    // In this path we loop and print out to many different files.
+    for (size_t i = 0; i < st->num_files; i++) {
+      va_list vl_copy;
+      va_copy(vl_copy, vl);
+
+      // Make sure to print using 'vl_copy'!
+      FILE* fp = st->as.many_files[i];
+      bool ok = iostr_vfmt_file_ops(st, fp, op, fmt, vl_copy, &cleanup_vl);
+
+      // TODO: Report for individual files.
+      if (!ok) ret = false;
+
+      // Clean up the individual copies of the 'va_list'.
+      if (cleanup_vl) va_end(vl_copy);
+    }
+
+    // We never actually consumed the original 'va_list'.
+    cleanup_vl = true;
+
   } else {
     ret = iostr_vfmt_buffer_ops(st, op, fmt, vl, &cleanup_vl);
   }
@@ -366,4 +479,21 @@ bool chpl_rt_iostr_printf(chpl_rt_iostr* st, const char* fmt, ...) {
   va_list vl;
   va_start(vl, fmt);
   return iostr_vfmt_ops(st, IOSTR_OP_PRINTF, fmt, vl);
+}
+
+char* chpl_rt_iostr_buffer(chpl_rt_iostr* st) {
+  char* ret = iostr_buffer_at_start(st);
+  return ret;
+}
+
+// Flush the files that are backing this 'iostr'.
+void chpl_rt_iostr_flush(chpl_rt_iostr* st) {
+  if (st->num_files == 1) {
+    fflush(st->as.file);
+
+  } else if (st->num_files > 1) {
+    for (size_t i = 0; i < st->num_files; i++) {
+      fflush(st->as.many_files[i]);
+    }
+  }
 }

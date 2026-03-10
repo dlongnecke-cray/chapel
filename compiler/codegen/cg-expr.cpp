@@ -124,7 +124,7 @@ static void codegenCallWithArgs(const char* fnName,
 
 // some codegenCallExpr are declared in codegen.h
 static GenRet codegenCallExpr(const char* fnName, GenRet a1, GenRet a2, GenRet a3);
-static void codegenCall(const char* fnName);
+// static void codegenCall(const char* fnName);
 static void codegenCall(const char* fnName, GenRet a1);
 static void codegenCall(const char* fnName, GenRet a1, GenRet a2);
 static void codegenCall(const char* fnName, GenRet a1, GenRet a2, GenRet a3);
@@ -3308,10 +3308,12 @@ GenRet codegenCallExpr(const char* fnName, GenRet a1, GenRet a2, GenRet a3)
   return codegenCallExprWithArgs(fnName, args);
 }
 
+/*
 void codegenCall(const char* fnName) {
   std::vector<GenRet> args;
   codegenCallWithArgs(fnName, args);
 }
+*/
 
 static
 void codegenCall(const char* fnName, GenRet a1)

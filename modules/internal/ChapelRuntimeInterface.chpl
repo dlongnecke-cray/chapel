@@ -108,11 +108,11 @@ module ChapelRuntimeInterface {
   pragma "always propagate line file info"
   proc debugf(args...?n) {
     extern record chpl_rt_debugf_arg {
-      var typeStr: c_ptrConst(c_char);
-      var dataPtr: c_ptr(void);
+      var type_str: c_ptrConst(c_char);
+      var data_ptr: c_ptr(void);
     }
 
-    extern 'chpl_rt_debugfChapelHook'
+    extern 'chpl_rt_debug_print_chapel_hook'
       proc fn(prg: c_ptr(chpl_program_info),
               args: c_ptr(chpl_rt_debugf_arg),
               numArgs: uint(64)): void;

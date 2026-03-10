@@ -18,8 +18,8 @@
  * limitations under the License.
  */
 
-#ifndef CHPL_PROGRAM_REGISTRATION_DETAIL_H
-#define CHPL_PROGRAM_REGISTRATION_DETAIL_H
+#ifndef CHPL_RT_PROGRAM_REGISTRATION_DETAIL_H
+#define CHPL_RT_PROGRAM_REGISTRATION_DETAIL_H
 
 #include "chpl-program-registration.h"
 
@@ -58,28 +58,8 @@ chpl_program_register_here_nosync(chpl_prg_id id, chpl_program_info* prg);
 /** Call to register the root program here. Returns '1' if registered. */
 int chpl_program_register_root_here(chpl_program_info* prg);
 
-/** Used as a hook to print deugging info to stdout when accessing fields. */
-void* chpl_program_data_debug_hook(int verbosity, chpl_program_info* prg,
-                                   void* field_addr,
-                                   const char* field_name,
-                                   const char* file,
-                                   const char* function,
-                                   int line);
-
-__attribute__ ((format (printf, 1, 2)))
-void chpl_rt_debugf(const char* fmt, ...);
-
-typedef struct chpl_rt_debugf_arg {
-  const char* typeStr;
-  void* dataPtr;
-} chpl_rt_debugf_arg;
-
-void chpl_rt_debugfChapelHook(chpl_program_info* prg,
-                              chpl_rt_debugf_arg* args,
-                              uint64_t numArgs);
-
 #ifdef __cplusplus
 }
 #endif
 
-#endif // CHPL_PROGRAM_REGISTRATION_DETAIL_H
+#endif // CHPL_RT_PROGRAM_REGISTRATION_DETAIL_H

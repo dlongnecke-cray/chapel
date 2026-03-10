@@ -25,6 +25,7 @@
 #include "chplcast.h"
 #include "chpl-cache.h"
 #include "chpl-comm.h"
+#include "chpl-debug-print.h"
 #include "chplexit.h"
 #include "chplio.h"
 #include "chpl-gpu.h"
@@ -212,8 +213,7 @@ static int is_runtime_initialized = 0;
 // Called from main.c:main(...) and chpl-init.c:chpl_library_init(...)
 //
 void chpl_rt_init(int argc, char* argv[]) {
-  if (is_runtime_initialized) return;
-  is_runtime_initialized = 1;
+  if (is_runtime_initialized) return; else is_runtime_initialized = 1;
 
   int32_t execNumLocales;
   int runInGDB;
@@ -270,9 +270,11 @@ void chpl_rt_init(int argc, char* argv[]) {
   //     initialized, such as pinning the fixed heap when comm=ofi.
   //
 
+  chpl_rt_debug_print_pre_comm_init();
   chpl_error_init();  // This does local-only initialization
   chpl_topo_pre_comm_init(NULL);
   chpl_comm_init(&argc, &argv);
+  chpl_rt_debug_print_post_comm_init();
   chpl_topo_post_comm_init();
   chpl_comm_pre_mem_init();
   chpl_mem_init();

@@ -26,19 +26,18 @@ module ChapelLibrary {
   export proc loadedLibrarySetup() {
     use ChapelProgramRegistration;
 
-    printer('LOADED PROGRAM SETUP\n');
+    printer('LOADED PROGRAM SETUP');
 
     const id = chpl_programInfoHere.id : c_int;
-    printer('-- program sees its ID as: %d\n', id);
+    printer('-- program sees its ID as: ', id);
 
     param num = numProcPtrsToConstructPreBuffering;
-    printer('-- pre-buffering with %d procedure pointers\n',
-            num : c_int);
+    printer('-- pre-buffering with ', num : c_int, ' procedure pointers');
 
     preBufferPtrCache(upto=num);
 
     const localesPtr = c_ptrToConst(Locales) : c_ptr(void);
-    printer('-- locales array is: %p\n', localesPtr);
+    printer('-- locales array is: ', localesPtr);
   }
 
   // Call this in our module code.
@@ -48,7 +47,7 @@ module ChapelLibrary {
   export proc test0() {
     printTestName(0);
     const id = here.id : c_int;
-    printer('Printing from locale: %d\n', id);
+    printer('printing from locale: ', id);
   }
 
   // Execute on all locales using an 'on' statement. To print use 'printf'.
@@ -56,7 +55,7 @@ module ChapelLibrary {
     printTestName(1);
     for loc in Locales do on loc {
       const id = here.id : c_int;
-      printer('Calling \'printf\' from locale %d\n', id);
+      printer('Calling \'printf\' from locale ', id);
     }
   }
 
