@@ -120,68 +120,76 @@ void chpl_rt_debug_print_post_comm_init(void) {
 
 typedef chpl_program_info prg;
 
-struct printer_entry {
+struct printer_state {
+  chpl_program_info* prg;
+  chpl_rt_iostr* io;
   const char* tag;
-  void (*fn)(prg*, chpl_rt_iostr*, void*);
+  void* ptr;
 };
 
-static struct printer_entry* lookup_printer_entry(const char* tag);
+struct printer_entry {
+  const char* tag;
+  void (*fn)(struct printer_state*);
+};
 
-static void print_unknown_tag(prg* prg, chpl_rt_iostr* io, const char* tag) {
-  chpl_rt_iostr_printf(io, "<unknown RT printer format: %s>", tag);
+static struct printer_entry lookup_printer_entry(const char* tag);
+
+static void print_unknown_tag(struct printer_state* p) {
+  chpl_rt_iostr_printf(p->io, "<unknown RT printer format: %s>", p->tag);
 }
 
-static void print_field_hook(chpl_program_info* prg, chpl_rt_iostr* io,
-                             const char* printer_tag,
+static void print_field_hook(struct printer_state* p,
                              const char* field_name,
-                             void* field_addr,
                              bool print_sep) {
-  struct printer_entry* e = lookup_printer_entry(printer_tag);
+  struct printer_entry e = lookup_printer_entry(p->tag);
 
-  if (e != NULL) {
-    chpl_rt_iostr_printf(io, "%s=", field_name);
-    e->fn(prg, io, field_addr);
-  } else {
-    print_unknown_tag(prg, io, printer_tag);
-  }
+  chpl_rt_iostr_printf(p->io, "%s=", field_name);
+  e.fn(p);
 
-  if (print_sep) chpl_rt_iostr_printf(io, "%s", ", ");
+  if (print_sep) chpl_rt_iostr_printf(p->io, "%s", ", ");
 }
-                             
-#define PRINT_FIELD(prg__, io__, rec_ptr__,  field__, tag__, sep__) do {    \
+
+#define PRINT_FIELD(st1__, rec_ptr__, field__, tag__, sep__) do {           \
   void* field_addr = ((void*) &rec_ptr__->field__);                         \
-  print_field_hook(prg__, io__, tag__, #field__, field_addr, sep__);        \
+  struct printer_state st2 = {                                              \
+    st1__->prg, st1__->io, tag__, field_addr                                \
+  };                                                                        \
+  print_field_hook(&st2, #field__, sep__);                                  \
 } while (0)
 
-static void print_const_char_ptr(prg* prg, chpl_rt_iostr* io, void* ptr) {
-  const char* x = ((const char*) ptr);
-  chpl_rt_iostr_printf(io, "%s", x);
+static void print_const_char_ptr(struct printer_state* p) {
+  const char* x = ((const char*) p->ptr);
+  chpl_rt_iostr_printf(p->io, "%s", x);
 }
 
-static void print_chpl_taskID_t(prg* prg, chpl_rt_iostr* io, void* ptr) {
-  chpl_taskID_t x = *((chpl_taskID_t*) ptr);
+static void print_chpl_taskID_t(struct printer_state* p) {
+  chpl_taskID_t x = *((chpl_taskID_t*) p->ptr);
   uint64_t as_u64 = (uint64_t) x;
 
   if (as_u64 == ((unsigned int) -1)) {
-    chpl_rt_iostr_printf(io, "%s", "<?>");
+    chpl_rt_iostr_printf(p->io, "%s", "<?>");
   } else {
-    chpl_rt_iostr_printf(io, "%" PRId64, as_u64);
+    chpl_rt_iostr_printf(p->io, "%" PRId64, as_u64);
   }
 }
 
-static void print_task_bundle_pointer(prg* prg, chpl_rt_iostr* io, void* ptr) {
-  chpl_task_bundle_p x = *((chpl_task_bundle_p*) ptr);
-  chpl_rt_iostr_printf(io, "%c", '(');
-  PRINT_FIELD(prg, io, x, requested_fid, "chpl_fn_int_t", 1);
-  PRINT_FIELD(prg, io, x, requested_fn, "chpl_fn_p", 1);
-  PRINT_FIELD(prg, io, x, id, "chpl_taskID_t", 0);
-  chpl_rt_iostr_printf(io, "%c", ')');
+static void print_task_bundle_pointer(struct printer_state* p) {
+  chpl_task_bundle_p x = *((chpl_task_bundle_p*) p->ptr);
+  chpl_rt_iostr_printf(p->io, "%c", '(');
+  PRINT_FIELD(p, x, requested_fid, "chpl_fn_int_t", 1);
+  PRINT_FIELD(p, x, requested_fn, "chpl_fn_p", 1);
+  PRINT_FIELD(p, x, id, "chpl_taskID_t", 0);
+  chpl_rt_iostr_printf(p->io, "%c", ')');
+}
+
+static void print_comm_on_bundle_pointer(struct printer_state* p) {
+  chpl_rt_iostr_printf(p->io, "%s", "<comm-bundle>");
 }
 
 #define DEFINE_PRINT_INTEGRAL(type__, specifier__)                      \
-  static void print_##type__(prg* prg, chpl_rt_iostr* io, void* x) {    \
-    type__* casted = ((type__*) x);                                     \
-    chpl_rt_iostr_printf(io, "%" specifier__, *casted);                 \
+  static void print_##type__(struct printer_state* p) {                 \
+    type__* casted = ((type__*) p->ptr);                                \
+    chpl_rt_iostr_printf(p->io, "%" specifier__, *casted);              \
   }
 
 DEFINE_PRINT_INTEGRAL(int64_t, PRId64)
@@ -197,33 +205,53 @@ DEFINE_PRINT_INTEGRAL(float, "f")
 DEFINE_PRINT_INTEGRAL(chpl_fn_int_t, PRId32)
 #undef DEFINE_PRINT_INTEGRAAL
 
+static bool tag_is_pointer_type(const char* tag) {
+  int i = 0;
+  for (char c = tag[0]; c != 0; c = tag[i++]) {
+    if (c == '*') return true;
+  }
+  return false;
+}
+
+static void print_pointer_general(struct printer_state* p) {
+  chpl_rt_iostr_printf(p->io, "((%s) %p)", p->tag, p->ptr);
+}
+
 // TODO: Just take 'pointer count' as a 'depth'.
 // TODO: Just map some common Chapel types here.
-struct printer_entry* lookup_printer_entry(const char* tag) {
+struct printer_entry lookup_printer_entry(const char* tag) {
   static struct printer_entry entries[] = {
-    { .tag="const char*",         .fn=print_const_char_ptr },
-    { .tag="int64_t",             .fn=print_int64_t },
-    { .tag="int32_t",             .fn=print_int32_t },
-    { .tag="int16_t",             .fn=print_int16_t },
-    { .tag="int8_t",              .fn=print_int8_t  },
-    { .tag="uint64_t",            .fn=print_uint64_t },
-    { .tag="uint32_t",            .fn=print_uint32_t },
-    { .tag="uint16_t",            .fn=print_uint16_t },
-    { .tag="uint8_t",             .fn=print_uint8_t },
-    { .tag="double",              .fn=print_double },
-    { .tag="float",               .fn=print_float },
-    { .tag="chpl_task_bundle_p",  .fn=print_task_bundle_pointer },
-    { .tag="chpl_fn_int_t",       .fn=print_chpl_fn_int_t },
-    { .tag="chpl_taskID_t",       .fn=print_chpl_taskID_t },
-    { .tag=NULL,                  .fn=NULL }
+    { .tag="const char*",           .fn=print_const_char_ptr },
+    { .tag="int64_t",               .fn=print_int64_t },
+    { .tag="int32_t",               .fn=print_int32_t },
+    { .tag="int16_t",               .fn=print_int16_t },
+    { .tag="int8_t",                .fn=print_int8_t  },
+    { .tag="uint64_t",              .fn=print_uint64_t },
+    { .tag="uint32_t",              .fn=print_uint32_t },
+    { .tag="uint16_t",              .fn=print_uint16_t },
+    { .tag="uint8_t",               .fn=print_uint8_t },
+    { .tag="double",                .fn=print_double },
+    { .tag="float",                 .fn=print_float },
+    { .tag="chpl_task_bundle_p",    .fn=print_task_bundle_pointer },
+    { .tag="chpl_comm_on_bundle_p", .fn=print_comm_on_bundle_pointer },
+    { .tag="chpl_fn_int_t",         .fn=print_chpl_fn_int_t },
+    { .tag="chpl_taskID_t",         .fn=print_chpl_taskID_t },
+    { .tag=NULL,                    .fn=NULL }
   };
 
   for (int i = 0; entries[i].tag != NULL; i++) {
     struct printer_entry* e = entries + i;
-    if (!strcmp(e->tag, tag)) return e;
+    if (!strcmp(e->tag, tag)) return *e;
   }
 
-  return NULL;
+  struct printer_entry ret = { .tag=tag, .fn=print_unknown_tag };
+
+  if (tag_is_pointer_type(tag)) {
+    ret.fn = print_pointer_general;
+    return ret;
+  }
+
+  return ret;
 }
 
 static int debug_is_hotspot(const char* function, const char* field_name) {
@@ -286,13 +314,9 @@ void chpl_rt_debug_print_chapel_hook(chpl_program_info* prg,
 
   for (uint64_t i = 0; i < num_args; i++) {
     chpl_rt_debugf_arg arg = args[i];
-
-    struct printer_entry* e = lookup_printer_entry(arg.type_str);
-    if (e) {
-      e->fn(prg, io, arg.data_ptr);
-    } else {
-      print_unknown_tag(prg, io, arg.type_str);
-    }
+    struct printer_entry e = lookup_printer_entry(arg.type_str);
+    struct printer_state st = { prg, io, e.tag, arg.data_ptr };
+    e.fn(&st);
   }
 
   chpl_rt_iostr_printf(io, "%c", '\n');
