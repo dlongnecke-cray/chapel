@@ -35,7 +35,7 @@ module ChapelRuntimeInterface {
   use ChapelBase, CTypes, ChapelProgramRegistration;
   use Reflection;
 
-  param debugRuntimeCalls = true;
+  param debugRuntimeCalls = false;
 
   // Alias for 'char**' to be used as the type of 'argv'.
   type c_argArray = c_ptr(c_ptr(c_char));
@@ -372,5 +372,17 @@ module ChapelRuntimeInterface {
     const buf = fn(sep);
     const ret = try! string.createAdoptingBuffer(buf);
     return ret;
+  }
+
+  pragma "insert line file info"
+  pragma "always propagate line file info"
+  pragma "chapel runtime shim"
+  export proc chpl_preUserCodeSync(): void {
+    debugRtShim(getRoutineName());
+
+    extern 'chpl_rt_pre_user_code_sync'
+      proc fn(prg: c_ptr(chpl_program_info)): void;
+
+    fn(infoPtrHere);
   }
 }

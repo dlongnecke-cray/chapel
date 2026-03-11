@@ -18,8 +18,8 @@
  * limitations under the License.
  */
 
-#ifndef _CHPL_INIT_H_
-#define _CHPL_INIT_H_
+#ifndef CHPL_RT_INIT_H
+#define CHPL_RT_INIT_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -29,8 +29,9 @@ extern "C" {
 
 #ifndef LAUNCHER
 
-void chpl_rt_preUserCodeHook(void);
-void chpl_rt_postUserCodeHook(void);
+#include "chpl-program-registration.h"
+
+void chpl_rt_pre_user_code_sync(chpl_program_info* prg);
 const char* allocate_string_literals_buf(int64_t s);
 void deallocate_string_literals_buf(void);
 

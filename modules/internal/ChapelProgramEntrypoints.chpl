@@ -44,8 +44,19 @@ module ChapelProgramEntrypoints {
     // and then it performs some L0-only initialization.
     chpl_initProgramStandardModules();
 
-    // At this point everything is initialized, so now we only run on L0.
     if chpl_nodeID == 0 {
+      // At this point everything is initialized, so now we only run on L0.
+      // The other locales are checked in and waiting, so L0 must also check
+      // in to complete the barrier. This step is identical to some of the
+      // setup steps that occur in 'chpl_gen_main'.
+      chpl_preUserCodeSync();
+
+      // Now we initialize user modules. Execution begins only on L0.
+      //
+      // TODO: There is more code in 'chpl_gen_main' e.g., code to initialize
+      //       the dynamic end count for the main task. Do we need to do that
+      //       here, or is it OK because P1 is loaded and things are already
+      //       initialized?
       chpl_initProgramCommandLineModules();
     }
   }

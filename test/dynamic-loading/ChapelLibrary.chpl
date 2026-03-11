@@ -23,7 +23,7 @@ module ChapelLibrary {
     }
   }
 
-  export proc loadedLibrarySetup() {
+  proc loadedLibrarySetup() {
     use ChapelProgramRegistration;
 
     printer('LOADED PROGRAM SETUP');

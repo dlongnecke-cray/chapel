@@ -103,28 +103,10 @@ static void recordExecutionCommand(int argc, char *argv[]) {
 }
 
 
-//
-// Pre-user-code hook
-//
-// This is called on all locales.  The call on locale 0 is made from the
-// compiler-emitted code in chpl_gen_main(), right before we enter user
-// code.  The call on non-0 locales is made from chpl_main(), above.
-//
-void chpl_rt_preUserCodeHook(void) {
+static void root_program_only_synchronization(void) {
   CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_taskRunningCntReset);
   CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_taskRunningCntInc);
 
-  //
-  // The module initialization functions have all completed on each
-  // node, locally, before we are called.
-  //
-  // The module init code can leave the running task counts incorrect.
-  // Once module init is complete, we can set those counts to the right
-  // values on all nodes: 1 on node 0 for the program itself, and 0 on
-  // all other nodes.  We have to barrier first because on-stmts during
-  // module init can change the running task count on any node.
-  //
-  chpl_comm_barrier("pre-user-code hook: init done");
   chpl_taskRunningCntReset(0, 0);
   if (chpl_nodeID == 0) {
     chpl_taskRunningCntInc(0, 0);
@@ -137,7 +119,8 @@ void chpl_rt_preUserCodeHook(void) {
   // which will adjust the running task count, so we have to do another
   // barrier to make sure the task counts are stable before doing it.
   //
-  chpl_comm_barrier("pre-user-code hook: task counts stable");
+  chpl_comm_barrier("pre-user-code sync: task counts stable");
+
   chpl_setMemFlags();
 
   //
@@ -145,23 +128,34 @@ void chpl_rt_preUserCodeHook(void) {
   // have set up memory tracking (if needed) before node 0 enters the
   // user code and execution starts spreading around the nodes.
   //
-  chpl_comm_barrier("pre-user-code hook: mem tracking inited");
+  chpl_comm_barrier("pre-user-code sync: mem-tracking inited");
 }
 
+//
+// Pre-user-code synchronization.
+//
+// This is called on all locales. The call on L0 is made from the generated
+// code in 'chpl_gen_main()', right before L0 begins initializing user
+// modules, or in the compiler-generated 'chpl_initLoadedProgramModulesHere()'
+// if the program is loaded.
+//
+void chpl_rt_pre_user_code_sync(chpl_program_info* prg) {
+  //
+  // The module initialization functions have all completed on each
+  // node, locally, before we are called.
+  //
+  // The module init code can leave the running task counts incorrect.
+  // Once module init is complete, we can set those counts to the right
+  // values on all nodes: 1 on node 0 for the program itself, and 0 on
+  // all other nodes.  We have to barrier first because on-stmts during
+  // module init can change the running task count on any node.
+  //
+  chpl_comm_barrier("pre-user-code sync: module init done");
 
-//
-// Post-user-code hook
-//
-// This is called on all locales.  The call on locale 0 is made from the
-// compiler-emitted code in chpl_gen_main(), right after we finish user
-// code.  The call on non-0 locales is made from chpl_main(), above.
-//
-void chpl_rt_postUserCodeHook(void) {
-  //
-  // empty
-  //
+  if (prg == CHPL_PROGRAM_ROOT) {
+    root_program_only_synchronization();
+  }
 }
-
 
 static void chpl_setlocale_utf8(void) {
   const char* got = NULL;
@@ -384,12 +378,9 @@ void chpl_rt_initProgramStandardModules(chpl_program_info* prg) {
     //
     CHPL_TASK_STD_MODULES_INITIALIZED();
   } else {
-    //
-    // On non-0 locales, just call the pre- and post-user-code hooks
-    // directly.
-    //
-    chpl_rt_preUserCodeHook();
-    chpl_rt_postUserCodeHook();
+
+    // On non-zero locales, just synchronize immediately.
+    chpl_rt_pre_user_code_sync(prg);
   }
 }
 
