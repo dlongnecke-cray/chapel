@@ -4,7 +4,6 @@ module ChapelLibrary {
   // This should be set by the .compopts matrix later when needed.
   config param isDynamicLibrary = false;
   config param numProcPtrsToConstructPreBuffering = 0;
-  config param useWritelnForPrinter = false;
 
   proc printer(args...?n) {
     use ChapelRuntimeInterface;
@@ -46,6 +45,11 @@ module ChapelLibrary {
     printf('Calling \'printf\' from locale: %d\n', id);
   }
 
+  inline proc writelnGreetingsHere() {
+    const id = here.id : int(64);
+    writeln('Calling \'writeln\' from locale: ', id);
+  }
+
   // Execute on current locale, print using 'printf'.
   export proc test0() {
     printfGreetingsHere();
@@ -74,10 +78,22 @@ module ChapelLibrary {
     assert(expect == actual);
   }
 
+  export proc test3() {
+    printer('-- Trying out \'writeln\'...');
+    writelnGreetingsHere();
+  }
+
+  export proc test4() {
+    printer('-- Trying out \'writeln\' on all locales...');
+    for loc in Locales do on loc do writelnGreetingsHere();
+  }
+
   const testArray = [
     test0,
     test1,
-    test2
+    test2,
+    test3,
+    test4
   ];
 
   export proc numTests(): int(64) {
