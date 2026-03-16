@@ -52,10 +52,18 @@ module ChapelProgramRegistration {
     inline proc nullId param do return this.type.nullId;
     inline proc rootId param do return this.type.rootId;
 
-    inline proc id {
+    inline proc id: chpl_prg_id {
       param cname = 'chpl_program_info_id';
       extern cname proc id(const ref chpl_program_info): chpl_prg_id;
       return id(info);
+    }
+
+    inline proc path: string {
+      param cname = 'chpl_program_info_load_path';
+      extern cname proc fn(const ref chpl_program_info): c_ptrConst(c_char);
+      const ptr = fn(info);
+      const ret = try! string.createBorrowingBuffer(ptr);
+      return ret;
     }
 
     inline proc ref _callSetter(param name: string, in val) {

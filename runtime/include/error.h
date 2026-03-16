@@ -21,8 +21,6 @@
 #ifndef _error_H_
 #define _error_H_
 
-#include "chpltypes.h"
-
 #include <stdarg.h>
 #include <stdint.h>
 

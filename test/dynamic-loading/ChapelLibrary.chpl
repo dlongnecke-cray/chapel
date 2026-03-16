@@ -11,10 +11,6 @@ module ChapelLibrary {
     debugf((...args));
   }
 
-  proc printTestName(param x: int) {
-    debugf('test', x, '\n');
-  }
-
   proc preBufferPtrCache(param upto: int) {
     // TODO: This loop should get unrolled, creating 'upto' different
     //       anonymous procedures. But I cannot test it quite yet.
@@ -26,37 +22,42 @@ module ChapelLibrary {
   proc loadedLibrarySetup() {
     use ChapelProgramRegistration;
 
-    printer('LOADED PROGRAM SETUP');
+    printer('LOADED LIBRARY SETUP');
 
     const id = chpl_programInfoHere.id : c_int;
-    printer('-- program sees its ID as: ', id);
+    printer('-- program ID = ', id);
+
+    const path = chpl_programInfoHere.path;
+    printer('-- program path = ', path);
 
     param num = numProcPtrsToConstructPreBuffering;
-    printer('-- pre-buffering with ', num : c_int, ' procedure pointers');
-
-    preBufferPtrCache(upto=num);
-
-    const localesPtr = c_ptrToConst(Locales) : c_ptr(void);
-    printer('-- locales array is: ', localesPtr);
+    if num > 0 {
+      printer('-- pre-buffering with ', num : c_int, ' procedure pointers');
+      preBufferPtrCache(upto=num);
+    }
   }
 
   // Call this in our module code.
   loadedLibrarySetup();
 
+  inline proc printfGreetingsHere() {
+    extern proc printf(args...): void;
+    const id = here.id : c_int;
+    printf('Calling \'printf\' from locale: %d\n', id);
+  }
+
   // Execute on current locale, print using 'printf'.
   export proc test0() {
-    printTestName(0);
-    const id = here.id : c_int;
-    printer('printing from locale: ', id);
+    printfGreetingsHere();
   }
 
   // Execute on all locales using an 'on' statement. To print use 'printf'.
   export proc test1() {
-    printTestName(1);
-    for loc in Locales do on loc {
-      const id = here.id : c_int;
-      printer('Calling \'printf\' from locale ', id);
-    }
+    for loc in Locales do on loc do printfGreetingsHere();
+  }
+
+  // Execute on all locales but use a 'coforall' loop.
+  export proc test2() {
   }
 
   /*

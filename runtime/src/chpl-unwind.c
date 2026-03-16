@@ -25,6 +25,8 @@
 
 #include "chplrt.h"
 
+#include "error.h"
+
 #include <stdio.h>
 
 #ifndef LAUNCHER
@@ -47,7 +49,6 @@
 #include "chpl-linefile-support.h"
 #include "chpl-program-registration.h"
 
-#include "error.h"
 #include "chplexit.h"
 #include "chpl-mem.h"
 #include "chpl-env.h"

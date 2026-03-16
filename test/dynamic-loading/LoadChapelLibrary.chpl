@@ -101,7 +101,9 @@ proc chapelLibraryPath param {
   return './lib/libChapelLibrary.' + chapelLibraryExtension;
 }
 
-proc runTestBattery() {
+const sep = '-' * 72;
+
+proc runTests() {
   var lib = new dynamicLibrary(chapelLibraryPath);
 
   // Get the number of tests to run.
@@ -109,15 +111,31 @@ proc runTestBattery() {
   const numTestsProc = lib.loadLocally('numTests', numTestsType);
   const numTests = numTestsProc();
 
-  // Run the tests.
+  // Loaded program module-init will print some stuff, add a newline.
+  writeln();
+
   for i in 0..<numTests {
+    // Get the test name, this will be dynamically loaded.
     const testName = "test" + i:string;
+
+    // Print a border and the test name.
+    writeln(sep);
+    writeln(testName);
+    writeln(sep);
+
+    // Fetch the test locally.
     type testType = proc(): void;
-    const testProc = try! lib.loadLocally(testName, testType);
-    testProc();
+    const test = try! lib.loadLocally(testName, testType);
+    assert(test != nil);
+
+    // Run the test.
+    test();
+
+    // Print out newline just to space things out.
+    writeln();
   }
 }
 
 proc main() {
-  runTestBattery();
+  runTests();
 }

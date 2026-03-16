@@ -1,0 +1,17 @@
+LOADED LIBRARY SETUP
+-- program ID = 2
+-- program path = ./lib/libChapelLibrary.so
+
+------------------------------------------------------------------------
+test0
+------------------------------------------------------------------------
+Calling 'printf' from locale: 0
+
+------------------------------------------------------------------------
+test1
+------------------------------------------------------------------------
+Calling 'printf' from locale: 0
+Calling 'printf' from locale: 1
+Calling 'printf' from locale: 2
+Calling 'printf' from locale: 3
+
