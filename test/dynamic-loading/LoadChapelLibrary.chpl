@@ -111,7 +111,7 @@ proc runTests() {
   const numTestsProc = lib.loadLocally('numTests', numTestsType);
   const numTests = numTestsProc();
 
-  // Loaded program module-init will print some stuff, add a newline.
+  writeln('Executing ', numTests, ' tests...');
   writeln();
 
   for i in 0..<numTests {

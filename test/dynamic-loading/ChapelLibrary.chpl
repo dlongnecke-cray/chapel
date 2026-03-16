@@ -58,20 +58,31 @@ module ChapelLibrary {
 
   // Execute on all locales but use a 'coforall' loop.
   export proc test2() {
+    printer('-- Incrementing atomic counter remotely inside of coforall...');
+
+    var counter: atomic int;
+
+    coforall loc in Locales do on loc do {
+      counter.add(1);
+    }
+
+    const expect: int(64) = numLocales;
+    const actual: int(64) = counter.read();
+    printer('Expect: ', expect);
+    printer('Actual: ', actual);
+
+    assert(expect == actual);
   }
 
-  /*
-  // TODO: Add me back when we can safely add more globals.
   const testArray = [
     test0,
-    test1
+    test1,
+    test2
   ];
+
   export proc numTests(): int(64) {
     return testArray.size;
   }
-  */
-
-  export proc numTests(): int(64) do return 2;
 
   proc main() {
 

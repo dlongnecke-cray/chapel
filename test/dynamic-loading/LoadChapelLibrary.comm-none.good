@@ -1,6 +1,7 @@
 LOADED LIBRARY SETUP
 -- program ID = 2
 -- program path = ./lib/libChapelLibrary.so
+Executing 3 tests...
 
 ------------------------------------------------------------------------
 test0
@@ -11,4 +12,11 @@ Calling 'printf' from locale: 0
 test1
 ------------------------------------------------------------------------
 Calling 'printf' from locale: 0
+
+------------------------------------------------------------------------
+test2
+------------------------------------------------------------------------
+-- Incrementing atomic counter remotely inside of coforall...
+Expect: 1
+Actual: 1
 
