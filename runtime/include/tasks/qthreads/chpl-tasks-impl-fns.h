@@ -173,21 +173,26 @@ c_sublocid_t chpl_task_getSubloc(void)
                                         (c_sublocid_t) qthread_shep());
 }
 
+static inline int
+chpl_rt_is_valid_subloc(c_sublocid_t full_subloc) {
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_LOCALE_MODEL);
+
+  // We allow using c_sublocid_none to represent the CPU in the gpu locale
+  // model. This isn't currently used by the numa (or other locale) models.
+  return isActualSublocID(full_subloc) || full_subloc == c_sublocid_none ||
+         !strcmp(CHPL_LOCALE_MODEL, "gpu");
+}
+
 #ifdef CHPL_TASK_SETSUBLOC_IMPL_DECL
 #error "CHPL_TASK_SETSUBLOC_IMPL_DECL is already defined!"
 #else
 #define CHPL_TASK_SETSUBLOC_IMPL_DECL 1
 #endif
 static inline
-void chpl_task_setSubloc(c_sublocid_t full_subloc)
-{
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_LOCALE_MODEL);
+void chpl_task_setSubloc(c_sublocid_t full_subloc) {
     qthread_shepherd_id_t curr_shep;
 
-    // We allow using c_sublocid_none to represent the CPU in the gpu locale
-    // model. This isn't currently used by the numa (or other locale) models.
-    assert(isActualSublocID(full_subloc) || full_subloc == c_sublocid_none ||
-        !strcmp(CHPL_LOCALE_MODEL, "gpu"));
+    assert(chpl_rt_is_valid_subloc(full_subloc));
 
     // Only change sublocales if the caller asked for a particular one,
     // which is not the current one, and we're a (movable) task.

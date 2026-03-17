@@ -1001,16 +1001,12 @@ void chpl_task_addTask(chpl_fn_int_t       fid,
                        int32_t             filename)
 {
     CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_ftable);
-    CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, CHPL_LOCALE_MODEL);
     CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT,
                            chpl_localeModel_sublocToExecutionSubloc);
 
     chpl_fn_p requested_fn = chpl_ftable[fid];
 
-    // We allow using c_sublocid_none to represent the CPU in the gpu locale
-    // model. This isn't currently used by the numa (or other locale) models.
-    assert(isActualSublocID(full_subloc) || full_subloc == c_sublocid_none ||
-        !strcmp(CHPL_LOCALE_MODEL, "gpu"));
+    assert(chpl_rt_is_valid_subloc(full_subloc));
 
     PROFILE_INCR(profile_task_addTask,1);
 
