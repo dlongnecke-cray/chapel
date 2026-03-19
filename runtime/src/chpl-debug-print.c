@@ -319,6 +319,5 @@ void chpl_rt_debug_print_chapel_hook(chpl_program_info* prg,
     e.fn(&st);
   }
 
-  chpl_rt_iostr_printf(io, "%c", '\n');
   chpl_rt_iostr_flush(io);
 }

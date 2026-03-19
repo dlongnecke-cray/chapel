@@ -1,106 +1,102 @@
 module ChapelLibrary {
-  use CTypes;
+  use ChapelLibraryTestCommon;
 
-  // This should be set by the .compopts matrix later when needed.
-  config param isDynamicLibrary = false;
-  config param numProcPtrsToConstructPreBuffering = 0;
+  config param numProcPtrsToConstructInLibrary = 0;
 
-  proc printer(args...?n) {
-    use ChapelRuntimeInterface;
-    debugf((...args));
-  }
-
-  proc preBufferPtrCache(param upto: int) {
-    // TODO: This loop should get unrolled, creating 'upto' different
-    //       anonymous procedures. But I cannot test it quite yet.
-    for param i in 0..<upto {
-      const p = proc(): void {};
-    }
-  }
-
-  proc loadedLibrarySetup() {
-    use ChapelProgramRegistration;
-
-    printer('LOADED LIBRARY SETUP');
-
-    const id = chpl_programInfoHere.id : c_int;
-    printer('-- program ID = ', id);
-
-    const path = chpl_programInfoHere.path;
-    printer('-- program path = ', path);
-
-    param num = numProcPtrsToConstructPreBuffering;
-    if num > 0 {
-      printer('-- pre-buffering with ', num : c_int, ' procedure pointers');
-      preBufferPtrCache(upto=num);
-    }
-  }
-
-  // Call this in our module code.
-  loadedLibrarySetup();
-
-  inline proc printfGreetingsHere() {
-    extern proc printf(args...): void;
-    const id = here.id : c_int;
-    printf('Calling \'printf\' from locale: %d\n', id);
-  }
-
-  inline proc writelnGreetingsHere() {
-    const id = here.id : int(64);
-    writeln('Calling \'writeln\' from locale: ', id);
-  }
+  // Call this setup function in both the library and executable.
+  perProgramSetupInModuleInit(numProcPtrsToConstructInLibrary);
 
   // Execute on current locale, print using 'printf'.
-  export proc test0() {
+  export proc testPrintfLocally(): bool {
     printfGreetingsHere();
+    return true;
   }
 
   // Execute on all locales using an 'on' statement. To print use 'printf'.
-  export proc test1() {
+  export proc testPrintfOnAllLocales(): bool {
     for loc in Locales do on loc do printfGreetingsHere();
+    return true;
   }
 
   // Execute on all locales but use a 'coforall' loop.
-  export proc test2() {
-    printer('-- Incrementing atomic counter remotely inside of coforall...');
-
+  export proc testCoforallFanOutAtomicIncrement(): bool {
     var counter: atomic int;
-
-    coforall loc in Locales do on loc do {
-      counter.add(1);
-    }
-
-    const expect: int(64) = numLocales;
-    const actual: int(64) = counter.read();
-    printer('Expect: ', expect);
-    printer('Actual: ', actual);
-
-    assert(expect == actual);
+    coforall loc in Locales do on loc do counter.add(1);
+    return matches(numLocales, counter.read(), print=true);
   }
 
-  export proc test3() {
-    printer('-- Trying out \'writeln\'...');
+  export proc testWritelnLocally() {
     writelnGreetingsHere();
+    return true;
   }
 
-  export proc test4() {
-    printer('-- Trying out \'writeln\' on all locales...');
+  export proc testWritelnOnAllLocales() {
     for loc in Locales do on loc do writelnGreetingsHere();
+    return true;
   }
 
-  const testArray = [
-    test0,
-    test1,
-    test2,
-    test3,
-    test4
+  export proc testEnableWritelnByDefault() {
+    ChapelLibraryTestCommon.printUsingWriteln = true;
+    return true;
+  }
+
+  export proc testForallLocalAtomicIncrement() {
+    var counter: atomic int;
+    forall i in 0..<hi do counter.add(1);
+    return matches(hi, counter.read(), print=true);
+  }
+
+  const testNameArray = [
+    'testPrintfLocally',
+    'testPrintfOnAllLocales',
+    'testCoforallFanOutAtomicIncrement',
+    'testWritelnLocally',
+    'testWritelnOnAllLocales',
+    'testEnableWritelnByDefault',
+    'testForallLocalAtomicIncrement',
   ];
 
-  export proc numTests(): int(64) {
-    return testArray.size;
+  // Executable will call to get the number of tests to run.
+  export proc numberOfTestsToRun(): int {
+    return testNameArray.size;
   }
 
-  proc main() {
-
+  // Executable will call to get the test names.
+  export proc testName(idx: int) {
+    assert(idx >= 0 && idx < testNameArray.size);
+    return testNameArray[idx].c_str();
   }
+
+  //
+  // HELPER FUNCTIONS (to be called by executable)
+  //
+
+  export proc writelnThreeInt64(a: int, b: int, c: int) {
+    writeln(a, '.', b, '.', c);
+  }
+
+  export proc writeInt64(x: int) do write(x);
+  export proc addTwoInt64(a: int, b: int) do return a + b;
+  export proc addCoforallCallingSerial1(a: int, b: int) do return a + b;
+  export proc returnMeaningOfLife(): int do return 42;
+
+  // TODO: This causes everything to crash. Running some 'on' statements?
+  // const testString = 'This is a long test string!';
+  // export proc returnStringPtr() do return testString.c_str();
+
+  // A very inefficient way to compute a summation. The point of this is to
+  // spawn a lot of tasks to test heavy contention within the tasking layer.
+  export proc coforallComputeSummation(n: int): int {
+    if n <= 0 then return 0;
+    var counter: atomic int;
+    coforall i in 1..n do counter.add(i);
+    return counter.read();
+  }
+
+  /*
+  TODO: Returning procedures, and linkage. Currently not "externable".
+  export proc returnAddProc(): myAddProc.type {
+    return addTwoInt64;
+  }
+  */
 }

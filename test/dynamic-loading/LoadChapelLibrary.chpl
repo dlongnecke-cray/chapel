@@ -2,9 +2,12 @@
 // Load and execute code from a Chapel library.
 //
 
-use ChapelDynamicLoading;
-use CTypes;
-use Reflection;
+use ChapelLibraryTestCommon;
+
+config param numProcPtrsToConstructInExecutable = 0;
+
+// Call this setup function in both the library and executable.
+perProgramSetupInModuleInit(numProcPtrsToConstructInExecutable);
 
 //
 // TODO: Replace/remove this with helper module after rebase.
@@ -91,44 +94,39 @@ record dynamicLibrary {
   }
 }
 
-proc chapelLibraryExtension param {
-  use ChplConfig;
-  if CHPL_TARGET_PLATFORM == 'darwin' then return 'dylib';
-  return 'so';
+inline proc loadedTestName(ref lib, idx: int) {
+  type testNameType = proc(x: int): c_ptrConst(c_char);
+  const testNameProc = lib.loadLocally('testName', testNameType);
+  const ptr = testNameProc(idx);
+  const ret = try! string.createCopyingBuffer(ptr);
+  return ret;
 }
 
-proc chapelLibraryPath param {
-  return './lib/libChapelLibrary.' + chapelLibraryExtension;
+inline proc numberOfLoadedTests(ref lib) {
+  type numTestsType = proc(): int;
+  const numTestsProc = try! lib.loadLocally('numberOfTestsToRun', numTestsType);
+  const ret = numTestsProc();
+  return ret;
 }
 
-const sep = '-' * 72;
-
-proc runTests() {
-  var lib = new dynamicLibrary(chapelLibraryPath);
-
+proc runTestsInLibrary(ref lib: dynamicLibrary) {
   // Get the number of tests to run.
-  type numTestsType = proc(): int(64);
-  const numTestsProc = lib.loadLocally('numTests', numTestsType);
-  const numTests = numTestsProc();
-
-  writeln('Executing ', numTests, ' tests...');
+  const numTests = numberOfLoadedTests(lib);
+  writeln('Executing ', numTests, ' tests in library...');
   writeln();
 
   for i in 0..<numTests {
     // Get the test name, this will be dynamically loaded.
-    const testName = "test" + i:string;
+    const testName = loadedTestName(lib, i);
 
-    // Print a border and the test name.
-    writeln(sep);
-    writeln(testName);
-    writeln(sep);
+    printTestHeader(testName);
 
     // Fetch the test locally.
-    type testType = proc(): void;
+    type testType = proc(): bool;
     const test = try! lib.loadLocally(testName, testType);
     assert(test != nil);
 
-    // Run the test.
+    // Run the test. TODO: If I assign this into a bool it doesn't run.
     test();
 
     // Print out newline just to space things out.
@@ -136,6 +134,127 @@ proc runTests() {
   }
 }
 
+// TODO: Returning procedures, then call me below...
+proc testAddProcFactory(ref lib: dynamicLibrary) {
+  type fnType = proc(): proc(a: int, b: int): int;
+  const fn = try! lib.load('returnAddProc', fnType);
+
+  // NOTE: While 'addProcFactory' has external linkage, 'addProc' doesn't.
+  const addProc = fn();
+
+  for i in 1..hi do {
+    const n1 = addProc(i, i);
+    const n2 = i + i;
+    assert(matches(n1, n2));
+  }
+}
+
+proc testPassingArgs(ref lib: dynamicLibrary) {
+  type fnType = proc(a: int, b: int, c: int): void;
+  const fn = try! lib.load('writelnThreeInt64', fnType);
+  fn(3, 1, 4);
+}
+
+proc testReturningVal0(ref lib: dynamicLibrary) {
+  type fnType = proc(): int;
+  const fn = try! lib.load('returnMeaningOfLife', fnType);
+  const n = fn();
+  writeln(n);
+}
+
+proc testReturningVal1(ref lib: dynamicLibrary) {
+  writeln('SKIPPING: Module-level string constants are broken');
+  return;
+
+  type fnType = proc(): c_ptrConst(c_char);
+  const fn = try! lib.load('returnStringPtr', fnType);
+  const ptr = fn();
+  const str = try! string.createBorrowingBuffer(ptr);
+  writeln(str);
+}
+
+proc testAddTwoInt64(ref lib: dynamicLibrary) {
+  type fnType = proc(a: int, b: int): int;
+  const fn = try! lib.load('addTwoInt64', fnType);
+  const n = fn(2, 2);
+  assert(n == 4);
+}
+
+// In the first variation we load outside of the coforall.
+proc testCoforallCallingSerial0(ref lib: dynamicLibrary) {
+  type fnType = proc(x: int): void;
+  const fnToWrite = try! lib.load('writeInt64', fnType);
+
+  var counter: atomic int;
+  const hi = 16;
+
+  // This is a really goofy loop.
+  while counter.read() != hi do
+    coforall i in 0..<hi do
+      if i == counter.read() {
+        fnToWrite(i);
+        write(' ');
+        counter.add(1);
+      }
+
+  writeln();
+}
+
+// In the second variation we load inside of the coforall.
+proc testCoforallCallingSerial1(ref lib: dynamicLibrary) {
+  var counter: atomic int;
+
+  coforall i in 1..hi with (ref lib) {
+    // At least one first-time load in the loop. Then fast-path access.
+    type fnType = proc(a: int, b: int): int;
+    const fn = try! lib.load('addCoforallCallingSerial1', fnType);
+
+    const n = fn(i, i);
+    counter.add(n);
+  }
+
+  writeln(counter);
+}
+
+proc testCoforallCallingCoforall(ref lib: dynamicLibrary) {
+  const hi = 16;
+  var arr: [1..hi] int;
+
+  coforall i in 1..hi with (ref arr, ref lib) do {
+    type fnType = proc(n: int): int;
+    const fn = try! lib.load('coforallComputeSummation', fnType);
+    arr[i] = fn(i);
+  }
+
+  writeln(arr);
+}
+
+// TODO: Support getting name from procedure pointer.
+const testArray = [
+  ('testPassingArgs', testPassingArgs),
+  ('testReturningVal0', testReturningVal0),
+  ('testReturningVal1', testReturningVal1),
+  ('testCoforallCallingSerial0', testCoforallCallingSerial0),
+  ('testCoforallCallingSerial1', testCoforallCallingSerial1),
+  ('testCoforallCallingCoforall', testCoforallCallingCoforall),
+];
+
+proc runTestsInExecutable(ref lib: dynamicLibrary) {
+  const numTests = testArray.size;
+
+  writeln('Executing ', numTests, ' tests in executable...');
+  writeln();
+
+  for (testName, testProc) in testArray {
+    printTestHeader(testName);
+    testProc(lib);
+  }
+}
+
 proc main() {
-  runTests();
+  var lib = new dynamicLibrary(chapelLibraryPath);
+
+  runTestsInLibrary(lib);
+
+  runTestsInExecutable(lib);
 }

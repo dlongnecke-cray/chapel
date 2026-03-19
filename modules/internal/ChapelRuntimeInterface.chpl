@@ -164,11 +164,11 @@ module ChapelRuntimeInterface {
       if hasArgs {
         debugf('[', procName, ' in modules ', fileName, ':',
                lineInfo, '] P', chpl_programInfoHere.id, '@L',
-               chpl_nodeID, ': ', (...args));
+               chpl_nodeID, ': ', (...args), '\n');
       } else {
         debugf('[', procName, ' in modules ', fileName, ':',
                lineInfo, '] P', chpl_programInfoHere.id, '@L',
-               chpl_nodeID);
+               chpl_nodeID, '\n');
       }
     }
   }

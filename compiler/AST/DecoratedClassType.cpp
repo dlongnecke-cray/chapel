@@ -366,7 +366,8 @@ ClassTypeDecoratorEnum classTypeDecorator(Type* t) {
       t->symbol->hasFlag(FLAG_DATA_CLASS) ||
       t == dtStringC ||
       t == dtCFnPtr ||
-      t == dtCVoidPtr) {
+      t == dtCVoidPtr ||
+      isFunctionType(t)) {
     return ClassTypeDecorator::UNMANAGED_NILABLE;
   }
 

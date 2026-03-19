@@ -395,13 +395,11 @@ static void fork_large_wrapper(large_fork_task_t* f) {
   size_t bundle_size_on_caller;
   void* arg_on_caller;
   void* ack;
-  chpl_fn_int_t fid;
 
   caller = lg->hdr.caller;
   bundle_size_on_caller = lg->arg_size;
   arg_on_caller = lg->arg;
   ack = lg->hdr.ack;
-  fid = lg->hdr.fid;
 
   // Allocate the bundle
   arg = chpl_mem_allocMany(1, bundle_size_on_caller,
