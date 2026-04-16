@@ -1151,6 +1151,7 @@ void chpl_comm_rollcall(void) {
 
 void chpl_comm_impl_regMemHeapInfo(void** start_p, size_t* size_p) {
 #if defined(GASNET_SEGMENT_FAST) || defined(GASNET_SEGMENT_LARGE)
+  CHPL_PROGRAM_DATA_TEMP(CHPL_PROGRAM_ROOT, chpl_numGlobalsOnHeap);
   *start_p = chpl_numGlobalsOnHeap * sizeof(wide_ptr_t)
              + (char*)seginfo_table[chpl_nodeID].addr;
   *size_p  = seginfo_table[chpl_nodeID].size
