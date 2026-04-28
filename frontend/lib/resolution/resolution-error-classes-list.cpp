@@ -2436,7 +2436,7 @@ void ErrorThrowUnhandled::write(ErrorWriterBase& wr) const {
   auto sig = std::get<const resolution::UntypedFnSignature*>(info_);
 
   wr.heading(kind_, type_, call,
-             "call to throwing function '", sig->name(), "' is in a try "
+             "call to throwing function '", sig->name(), "' is in a 'try' "
              "but not handled");
   wr.code(call, { call });
 }
@@ -2447,6 +2447,11 @@ void ErrorTryNoCatchAll::write(ErrorWriterBase& wr) const {
   wr.heading(kind_, type_, tryNode,
              "try without a catchall in a non-throwing function");
   wr.code(tryNode, { tryNode });
+
+  wr.message("This allows for unhandled exceptions to propagate out of the "
+             "function, which is not allowed in a non-throwing function. "
+             "Either add a catchall to handle those errors or make the "
+             "function throwing.");
 }
 
 void ErrorTupleDeclMismatchedElems::write(ErrorWriterBase& wr) const {
