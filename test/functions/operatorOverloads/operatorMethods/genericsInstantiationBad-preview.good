@@ -1,0 +1,1 @@
+genericsInstantiationBad.chpl:N: error: Cannot compare records of type Foo(int(64)) and Foo(real(64)) using '=='
