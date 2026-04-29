@@ -1,2 +1,2 @@
 --edition=default
---edition=preview  # genericInstantiationBad-preview.good
+--edition=preview  # genericsInstantiationBad-preview.good
