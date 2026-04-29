@@ -138,7 +138,7 @@ E_CALLBACK_RT(chpl_gen_main, int64_t, chpl_main_argument* _arg)
 
     TODO: Get rid of this 'const c_string' nonsense.
 */
-E_CONSTANT(chpl_filenameTable, const c_string*) 
+E_CONSTANT(chpl_filenameTable, const c_string*)
 
 /** CODE-GENERATED
     Length of the filename table.
