@@ -59,7 +59,7 @@ proc type manifestFile.defaultNewPkg(name: string,
   var b = new manifestFile();
   b.name = name;
   b.version = "0.1.0";
-  b.chplVersion = MasonUtils.getChapelVersionStr();
+  b.chplVersion = MasonUtils.getChapelVersionInfo():string;
   b.license = "None";
   b.pkgType = pkgType;
   return b;

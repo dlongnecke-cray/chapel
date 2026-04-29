@@ -24,6 +24,7 @@ module MasonUpdate {
 use FileSystem;
 use List;
 use Map;
+import Version;
 use ArgumentParser;
 use MasonEnv;
 use MasonExternal;
@@ -126,7 +127,7 @@ proc updateLock(skipUpdate: bool, tf="Mason.toml", lf="Mason.lock",
         then "The following package is"
         else "The following packages are";
       var err = "%s incompatible with your version of Chapel (%s):\n"
-                  .format(prefix, getChapelVersionStr());
+                  .format(prefix, getChapelVersionInfo():string);
       for msg in failedChapelVersion do
         err += "  " + msg + "\n";
       throw new MasonError(err.strip());
@@ -220,8 +221,7 @@ proc updateRegistry(skipUpdate: bool, show=true) throws {
 }
 
 proc verifyChapelVersion(brick:borrowed Toml) throws {
-  const tupInfo = getChapelVersionInfo();
-  const current = new versionInfo(tupInfo(0), tupInfo(1), tupInfo(2));
+  const current = getChapelVersionInfo();
 
   var (low, hi) = parseChplVersion(brick);
   var ret = low <= current && current <= hi;
@@ -231,11 +231,11 @@ proc verifyChapelVersion(brick:borrowed Toml) throws {
 
 proc prettyVersionRange(low, hi) {
   if low == hi then
-    return low.str();
+    return low:string;
   else if hi.containsMax() then
-    return low.str() + " or later";
+    return low:string + " or later";
   else
-    return low.str() + ".." + hi.str();
+    return low:string + ".." + hi:string;
 }
 
 proc chplVersionError(brick:borrowed Toml) throws {
@@ -296,7 +296,7 @@ private proc createDepTree(root: Toml) throws {
     chplVersionError(brick);
 
     // Lock in the current Chapel version
-    const curVer = getChapelVersionStr();
+    const curVer = getChapelVersionInfo():string;
     brick.set("chplVersion", curVer + ".." + curVer);
 
     if brick.pathExists("dependencies") {
@@ -416,7 +416,7 @@ private proc IVRS(A: borrowed Toml, B: borrowed Toml) throws {
   if !okA && !okB {
     stderr.writeln("Dependency resolution error: unable to find version of '",
                    name, "' compatible with your version of Chapel (",
-                   getChapelVersionStr(), "):");
+                   getChapelVersionInfo():string, "):");
     stderr.writeln("  v", version1, " expecting ",
                    prettyVersionRange(Alo, Ahi));
     stderr.writeln("  v", version2, " expecting ",

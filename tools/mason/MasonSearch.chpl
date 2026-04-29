@@ -72,7 +72,7 @@ proc masonSearch(args: [] string): int throws {
   sort(pkgs, comparator=new pkgComparator(query));
 
   for package in pkgs {
-    writef("%s (%s)\n", package.name, package.version.str());
+    writef("%s (%s)\n", package.name, package.version:string);
   }
 
   // Handle --show flag
@@ -80,9 +80,9 @@ proc masonSearch(args: [] string): int throws {
     if pkgs.size == 1 {
       const pkg = pkgs[0];
       writeln("Displaying the latest version: " +
-              pkg.name + "@" + pkg.version.str());
+              pkg.name + "@" + pkg.version:string);
       const brickPath = joinPath(pkg.registry, "Bricks",
-                                 pkg.name, pkg.version.str() + ".toml");
+                                 pkg.name, pkg.version:string + ".toml");
       showToml(brickPath);
     } else if pkgs.size == 0 {
       throw new MasonError('"%s" returned no packages\n'.format(query) +

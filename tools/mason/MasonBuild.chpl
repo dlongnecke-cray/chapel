@@ -547,7 +547,7 @@ proc computeFingerprint(
 ): string throws {
   var fingerprint = "";
   fingerprint += "MasonVersion=" + MASON_VERSION + "\n";
-  fingerprint += "ChapelVersion=" + getChapelVersionStr() + "\n";
+  fingerprint += "ChapelVersion=" + getChapelVersionInfo():string + "\n";
   fingerprint += printChplEnv();
   fingerprint += getInterestingEnvVars();
   fingerprint += "cmdline_compopts=" +
