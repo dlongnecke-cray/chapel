@@ -360,8 +360,7 @@ proc getChapelVersionInfo(): Version.version throws {
       throw new MasonError("Failed to match output of 'chpl --version':\n" +
                             output);
 
-    const split = semver.split(".");
-    chplVersionInfo = new Version.version(split[0]:int, split[1]:int, split[2]:int);
+    chplVersionInfo = Version.version.fromString(semver);
   }
 
   return chplVersionInfo;
@@ -782,7 +781,9 @@ proc parseChplVersion(
   use Regex;
 
   // Assert some expected fields are not nil
-  if brick == nil || brick!.get["name"] == nil || brick!.get["version"] == nil  then
+  if brick == nil ||
+     brick!.get["name"] == nil ||
+     brick!.get["version"] == nil then
     throw new MasonError("Unable to parse manifest file");
 
   if brick!.get["chplVersion"] == nil {
@@ -827,7 +828,8 @@ private proc parseChplVersionString(ver: string) throws {
 proc checkChplVersion(
   chplVersion: string
 ): (Version.version, Version.version) throws {
-  const formatMessage = "'chplVersion' must be '<version>..<version>' or '<version>'";
+  const formatMessage =
+    "'chplVersion' must be '<version>..<version>' or '<version>'";
   var versions = for v in chplVersion.split("..") do v.strip();
   // Expecting 1 or 2 version strings
   if versions.size > 2 || versions.size < 1 {
