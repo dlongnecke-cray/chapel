@@ -163,3 +163,9 @@ remain in the preview until they are deemed sufficiently complete.
 
 - The ``FileSystem.listDir()`` iterator throws when it encounters an error,
   rather than just printing the error to stdout.
+
+- Default comparison operators on records (``==``, ``!=``, ``<``,
+  ``<=``, ``>``, ``>=``) are defined as module code accepting two
+  generic arguments of type ``record`` rather than being inserted by
+  the compiler in cases where it believes the user did not define such
+  operators for a given record type.
