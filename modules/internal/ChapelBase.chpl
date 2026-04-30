@@ -3448,7 +3448,7 @@ module ChapelBase {
       compilerError("Cannot compare records of type ", r1.type:string, " and ",
                     r2.type:string, " using '=='");
 
-    return chpl_recordEquals(r1, r2, equals=true);
+    return chpl_recordEquals(r1, r2);
   }
 
   pragma "last resort"
@@ -3458,7 +3458,7 @@ module ChapelBase {
       compilerError("Cannot compare records of type ", r1.type:string, " and ",
                     r2.type:string, " using '!='");
 
-    return chpl_recordEquals(r1, r2, equals=false);
+    return !chpl_recordEquals(r1, r2);
   }
 
   pragma "last resort"
@@ -3501,14 +3501,14 @@ module ChapelBase {
     return chpl_recordLessThan(r1, r2, equals=true);
   }
 
-  private proc chpl_recordEquals(const ref r1, const ref r2, param equals) {
+  private proc chpl_recordEquals(const ref r1, const ref r2) {
     use Reflection;
 
     for param i in 0..<getNumFields(r1.type) do
       if !isType(getField(r1, i)) && !isParam(getField(r1, i)) then
         if chpl_field_neq(getField(r1, i), getField(r2, i)) then
-          return !equals;
-    return equals;
+          return false;
+    return true;
   }
 
   private proc chpl_recordLessThan(const ref r1, const ref r2, param equals) {
