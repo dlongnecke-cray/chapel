@@ -3444,109 +3444,75 @@ module ChapelBase {
   pragma "last resort"
   @edition(first="preview")
   operator ==(r1: record, r2: record) {
-    use Reflection;
-
     if r1.type != r2.type then
       compilerError("Cannot compare records of type ", r1.type:string, " and ",
                     r2.type:string, " using '=='");
 
-    for param i in 0..<getNumFields(r1.type) do
-      if !isType(getField(r1, i)) && !isParam(getField(r1, i)) then
-        if chpl_field_neq(getField(r1, i), getField(r2, i)) then
-          return false;
-    return true;
+    return chpl_recordEquals(r1, r2, equals=true);
   }
 
   pragma "last resort"
   @edition(first="preview")
   operator !=(r1: record, r2: record) {
-    use Reflection;
-
     if r1.type != r2.type then
       compilerError("Cannot compare records of type ", r1.type:string, " and ",
                     r2.type:string, " using '!='");
 
-    for param i in 0..<getNumFields(r1.type) do
-      if !isType(getField(r1, i)) && !isParam(getField(r1, i)) then
-        if chpl_field_neq(getField(r1, i), getField(r2, i)) then
-          return true;
-    return false;
+    return chpl_recordEquals(r1, r2, equals=false);
   }
 
   pragma "last resort"
   @edition(first="preview")
   operator >(r1: record, r2: record) {
-    use Reflection;
-
     if r1.type != r2.type then
       compilerError("Cannot compare records of type ", r1.type:string, " and ",
                     r2.type:string, " using '>'");
 
-    for param i in 0..<getNumFields(r1.type) do
-      if !isType(getField(r1, i)) && !isParam(getField(r1, i)) {
-        const ref f1 = getField(r1, i),
-                  f2 = getField(r2, i);
-        if chpl_field_gt(f1, f2) then
-          return true;
-        else if chpl_field_lt(f1, f2) then
-          return false;
-      }
-
-    return false;
+    return !chpl_recordLessThan(r1, r2, equals=true);
   }
 
   pragma "last resort"
   @edition(first="preview")
   operator >=(r1: record, r2: record) {
-    use Reflection;
-
     if r1.type != r2.type then
       compilerError("Cannot compare records of type ", r1.type:string, " and ",
                     r2.type:string, " using '>='");
 
-    for param i in 0..<getNumFields(r1.type) do
-      if !isType(getField(r1, i)) && !isParam(getField(r1, i)) {
-        const ref f1 = getField(r1, i),
-                  f2 = getField(r2, i);
-        if chpl_field_gt(f1, f2) then
-          return true;
-        else if chpl_field_lt(f1, f2) then
-          return false;
-      }
-
-    return true;
+    return !chpl_recordLessThan(r1, r2, equals=false);
   }
 
   pragma "last resort"
   @edition(first="preview")
   operator <(r1: record, r2: record) {
-    use Reflection;
-
     if r1.type != r2.type then
       compilerError("Cannot compare records of type ", r1.type:string, " and ",
                     r2.type:string, " using '<'");
 
-    for param i in 0..<getNumFields(r1.type) do
-      if !isType(getField(r1, i)) && !isParam(getField(r1, i)) {
-        const ref f1 = getField(r1, i),
-                  f2 = getField(r2, i);
-        if chpl_field_lt(f1, f2) then
-          return true;
-        else if chpl_field_gt(f1, f2) then
-          return false;
-      }
-
-    return false;
+    return chpl_recordLessThan(r1, r2, equals=false);
   }
 
   pragma "last resort"
   @edition(first="preview")
   operator <=(r1: record, r2: record) {
-    use Reflection;
-
     if r1.type != r2.type then
       compilerError("Cannot compare records of type ", r1.type:string, " and ",
                     r2.type:string, " using '<='");
+
+    return chpl_recordLessThan(r1, r2, equals=true);
+  }
+
+  private proc chpl_recordEquals(const ref r1, const ref r2, param equals) {
+    use Reflection;
+
+    for param i in 0..<getNumFields(r1.type) do
+      if !isType(getField(r1, i)) && !isParam(getField(r1, i)) then
+        if chpl_field_neq(getField(r1, i), getField(r2, i)) then
+          return !equals;
+    return equals;
+  }
+
+  private proc chpl_recordLessThan(const ref r1, const ref r2, param equals) {
+    use Reflection;
 
     for param i in 0..<getNumFields(r1.type) do
       if !isType(getField(r1, i)) && !isParam(getField(r1, i)) {
@@ -3558,6 +3524,6 @@ module ChapelBase {
           return false;
       }
 
-    return true;
+    return equals;
   }
 }
