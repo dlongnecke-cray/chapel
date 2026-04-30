@@ -2237,6 +2237,11 @@ static void codegen_header(std::set<const char*> & cnames,
   if (hdrfile) {
     fprintf(hdrfile, "#include \"chpl-gen-includes.h\"\n");
   }
+
+  if (hdrfile) {
+    // Need a forward declaration to make '--incremental' work.
+    fprintf(info->cfile, "extern void chpl_program_about(void);\n");
+  }
 }
 
 // Sometimes we have to define a type while code generating.
