@@ -3380,6 +3380,37 @@ module ChapelBase {
       compilerError("Called chpl_boundedCoforallSize on an unsupported type");
   }
 
+  /* The following chpl_field_*() overloads support compiler-generated
+     comparison operators for records with array fields as well as the
+     module-based operators defined at the end of this file, enabled
+     for the preview edition. */
+
+  proc chpl_field_neq(a: [] ?t, b: [] t) {
+    return || reduce (a != b);
+  }
+
+  inline proc chpl_field_neq(a, b) where !isArrayType(a.type) {
+    return a != b;
+  }
+
+  proc chpl_field_lt(a: [] ?t, b: [] t) {
+    compilerError("ordered comparisons not supported by default on records with array fields");
+    return false;
+  }
+
+  inline proc chpl_field_lt(a, b) where !isArrayType(a.type) {
+    return a < b;
+  }
+
+  proc chpl_field_gt(a: [] ?t, b: [] t) {
+    compilerError("ordered comparisons not supported by default on records with array fields");
+    return false;
+  }
+
+  inline proc chpl_field_gt(a, b) where !isArrayType(a.type) {
+    return a > b;
+  }
+
   // check if both arguments are local without `.locale` or `here`
   inline proc chpl__bothLocal(const ref a, const ref b) {
     // this implementation is a bit tricky. There are two checks that make
@@ -3403,32 +3434,6 @@ module ChapelBase {
                           __primitive("is_local", b);
 
     return locIdCheck && isLocalCheck;
-  }
-
-  inline proc chpl_field_neq(a, b) where !isArrayType(a.type) {
-    return a != b;
-  }
-
-  proc chpl_field_neq(a: [] ?t, b: [] t) {
-    return || reduce (a != b);
-  }
-
-  inline proc chpl_field_lt(a, b) where !isArrayType(a.type) {
-    return a < b;
-  }
-
-  proc chpl_field_lt(a: [] ?t, b: [] t) {
-    compilerError("ordered comparisons not supported by default on records with array fields");
-    return false;
-  }
-
-  inline proc chpl_field_gt(a, b) where !isArrayType(a.type) {
-    return a > b;
-  }
-
-  proc chpl_field_gt(a: [] ?t, b: [] t) {
-    compilerError("ordered comparisons not supported by default on records with array fields");
-    return false;
   }
 
 
