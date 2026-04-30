@@ -1,12 +1,12 @@
-use MasonExternal;
 use MasonUtils;
+import Version;
 
-var v1 = new versionInfo("0.15.0");
-var v2 = new versionInfo("0.16.0");
-var v3 = new versionInfo("0.15.1");
-var v4 = new versionInfo("1.15.0");
-var v5 = new versionInfo("1.0.0");
-var v6 = new versionInfo("0.0.9");
+var v1 = Version.version.fromString("0.15.0");
+var v2 = Version.version.fromString("0.16.0");
+var v3 = Version.version.fromString("0.15.1");
+var v4 = Version.version.fromString("1.15.0");
+var v5 = Version.version.fromString("1.0.0");
+var v6 = Version.version.fromString("0.0.9");
 
 // same major, lower minor, same patch
 // should output true
