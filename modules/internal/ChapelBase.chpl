@@ -3443,7 +3443,7 @@ module ChapelBase {
 
   pragma "last resort"
   @edition(first="preview")
-  operator ==(r1: record, r2: r1.type) {
+  operator ==(r1: record, r2: record) {
     use Reflection;
 
     if r1.type != r2.type then
@@ -3459,7 +3459,7 @@ module ChapelBase {
 
   pragma "last resort"
   @edition(first="preview")
-  operator !=(r1: record, r2: r1.type) {
+  operator !=(r1: record, r2: record) {
     use Reflection;
 
     if r1.type != r2.type then
@@ -3475,7 +3475,7 @@ module ChapelBase {
 
   pragma "last resort"
   @edition(first="preview")
-  operator >(r1: record, r2: r1.type) {
+  operator >(r1: record, r2: record) {
     use Reflection;
 
     if r1.type != r2.type then
@@ -3497,7 +3497,7 @@ module ChapelBase {
 
   pragma "last resort"
   @edition(first="preview")
-  operator >=(r1: record, r2: r1.type) {
+  operator >=(r1: record, r2: record) {
     use Reflection;
 
     if r1.type != r2.type then
@@ -3519,7 +3519,7 @@ module ChapelBase {
 
   pragma "last resort"
   @edition(first="preview")
-  operator <(r1: record, r2: r1.type) {
+  operator <(r1: record, r2: record) {
     use Reflection;
 
     if r1.type != r2.type then
@@ -3541,7 +3541,7 @@ module ChapelBase {
 
   pragma "last resort"
   @edition(first="preview")
-  operator <=(r1: record, r2: r1.type) {
+  operator <=(r1: record, r2: record) {
     use Reflection;
 
     if r1.type != r2.type then
