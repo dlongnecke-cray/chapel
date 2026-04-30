@@ -156,27 +156,46 @@ const char* chpl_rt_prginfo_load_path(chpl_rt_prginfo* prg) {
 #define STR_INNER(x__) #x__
 #define STR(x__) STR_INNER(x__)
 
+static int type_pointer_depth(const char* type) {
+  int ret = 0;
+  for (size_t i = 0; i < strlen(type); i++) {
+    if (type[i] == '*') ret += 1;
+  }
+  return ret;
+}
+
 static void dump_prginfo_data_entry(FILE* fp, chpl_rt_prginfo* prg,
                                     const char* name,
                                     const char* type,
                                     void* addr,
                                     int is_callback,
                                     int show_address) {
+  // Just naively count '*'.
+  bool is_array = type_pointer_depth(type) > 0;
+
+  // If true then 'addr' is a pointer to a pointer, so deref it.
+  void* ptr = (is_callback || is_array) ? *((void**) addr) : NULL;
+
   fprintf(fp, "%s : %s = ", name, type);
-  void* fptr = is_callback ? *((void**) addr) : NULL;
 
   if (is_callback && show_address) {
-    fprintf(fp, "%p", fptr);
+    fprintf(fp, "%p", ptr);
 
   } else if (is_callback) {
-    fprintf(fp, "%s", fptr == NULL ? "nil" : "non-nil");
+    fprintf(fp, "%s", ptr == NULL ? "nil" : "non-nil");
 
   } else {
     // TODO: Replace me with more sophisticated debugging machinery?
     if (!strcmp(type, "int")) {
       fprintf(fp, "%d", *((int*) addr));
-    } else if (!strcmp(type, "const char*")) {
+    } else if (!strcmp(type, "int64_t")) {
+      fprintf(fp, "%" PRId64, *((int64_t*) addr));
+    } else if (!strcmp(type, "int32_t")) {
+      fprintf(fp, "%" PRId32, *((int32_t*) addr));
+    } else if (!strcmp(type, "const char*") || !strcmp(type, "c_string")) {
       fprintf(fp, "%s", addr != NULL ? *((const char**) addr) : "nil");
+    } else if (is_array) {
+      fprintf(fp, "%s", ptr == NULL ? "nil" : "non-nil");
     } else {
       fprintf(fp, "<value of unknown type '%s'>", type);
     }

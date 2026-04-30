@@ -1,0 +1,46 @@
+#!/usr/bin/env python3
+
+# This test verifies that the values in the program data make sense.
+
+import os, subprocess as sp, sys
+import re
+from io import StringIO
+
+
+target = sys.argv[1]
+output_file = sys.argv[2]
+
+chplenv_lines = (
+    sp.check_output(
+        [
+            os.environ["CHPL_HOME"] + "/util/printchplenv",
+            "--all",
+            "--internal",
+            "--simple",
+        ]
+    )
+    .decode()
+    .splitlines()
+)
+
+chplenv = {k: v for k, v in [line.split("=", 1) for line in chplenv_lines]}
+
+with open(output_file, "r") as fp:
+    original_output = fp.read()
+
+data_fields = {}
+pattern_1 = r"^Data entries.*?\b([^@\s]+)@([^(\s]+).*?\(([^)]+)\)"
+pattern_2 = r"([^:]+):([^=]+)=(.*)"
+lines = original_output.splitlines()
+locale_num = -1
+out = StringIO()
+
+for line in original_output.splitlines():
+    match = re.search(pattern_1, line)
+    if match:
+        program = match.group(1)
+        locale = match.group(2)
+        path = match.group(3)
+    match = re.search(pattern_2, line)
+    if match:
+        data_fields[match.group(1)] = (match.group(2), match.group(3))
