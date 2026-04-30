@@ -2307,9 +2307,13 @@ def main():
                 if not os.path.isfile(goodfile) or not os.access(
                     goodfile, os.R_OK
                 ):
-                    if perftest or executebin:
+                    if perftest:
                         sys.stdout.write(
                             f"{futuretest}[Error compilation failed for {test_name}]\n"
+                        )
+                    elif executebin:
+                        sys.stdout.write(
+                            f"{futuretest}[Error compilation failed for {test_name}, but could not find {localdir}/{goodfile}]\n"
                         )
                     else:
                         sys.stdout.write(
