@@ -172,26 +172,35 @@ module ChapelUnion {
   @chpldoc.nodoc
   proc _select_test(x: union) do return x.getActiveIndex();
 
-  // TODO: The following where clauses shouldn't be required
   @chpldoc.nodoc
-  operator ==(u1: union, u2: u1.type) where u1.type == u2.type {
-    use Reflection;
-    const i = u1.getActiveIndex();
-    if  i != u2.getActiveIndex() then return false;
-    if i == -1 then return true;
-    for param j in 0..<getNumFields(u1.type) do
-      if i == j then return u1(j) == u2(j);
-    halt("Cannot get here");
+  operator ==(u1: union, u2: union) {
+    if u1.type != u2.type then
+      compilerError("Cannot compare unions of type ", u1.type:string, " and ",
+                    u2.type:string, " using '=='");
+
+    return chpl_unionsEqual(u1, u2);
   }
 
   @chpldoc.nodoc
-  operator !=(u1: union, u2: u1.type) where u1.type == u2.type {
+  operator !=(u1: union, u2: union) {
+    if u1.type != u2.type then
+      compilerError("Cannot compare unions of type ", u1.type:string, " and ",
+                    u2.type:string, " using '!='");
+
+    return !chpl_unionsEqual(u1, u2);
+  }
+
+  private proc chpl_unionsEqual(u1, u2) {
     use Reflection;
+
     const i = u1.getActiveIndex();
-    if  i != u2.getActiveIndex() then return true;
-    if i == -1 then return false;
+
+    if i != u2.getActiveIndex() then return false;  // different active fields
+    if i == -1 then return true;                    // both are uninitialized
+
     for param j in 0..<getNumFields(u1.type) do
-      if i == j then return u1(j) != u2(j);
-    halt("Cannot get here");
+      if i == j then return u1(j) == u2(j);         // active fields match
+
+    halt("Impossible condition in chpl_unionsEqual");
   }
 }
