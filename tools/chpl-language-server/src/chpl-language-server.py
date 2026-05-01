@@ -1161,7 +1161,9 @@ def run_lsp():
             return None
 
         _, type_, _ = qt
-        if not isinstance(type_, (chapel.CompositeType, chapel.ClassType, chapel.EnumType)):
+        if not isinstance(
+            type_, (chapel.CompositeType, chapel.ClassType, chapel.EnumType)
+        ):
             return None
 
         decl = None

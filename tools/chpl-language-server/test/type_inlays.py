@@ -381,7 +381,16 @@ async def test_type_inlays_clickable_def(client: LanguageClient):
 
     async with source_file(client, file) as doc:
         inlays = await check_type_inlay_hints(
-            client, doc, rng((0, 0), endpos(file)), [(pos((4, 5)), "R"), (pos((5, 5)), "owned C"), (pos((6, 5)), "shared C?"), (pos((7, 5)), "borrowed C"), (pos((8, 5)), "E")],
+            client,
+            doc,
+            rng((0, 0), endpos(file)),
+            [
+                (pos((4, 5)), "R"),
+                (pos((5, 5)), "owned C"),
+                (pos((6, 5)), "shared C?"),
+                (pos((7, 5)), "borrowed C"),
+                (pos((8, 5)), "E"),
+            ],
         )
         R_range = rng((0, 7), (0, 8))
         C_range = rng((1, 6), (1, 7))
