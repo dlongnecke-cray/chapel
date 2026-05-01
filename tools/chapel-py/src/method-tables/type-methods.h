@@ -50,6 +50,13 @@ CLASS_BEGIN(EnumType)
   PLAIN_GETTER(EnumType, name, "Get name of this EnumType",
                chpl::UniqueString,
                return node->name())
+  PLAIN_GETTER(EnumType, decl, "Get the chpl::uast::AstNode that declares this EnumType",
+               Nilable<const chpl::uast::AstNode*>,
+               // For completely builtin types, the ID could be empty.
+               // They don't have code-level declarations, so return 'None'.
+               auto& id = node->id();
+               if (id.isEmpty()) return nullptr;
+               return parsing::idToAst(context, id))
 CLASS_END(EnumType)
 
 CLASS_BEGIN(ClassType)
