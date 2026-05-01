@@ -63,4 +63,7 @@ CLASS_BEGIN(ClassType)
   PLAIN_GETTER(ClassType, manageable_type, "Get the type managed by this ClassType",
                Nilable<const chpl::types::ManageableType*>,
                return node->manageableType())
+  PLAIN_GETTER(ClassType, basic_class_type, "Get the basic class type for this ClassType",
+               Nilable<const chpl::types::BasicClassType*>,
+               return node->basicClassType())
 CLASS_END(ClassType)

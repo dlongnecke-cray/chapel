@@ -610,8 +610,8 @@ class ChapelLanguageServer(LanguageServer):
         if isinstance(type_, (chapel.CompositeType, chapel.EnumType)):
             typedecl = type_.decl()
         elif isinstance(type_, chapel.ClassType):
-            if manageable := type_.manageable_type():
-                typedecl = manageable.decl()
+            if clstype := type_.basic_class_type():
+                typedecl = clstype.decl()
 
         if typedecl and isinstance(typedecl, chapel.NamedDecl):
             label.location = location_to_location(typedecl.name_location())
@@ -1170,8 +1170,8 @@ def run_lsp():
         if isinstance(type_, (chapel.CompositeType, chapel.EnumType)):
             decl = type_.decl()
         elif isinstance(type_, chapel.ClassType):
-            if manageable := type_.manageable_type():
-                decl = manageable.decl()
+            if clstype := type_.basic_class_type():
+                decl = clstype.decl()
 
         if not decl:
             return None
