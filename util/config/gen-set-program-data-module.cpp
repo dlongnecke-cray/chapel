@@ -13,7 +13,6 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-#include <sstream>
 
 #define STR_INNER(x__) #x__
 #define STR(x__) STR_INNER(x__)
@@ -26,30 +25,32 @@ const char* setter_name = "chpl_setProgramInfoDataEntriesHere";
 const char* formal_name = "prg";
 const char* program_type = "chpl_programInfo";
 
-static std::string get_typedef_name(const char* symbol) {
-  std::stringstream ss;
-  ss << STR(CHPL_RT_PRGINFO_DATA_ENTRY_TYPE_PREFIX) << symbol
-     << STR(CHPL_RT_PRGINFO_DATA_ENTRY_TYPE_SUFFIX);
-  return ss.str();
+static std::ofstream& out_typedef_name(std::ofstream& ofs,
+                                       const char* symbol) {
+  ofs << STR(CHPL_RT_PRGINFO_DATA_ENTRY_TYPE_PREFIX) << symbol
+      << STR(CHPL_RT_PRGINFO_DATA_ENTRY_TYPE_SUFFIX);
+  return ofs;
 }
 
-static std::string get_fnptr_type(const char* name, const char* ret_type,
-                                  const char* formals) {
-  std::stringstream ss;
-  ss << ret_type << " (*" << name << ")(" << formals << ")";
-  return ss.str();
+static std::ofstream& out_fnptr_type(std::ofstream& ofs,
+                                     const char* name,
+                                     const char* ret_type,
+                                     const char* formals) {
+  ofs << ret_type << " (*" << name << ")(" << formals << ")";
+  return ofs;
 }
 
 static void expand_constant(std::ofstream& ofs, int indent,
                             const char* name,
                             const char* type) {
-  auto tdef = get_typedef_name(name);
   ofs << INDENT(indent);
   ofs << "// C symbol: '" << type << " " << name << "'\n";
   ofs << INDENT(indent);
-  ofs << "extern type " << tdef << ";\n";
+  ofs << "extern type ";
+  out_typedef_name(ofs, name) << ";\n";
   ofs << INDENT(indent);
-  ofs << "extern const " << name << ": " << tdef << ";\n";
+  ofs << "extern const " << name << ": ";
+  out_typedef_name(ofs, name) << ";\n";
   ofs << INDENT(indent);
   ofs << formal_name << ".setConstant(\'" << name << "\', " << name;
   ofs << ");\n";
@@ -59,9 +60,9 @@ static void expand_callback(std::ofstream& ofs, int indent,
                             const char* name,
                             const char* ret_type,
                             const char* formals) {
-  auto fntype = get_fnptr_type(name, ret_type, formals);
   ofs << INDENT(indent);
-  ofs << "// C symbol: '" << fntype.c_str() << "'\n";
+  ofs << "// C symbol: '";
+  out_fnptr_type(ofs, name, ret_type, formals) << "'\n";
   ofs << INDENT(indent);
   ofs << formal_name << ".setCallback(\'" << name << "\');\n";
 }
