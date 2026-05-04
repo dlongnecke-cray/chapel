@@ -942,6 +942,17 @@ static void genFilenameTable() {
   genGlobalInt32(sizeName, InsertLineNumbers::getFilenameTable().size());
 }
 
+static bool shouldAddToUnwindTable(FnSymbol* fn) {
+  // Always keep module initializers.
+  if (fn->hasFlag(FLAG_MODULE_INIT)) return true;
+
+  // Name or C name starts with 'chpl_', which is reserved.
+  if (!strncmp(fn->name, "chpl_", 5)) return false;
+  if (!strncmp(fn->cname, "chpl_", 5)) return false;
+
+  return true;
+}
+
 //
 // This adds the Chapel symbol table to the config file
 // Our symbol table is formed by two 1-D arrays with 2 elements
@@ -957,7 +968,7 @@ static void genUnwindSymbolTable(){
   if(strcmp(CHPL_UNWIND, "none") != 0){
     // Gets only user symbols
     forv_Vec(FnSymbol, fn, gFnSymbols) {
-      if(strncmp(fn->name, "chpl_", 5) || fn->hasFlag(FLAG_MODULE_INIT)) {
+      if (shouldAddToUnwindTable(fn)) {
         symbols.push_back(fn);
       }
     }
@@ -1601,7 +1612,7 @@ static void genGlobalSerializeTable(GenInfo* info) {
   }
 
   if( hdrfile ) {
-    fprintf(hdrfile, "\nvoid* const chpl_global_serialize_table[] = {");
+    fprintf(hdrfile, "\nconst void* chpl_global_serialize_table[] = {");
     if (serializeCalls.size() == 0) {
       // Quiet PGI warning about empty initializer
       fprintf(hdrfile, "\nNULL,");
@@ -1706,7 +1717,7 @@ static void codegen_defn(std::set<const char*> & cnames, std::vector<TypeSymbol*
   // add table of private-broadcast constants
   //
   if( hdrfile ) {
-    fprintf(hdrfile, "\nvoid* const chpl_private_broadcast_table[] = {\n");
+    fprintf(hdrfile, "\nconst void* chpl_private_broadcast_table[] = {\n");
     int i = 0;
     forv_Vec(CallExpr, call, gCallExprs) {
       if (call->isPrimitive(PRIM_PRIVATE_BROADCAST)) {
@@ -2201,7 +2212,7 @@ static void codegen_header(std::set<const char*> & cnames,
   // add table of private-broadcast constants
   //
   if( hdrfile ) {
-    fprintf(hdrfile, "\nextern void* const chpl_private_broadcast_table[];\n");
+    fprintf(hdrfile, "\nextern const void* chpl_private_broadcast_table[];\n");
   } else if(!gCodegenGPU) {
 #ifdef HAVE_LLVM
     auto eltType = getPointerType(info->module->getContext());

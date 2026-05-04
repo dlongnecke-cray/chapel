@@ -20,10 +20,10 @@ extern {
   void get_from_holder(holder* x);
 
   // Realize the addresses in C.
-  extern void* const chpl_global_serialize_table[];
+  extern const void* chpl_global_serialize_table[];
   extern ptr_wide_ptr_t chpl_globals_registry[];
   extern const char* chpl_mem_descs[];
-  extern void* const chpl_private_broadcast_table[];
+  extern const void* chpl_private_broadcast_table[];
 
   #define PRINTER(in__, name__) do {                        \
     void* ptr1 = ((void*) in__);                            \

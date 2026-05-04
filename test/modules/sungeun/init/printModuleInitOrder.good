@@ -66,6 +66,7 @@ Initializing Modules:
     ChapelDynamicLoading
     ChapelProgramEntrypoints
     ChapelProgramRegistration
+     ChapelSetProgramInfoDataEntries
     AlignedTSupport
    printModuleInitOrder
     moduleInitTest
