@@ -39,7 +39,7 @@ SYS_MODULES_DIR=standard/gen/$(CHPL_MAKE_SYS_MODULES_SUBDIR)
 SYS_CTYPES_MODULE_DOC=standard/ChapelSysCTypes.chpl
 SYS_CTYPES_MODULE=$(SYS_MODULES_DIR)/ChapelSysCTypes.chpl
 
-SET_PROGRAM_DATA_MODULE=$(CHPL_MAKE_HOME)/modules/internal/ChapelSetProgramInfoDataEntries.chpl
+SET_PROGRAM_DATA_MODULE=$(CHPL_MAKE_HOME)/modules/internal/gen/ChapelSetProgramInfoDataEntries.chpl
 
 MODULE_SPHINX=${CHPL_MAKE_HOME}/modules/sphinx
 DOC_BUILD=${CHPL_MAKE_HOME}/build/doc
@@ -83,7 +83,8 @@ MAKE_PROGRAM_DATA_HEADER=$(CHPL_MAKE_HOME)/runtime/include/chpl-prginfo-data-mac
 COMPILELINE=$(CHPL_MAKE_HOME)/util/config/compileline
 
 $(SET_PROGRAM_DATA_MODULE): $(MAKE_PROGRAM_DATA_SCRIPT) $(MAKE_PROGRAM_DATA_HEADER)
-	`$(COMPILELINE) --compile-c++` -o script $< && (./script $@; rm script)
+	mkdir -p $(@D)
+	cd $(@D) && `$(COMPILELINE) --compile-c++` $< && (./a.out $(@F); rm a.out)
 
 MODULES_TO_DOCUMENT = \
 	standard/Allocators.chpl \

@@ -24,9 +24,6 @@ cmake-build-*/
 .cache/
 *.dSYM
 
-# This is a generated module.
-/modules/internal/ChapelSetProgramInfoDataEntries.chpl
-
 # Top level ignores.
 /BUILD_VERSION
 /Chapel.xcodeproj
