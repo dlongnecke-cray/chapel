@@ -18,16 +18,12 @@
  * limitations under the License.
  */
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-// needed for dlfcn.h on linux
-
 #include "chplrt.h"
 #include "chpl-linefile-support.h"
 #include "chplcgfns.h"
 
 #include "chpl-unwind.h"
+#include "chpl-dynamic-loading.h"
 #include "chpl-env.h"
 #include "chpl-error.h"
 #include "chpl-exec.h"
@@ -57,7 +53,6 @@
 // Necessary for instruct libunwind to use only the local unwind
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
-#include <dlfcn.h>
 
 #ifdef __linux__
 // We create a pipe with addr2line and try to get a line number

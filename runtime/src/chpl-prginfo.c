@@ -18,17 +18,11 @@
  * limitations under the License.
  */
 
-// Must define to get access to 'dladdr'.
-#ifndef _GNU_SOURCE
-  #define _GNU_SOURCE
-#endif
-
 #include "chplrt.h"
 #include "chpl-comm.h"
 #include "chpl-dynamic-loading.h"
 #include "chpl-prginfo.h"
 
-#include <dlfcn.h>
 #include <string.h>
 
 static chpl_rt_prginfo* chpl_prg_root;
