@@ -52,7 +52,7 @@ static void expand_constant(std::ofstream& ofs, int indent,
   ofs << "extern const " << name << ": " << tdef << ";\n";
   ofs << INDENT(indent);
   ofs << formal_name << ".setConstant(\'" << name << "\', " << name;
-  ofs << ")'\n";
+  ofs << ");\n";
 }
 
 static void expand_callback(std::ofstream& ofs, int indent,
@@ -63,7 +63,7 @@ static void expand_callback(std::ofstream& ofs, int indent,
   ofs << INDENT(indent);
   ofs << "// C symbol: '" << fntype.c_str() << "'\n";
   ofs << INDENT(indent);
-  ofs << formal_name << ".setCallBack(\'" << name << "\');\n";
+  ofs << formal_name << ".setCallback(\'" << name << "\');\n";
 }
 
 static void print_setter_proc(std::ofstream& ofs, int indent) {
