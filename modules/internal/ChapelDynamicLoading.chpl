@@ -410,7 +410,7 @@ module ChapelDynamicLoading {
 
       // Get the wide index to use by interning on 'this.locale'. By passing
       // in '0' we tell the routine to assign us a unique index to use.
-      var ret = chpl_insertExternLocalPtrNoSync(ptrOnThis, this.locale.id);
+      var ret = chpl_mapPtrToIdxHere(ptrOnThis, this.locale.id);
       assert(ret != 0);
 
       if shouldFanOut {
@@ -433,7 +433,7 @@ module ChapelDynamicLoading {
 
           } else {
             assert(ptr != nil);
-            const got = chpl_insertExternLocalPtrNoSync(ptr, ret);
+            const got = chpl_mapPtrToIdxHere(ptr, ret);
             assert(got == ret);
           }
         }
