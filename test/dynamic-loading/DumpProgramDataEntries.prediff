@@ -30,20 +30,15 @@ chplenv = {k: v for k, v in [line.split("=", 1) for line in chplenv_lines]}
 with open(output_file, "r") as fp:
     original_output = fp.read()
 
+# Prepare some constants for use later.
 pattern_0 = r"-nl (\d+)"
 pattern_1 = r"^Data entries.*?\b([^@\s]+)@([^(\s]+).*?\(([^)]+)\)"
 pattern_2 = r"([^:]+):([^=]+)=(.*)"
 is_multilocale = chplenv["CHPL_COMM"] != "none"
 program_name = sys.argv[1] + "_real" if is_multilocale else sys.argv[1]
-
-# When running directly, the path appears to just be "./foo".
-binary_path = os.path.join(script_dir, program_name) if is_multilocale \
-              else "./" + program_name
-
+binary_path = Path(os.path.join(script_dir, program_name)).absolute()
 lines = original_output.splitlines()
 execution_flags = sys.argv[-1]
-data_per_locales = []
-data = None
 
 # Get the number of locales by searching the execution flags.
 match = re.search(pattern_0, execution_flags)
@@ -68,7 +63,7 @@ class ProgramField(object):
     def is_pointer_type(self):
         return not self.is_callback() and "*" in self._c_type
 
-    def _check_int_val(self, name, expected_val):
+    def _check_int(self, out, name, expected_val):
         passed = True
         if self._name == name:
           if int(self._val) != expected_val:
@@ -80,31 +75,35 @@ class ProgramField(object):
     def verify(self, out, chplenv):
         passed = True
         env_val = chplenv[self._name] if self._name in chplenv else None
+        # If the value maps to one in the chplenv, make sure they match.
         if env_val and env_val != self._val:
             print("Mismatched value for {}, had {} vs {}"
                   .format(self._name, self._val, env_val), file=out)
             passed = False
+        # If the value is a callback, then the pointer should be set.
         if self.is_callback() and self._val != "non-nil":
             print("Bad value for callback {} is {}"
                   .format(self._name, self._val), file=out)
             passed = False
+        # If the value is a ppointer type, then the pointer should be set.
         if self.is_pointer_type() and not self.is_c_string_type():
             if self._val != "non-nil":
                 print("Bad value for pointer type {} : {} = {}"
                       .format(self._name, self._c_type, self._val),
                       file=out)
-        passed = self._check_int_val("mainHasArgs", 0)             and passed
-        passed = self._check_int_val("mainPreserveDelimiter", 0)   and passed
-        passed = self._check_int_val("warnUnstable", 0)            and passed
-        passed = self._check_int_val("CHPL_INTERLEAVE_MEM", 0)     and passed
-        passed = self._check_int_val("CHPL_STACK_CHECKS", 1)       and passed
+        # Things that are obviously integers should also be set.
+        passed = self._check_int(out, "mainHasArgs", 0)           and passed
+        passed = self._check_int(out, "mainPreserveDelimiter", 0) and passed
+        passed = self._check_int(out, "warnUnstable", 0)          and passed
+        passed = self._check_int(out, "CHPL_INTERLEAVE_MEM", 0)   and passed
+        passed = self._check_int(out, "CHPL_STACK_CHECKS", 1)     and passed
         return passed
 
 class ProgramData(object):
     def __init__(self, program, locale, path):
         self._program = program
         self._locale  = locale
-        self._path    = path
+        self._path    = Path(path).absolute()
         self._data    = {}
 
     def add_field(self, field):
@@ -127,6 +126,9 @@ class ProgramData(object):
         return passed
 
 # Build the data entries per-locale.
+data_per_locales = []
+data = None
+
 for line in original_output.splitlines():
     match_header = re.search(pattern_1, line)
     if match_header:
@@ -156,8 +158,6 @@ for i in range(0, len(data_per_locales)):
     data = data_per_locales[i]
     if not data.verify(out, i, binary_path, chplenv):
         passed = False
-
-print(sys.argv)
 
 with open(output_file, "w") as fp:
     if not passed:
