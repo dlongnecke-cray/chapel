@@ -28,7 +28,7 @@ export DOCKER_BUILD_MAKE_THREADS=${DOCKER_BUILD_MAKE_THREADS:-2}
 
 # Comma-separated list of Docker platforms to build multi-arch image for.
 # This will be passed as the argument to --platform.
-export DOCKER_BUILD_PLATFORMS="linux/amd64,linux/arm64"
+export DOCKER_BUILD_PLATFORMS="${DOCKER_BUILD_PLATFORMS:-linux/amd64,linux/arm64}"
 
 # BEGIN FUNCTIONS
 
