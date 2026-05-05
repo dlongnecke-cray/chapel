@@ -18,10 +18,14 @@
  * limitations under the License.
  */
 
+// Needed to access 'dladdr' and 'Dl_info'.
 #ifndef _GNU_SOURCE
-#define _GNU_SOURCE
+  #define _GNU_SOURCE 1
 #endif
-// needed for dlfcn.h on linux
+#ifdef __FreeBSD__
+  #include <link.h>
+#endif
+#include <dlfcn.h>
 
 #include "chplrt.h"
 #include "chpl-linefile-support.h"
@@ -57,7 +61,6 @@
 // Necessary for instruct libunwind to use only the local unwind
 #define UNW_LOCAL_ONLY
 #include <libunwind.h>
-#include <dlfcn.h>
 
 #ifdef __linux__
 // We create a pipe with addr2line and try to get a line number

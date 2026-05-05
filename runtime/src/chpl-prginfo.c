@@ -18,17 +18,19 @@
  * limitations under the License.
  */
 
-// Must define to get access to 'dladdr'.
+// Needed to access 'dladdr' and 'Dl_info'.
 #ifndef _GNU_SOURCE
-  #define _GNU_SOURCE
+  #define _GNU_SOURCE 1
 #endif
+#ifdef __FreeBSD__
+  #include <link.h>
+#endif
+#include <dlfcn.h>
 
 #include "chplrt.h"
 #include "chpl-comm.h"
-#include "chpl-dynamic-loading.h"
 #include "chpl-prginfo.h"
 
-#include <dlfcn.h>
 #include <string.h>
 
 static chpl_rt_prginfo* chpl_prg_root;
