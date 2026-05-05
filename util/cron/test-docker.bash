@@ -97,7 +97,7 @@ update_image() {
   fi
 
   # Run test script inside container
-  CONTAINER_NAME="$imageName-test"
+  CONTAINER_NAME="${imageName//[\/:]/_}-test"
   docker container rm --force --volumes "$CONTAINER_NAME"
   echo 'writeln("Hello, world!");' > hello.chpl
   docker run -i --name "$CONTAINER_NAME" "$imageName" < "$script"
