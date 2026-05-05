@@ -21,16 +21,6 @@
 #ifndef CHPL_RT_DYNAMIC_LOADING_H
 #define CHPL_RT_DYNAMIC_LOADING_H
 
-// Needed to access 'dladdr' and 'Dl_info'.
-#ifndef _GNU_SOURCE
-  #define _GNU_SOURCE
-#endif
-#ifdef __FreeBSD__
-  #include <link.h>
-#endif
-
-#include <dlfcn.h>
-
 #ifdef __cplusplus
 extern "C" {
 #endif
