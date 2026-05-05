@@ -18,6 +18,15 @@
  * limitations under the License.
  */
 
+// Needed to access 'dladdr' and 'Dl_info'.
+#ifndef _GNU_SOURCE
+  #define _GNU_SOURCE 1
+#endif
+#ifdef __FreeBSD__
+  #include <link.h>
+#endif
+#include <dlfcn.h>
+
 #include "chplrt.h"
 #include "chpl-dynamic-loading.h"
 #include "chplcgfns.h"
