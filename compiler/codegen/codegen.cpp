@@ -1612,7 +1612,7 @@ static void genGlobalSerializeTable(GenInfo* info) {
   }
 
   if( hdrfile ) {
-    fprintf(hdrfile, "\nconst void* chpl_global_serialize_table[] = {");
+    fprintf(hdrfile, "\nvoid* const chpl_global_serialize_table[] = {");
     if (serializeCalls.size() == 0) {
       // Quiet PGI warning about empty initializer
       fprintf(hdrfile, "\nNULL,");
@@ -1632,7 +1632,7 @@ static void genGlobalSerializeTable(GenInfo* info) {
 #ifdef HAVE_LLVM
     auto name = "chpl_global_serialize_table";
     auto eltType = getPointerType(info->module->getContext());
-    bool isConstant = false;
+    bool isConstant = true;
 
     // Build up the table entries.
     std::vector<llvm::Constant*> entries;
@@ -1695,7 +1695,7 @@ static void codegen_defn(std::set<const char*> & cnames, std::vector<TypeSymbol*
     #endif
   }
   if( hdrfile ) {
-    fprintf(hdrfile, "\nconst char* chpl_mem_descs[] = {\n");
+    fprintf(hdrfile, "\nconst char* const chpl_mem_descs[] = {\n");
     bool first = true;
     if (memDescsVec.n == 0) {
       // Quiet PGI warning about empty initializer
@@ -1717,7 +1717,7 @@ static void codegen_defn(std::set<const char*> & cnames, std::vector<TypeSymbol*
   // add table of private-broadcast constants
   //
   if( hdrfile ) {
-    fprintf(hdrfile, "\nconst void* chpl_private_broadcast_table[] = {\n");
+    fprintf(hdrfile, "\nvoid* const chpl_private_broadcast_table[] = {\n");
     int i = 0;
     forv_Vec(CallExpr, call, gCallExprs) {
       if (call->isPrimitive(PRIM_PRIVATE_BROADCAST)) {
@@ -2189,7 +2189,7 @@ static void codegen_header(std::set<const char*> & cnames,
 #endif
   }
   if( hdrfile ) {
-      fprintf(hdrfile, "\nextern const char* chpl_mem_descs[];\n");
+      fprintf(hdrfile, "\nextern const char* const chpl_mem_descs[];\n");
     } else {
 #ifdef HAVE_LLVM
     // Build up the values of the array.
@@ -2212,12 +2212,12 @@ static void codegen_header(std::set<const char*> & cnames,
   // add table of private-broadcast constants
   //
   if( hdrfile ) {
-    fprintf(hdrfile, "\nextern const void* chpl_private_broadcast_table[];\n");
+    fprintf(hdrfile, "\nextern void* const chpl_private_broadcast_table[];\n");
   } else if(!gCodegenGPU) {
 #ifdef HAVE_LLVM
     auto eltType = getPointerType(info->module->getContext());
     auto name = "chpl_private_broadcast_table";
-    bool isConstant = false;
+    bool isConstant = true;
 
     // Build up the table entries.
     std::vector<llvm::Constant*> entries;

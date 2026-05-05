@@ -53,7 +53,7 @@ E_CALLBACK_RT(chpl_task_setCommDiagsTemporarilyDisabled, void, chpl_bool)
 /** CODE-GENERATED
     Table of private broadcast constants.
 */
-E_CONSTANT_RT(chpl_private_broadcast_table, const void**)
+E_CONSTANT_RT(chpl_private_broadcast_table, void* const*)
 
 /** CODE-GENERATED
     Length of table of private broadcast constants.
@@ -63,7 +63,7 @@ E_CONSTANT_RT(chpl_private_broadcast_table_len, int)
 /** CODE-GENERATED
     TODO: Not exactly sure what this thing is. Table of serializers for RVF?
 */
-E_CONSTANT_RT(chpl_global_serialize_table, const void**)
+E_CONSTANT_RT(chpl_global_serialize_table, void* const*)
 
 /** CODE-GENERATED | WRITEABLE
     A table of local addresses of wide pointers containing global vars.
@@ -154,7 +154,7 @@ E_CONSTANT(chpl_filenameTableSize, int32_t)
     chpl-mem.h).  This is that compiler-generated array, and how many
     entries it has (also defined in the generated code).
 */
-E_CONSTANT_RT(chpl_mem_descs, const char**)
+E_CONSTANT_RT(chpl_mem_descs, const char* const*)
 
 /** CODE-GENERATED
     Length of the memory description table.
