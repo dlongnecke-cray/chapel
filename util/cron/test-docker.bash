@@ -30,6 +30,10 @@ export DOCKER_BUILD_MAKE_THREADS=${DOCKER_BUILD_MAKE_THREADS:-2}
 # This will be passed as the argument to --platform.
 export DOCKER_BUILD_PLATFORMS="${DOCKER_BUILD_PLATFORMS:-linux/amd64,linux/arm64}"
 
+# Namespace (account) to name and push Docker images to. This is the part of
+# the name before the /, like "chapel" in "chapel/chapel-gasnet".
+export DOCKER_IMAGE_NAMESPACE="${DOCKER_IMAGE_NAMESPACE:-chapel}"
+
 # BEGIN FUNCTIONS
 
 # Patch the Dockerfile to build FROM the nightly image instead of latest.
@@ -42,7 +46,7 @@ dockerfile_nightly_patch() {
 1c1
 < FROM chapel/chapel:latest
 ---
-> FROM chapel/chapel:nightly
+> FROM $DOCKER_IMAGE_NAMESPACE/chapel:nightly
 "
 
   patch $patch_args ./Dockerfile << EOF
@@ -127,17 +131,17 @@ update_all_images() {
   local release_tag="$1"
 
   cd "$CHPL_HOME"
-  update_image chapel/chapel "${CHPL_HOME}/util/cron/docker-chapel.bash" "$release_tag"
+  update_image $DOCKER_IMAGE_NAMESPACE/chapel "${CHPL_HOME}/util/cron/docker-chapel.bash" "$release_tag"
 
   cd "$CHPL_HOME/util/packaging/docker/gasnet"
   dockerfile_nightly_patch
-  update_image chapel/chapel-gasnet "${CHPL_HOME}/util/cron/docker-gasnet.bash" "$release_tag"
+  update_image $DOCKER_IMAGE_NAMESPACE/chapel-gasnet "${CHPL_HOME}/util/cron/docker-gasnet.bash" "$release_tag"
   # Clean up after patch changes
   dockerfile_nightly_patch -R
 
   cd "$CHPL_HOME/util/packaging/docker/gasnet-smp"
   dockerfile_nightly_patch
-  update_image chapel/chapel-gasnet-smp "${CHPL_HOME}/util/cron/docker-gasnet.bash" "$release_tag"
+  update_image $DOCKER_IMAGE_NAMESPACE/chapel-gasnet-smp "${CHPL_HOME}/util/cron/docker-gasnet.bash" "$release_tag"
   # Clean up after patch changes
   dockerfile_nightly_patch -R
 }
