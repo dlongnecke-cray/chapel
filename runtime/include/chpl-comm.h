@@ -573,7 +573,7 @@ void chpl_comm_task_end(void) {
 }
 
 
-const void* chpl_get_global_serialize_table(int64_t idx);
+void* chpl_get_global_serialize_table(int64_t idx);
 
 // Used to park and wake up the main process
 void chpl_signal_shutdown(void);
