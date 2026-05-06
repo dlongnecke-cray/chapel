@@ -202,12 +202,16 @@ static int is_runtime_initialized = 0;
 //
 // Initialize the Chapel runtime.
 //
-void chpl_rt_init(int argc, char* argv[]) {
+void chpl_rt_init(chpl_rt_prginfo* root_prg, int argc, char** argv) {
   if (is_runtime_initialized) return; else is_runtime_initialized = 1;
 
-  int32_t execNumLocales;
-  int runInGDB;
-  int runInLLDB;
+  int32_t execNumLocales = 0;
+  int runInGDB = 0;
+  int runInLLDB = 0;
+
+  // First thing: bind the root program so that other code can function.
+  int is_root_program_bound = chpl_rt_prginfo_register_root_here(root_prg);
+  assert(is_root_program_bound);
 
   // Check that we can get the page size.
   assert( sys_page_size() > 0 );
