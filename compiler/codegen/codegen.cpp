@@ -942,16 +942,121 @@ static void genFilenameTable() {
   genGlobalInt32(sizeName, InsertLineNumbers::getFilenameTable().size());
 }
 
-static bool shouldAddToUnwindTable(FnSymbol* fn) {
-  // Always keep module initializers.
-  if (fn->hasFlag(FLAG_MODULE_INIT)) return true;
+//
+// Rules for building up the unwind table:
+//
+//    -- There is exactly _one_ best function for a given 'cname', and when
+//       disambiguating matches, extern functions are always replaced by
+//       non-extern ones. If there is more than one non-extern function
+//       mapped to a cname, it is an internal error because the compiler
+//       should have caught that earlier.
+//    -- Always add module initializers to the table.
+//    -- Always add 'chpl_user_main' / 'main()' to the table.
+//    -- If the the Chapel name starts with 'chpl_', then omit that function.
+//    -- If the the C name starts with 'chpl_', then omit that function.
+//    -- A non-extern function can always be renamed.
+//    -- An extern function can be renamed only if there is 1 occurence.
+//
+class UnwindTable {
+  // Use an ordered map to sort the table contents in alphabetical order.
+  using NameMap = std::map<std::string, std::vector<FnSymbol*>>;
 
-  // Name or C name starts with 'chpl_', which is reserved.
-  if (!strncmp(fn->name, "chpl_", 5)) return false;
-  if (!strncmp(fn->cname, "chpl_", 5)) return false;
+  std::vector<std::pair<FnSymbol*, bool>> table_;
 
-  return true;
-}
+  static bool shouldAddToTable(FnSymbol* fn) {
+    if (fn->hasFlag(FLAG_MODULE_INIT)) return true;
+    if (fn == chplUserMain) return true;
+    if (!strncmp(fn->name, "chpl_", 5)) return false;
+    if (!strncmp(fn->cname, "chpl_", 5)) return false;
+    return true;
+  }
+
+public:
+  UnwindTable() = default;
+ ~UnwindTable() = default;
+
+  static UnwindTable create(Vec<FnSymbol*>& vec) {
+    UnwindTable ret;
+    NameMap nameMap;
+
+    forv_Vec(FnSymbol, fn, gFnSymbols) {
+      auto& v = nameMap[fn->cname];
+      v.push_back(fn);
+    }
+
+    for (auto& [cname, fns] : nameMap) {
+      FnSymbol* lastNonExternFn = nullptr;
+      FnSymbol* lastExternFn = nullptr;
+      int numExportOrDefault = 0;
+      int numExtern = 0;
+
+      for (auto fn : fns) {
+        if (fn->hasFlag(FLAG_EXTERN)) {
+          lastExternFn = fn;
+          numExtern++;
+        } else {
+          lastNonExternFn = fn;
+          numExportOrDefault++;
+        }
+      }
+
+      // If this fires, we have a naming problem we didn't catch.
+      INT_ASSERT(numExportOrDefault <= 1);
+
+      auto fn = lastNonExternFn ? lastNonExternFn : lastExternFn;
+      bool canRename = !fn->hasFlag(FLAG_EXTERN) || numExtern == 1;
+
+      if (shouldAddToTable(fn)) ret.table_.push_back({ fn, canRename });
+    }
+
+    return ret;
+  }
+
+  std::vector<GenRet> buildNameTable() const {
+    std::vector<GenRet> ret;
+
+    ret.reserve(table_.size() * 2);
+
+    for (auto [fn, canRename] : table_) {
+      const char* str1 = fn->cname;
+      const char* str2 = canRename ? fn->name : fn->cname;
+
+      ret.push_back(codegenStringForTable(str1));
+      ret.push_back(codegenStringForTable(str2));
+    }
+
+    ret.push_back(codegenStringForTable(""));
+    ret.push_back(codegenStringForTable(""));
+
+    return ret;
+  }
+
+  std::vector<GenRet> buildFileLineTable() const {
+    std::vector<GenRet> ret;
+
+    ret.reserve(table_.size() * 2);
+
+    for (auto [fn, canRename] : table_) {
+      std::ignore = canRename;
+
+      int fileno = getFilenameTableIndex(fn->fname());
+      int lineno = fn->linenum();
+
+      ret.push_back(new_IntSymbol(fileno, INT_SIZE_32)->codegen());
+      ret.push_back(new_IntSymbol(lineno, INT_SIZE_32)->codegen());
+    }
+
+    ret.push_back(new_IntSymbol(0, INT_SIZE_32)->codegen());
+    ret.push_back(new_IntSymbol(0, INT_SIZE_32)->codegen());
+
+    return ret;
+  }
+
+  size_t size() const {
+    return table_.size();
+  }
+};
+
 
 //
 // This adds the Chapel symbol table to the config file
@@ -962,16 +1067,11 @@ static bool shouldAddToUnwindTable(FnSymbol* fn) {
 // chpl_filenumSymTable = Chapel file name index, Chapel line number
 //
 static void genUnwindSymbolTable(){
-  std::vector<FnSymbol*> symbols;
+  UnwindTable unwindTable;
 
   //If CHPL_UNWIND is none we don't want any symbols in our tables
   if(strcmp(CHPL_UNWIND, "none") != 0){
-    // Gets only user symbols
-    forv_Vec(FnSymbol, fn, gFnSymbols) {
-      if (shouldAddToUnwindTable(fn)) {
-        symbols.push_back(fn);
-      }
-    }
+    unwindTable = UnwindTable::create(gFnSymbols);
   }
 
   // Generate the cname, Chapel name table
@@ -982,16 +1082,7 @@ static void genUnwindSymbolTable(){
     // Compute the element type
     GenRet cstringType = codegenTypeByName(eltType);
 
-    // Construct the table elements
-    std::vector<GenRet> table;
-    table.reserve(symbols.size() * 2);
-
-    for (FnSymbol* fn : symbols) {
-      table.push_back(codegenStringForTable(fn->cname));
-      table.push_back(codegenStringForTable(fn->name));
-    }
-    table.push_back(codegenStringForTable(""));
-    table.push_back(codegenStringForTable(""));
+    auto table = unwindTable.buildNameTable();
 
     // Now emit the global array declaration
     codegenGlobalConstArray(name, eltType, &table, false);
@@ -1005,27 +1096,14 @@ static void genUnwindSymbolTable(){
     // Compute the element type
     GenRet cintType = codegenTypeByName(eltType);
 
-    // Construct the table elements
-    std::vector<GenRet> table;
-    table.reserve(symbols.size() * 2);
-
-    for (FnSymbol* fn : symbols) {
-      int fileno = getFilenameTableIndex(fn->fname());
-      int lineno = fn->linenum();
-
-      table.push_back( new_IntSymbol(fileno, INT_SIZE_32)->codegen() );
-      table.push_back( new_IntSymbol(lineno, INT_SIZE_32)->codegen() );
-    }
-
-    table.push_back( new_IntSymbol(0, INT_SIZE_32)->codegen() );
-    table.push_back( new_IntSymbol(0, INT_SIZE_32)->codegen() );
+    auto table = unwindTable.buildFileLineTable();
 
     // Now emit the global array declaration
     codegenGlobalConstArray(name, eltType, &table, false);
   }
 
   // Now emit the size of the symbol table
-  genGlobalInt32("chpl_sizeSymTable", symbols.size() * 2);
+  genGlobalInt32("chpl_sizeSymTable", unwindTable.size() * 2);
 }
 
 static void
