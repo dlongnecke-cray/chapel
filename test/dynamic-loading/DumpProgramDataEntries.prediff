@@ -46,6 +46,14 @@ num_locales = int(match.group(1)) if match else 1
 assert num_locales >= 1
 
 
+expected_value_map = {
+    "mainHasArgs" : 0,
+    "mainPreserveDelimiter" : 0,
+    "warnUnstable" : 0,
+    "CHPL_INTERLEAVE_MEM" : 0,
+    "CHPL_STACK_CHECKS" : 1
+}
+
 class ProgramField(object):
     def __init__(self, name, c_type, val):
         self._name = name
@@ -64,17 +72,17 @@ class ProgramField(object):
     def is_pointer_type(self):
         return not self.is_callback() and "*" in self._c_type
 
-    def _check_int(self, out, name, expected_val):
+    def _expect_val(self, out, val):
         passed = True
-        if self._name == name:
-            if int(self._val) != expected_val:
-                print(
-                    "Bad value {} for {}, expected {}".format(
-                        self._val, name, expected_val
-                    ),
-                    file=out,
-                )
-                passed = False
+        t = type(val)
+        if t(self._val) != val:
+            print(
+                "Bad value {} for '{}', expected {}".format(
+                    self._val, name, val
+                ),
+                file=out,
+            )
+            passed = False
         return passed
 
     def verify(self, out, chplenv):
@@ -105,12 +113,11 @@ class ProgramField(object):
                     ),
                     file=out,
                 )
-        # Things that are obviously integers should also be set.
-        passed = self._check_int(out, "mainHasArgs", 0) and passed
-        passed = self._check_int(out, "mainPreserveDelimiter", 0) and passed
-        passed = self._check_int(out, "warnUnstable", 0) and passed
-        passed = self._check_int(out, "CHPL_INTERLEAVE_MEM", 0) and passed
-        passed = self._check_int(out, "CHPL_STACK_CHECKS", 1) and passed
+        # Verify fields that should have a known, specific value.
+        name = self._name
+        if name in expected_value_map:
+          val = expected_value_map[name]
+          passed = self._expect_val(out, val) and passed
         return passed
 
 
@@ -159,7 +166,10 @@ for line in original_output.splitlines():
         data_per_locales.append(data)
     match = re.search(pattern_2, line)
     if match:
-        assert data
+        if not data:
+            # Make something in the event that we didn't parse a header yet.
+            data = ProgramData(None, None, None)
+            data_per_locales.append(data)
         name = match.group(1).strip()
         c_type = match.group(2).strip()
         val = match.group(3).strip()

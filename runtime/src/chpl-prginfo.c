@@ -156,6 +156,7 @@ const char* chpl_rt_prginfo_load_path(chpl_rt_prginfo* prg) {
 #define STR_INNER(x__) #x__
 #define STR(x__) STR_INNER(x__)
 
+// Counts and returns the number of '*' in a type string.
 static int type_pointer_depth(const char* type) {
   int ret = 0;
   for (size_t i = 0; i < strlen(type); i++) {
@@ -170,7 +171,7 @@ static void dump_prginfo_data_entry(FILE* fp, chpl_rt_prginfo* prg,
                                     void* addr,
                                     int is_callback,
                                     int show_address) {
-  // Just naively count '*'.
+
   bool is_array = type_pointer_depth(type) > 0;
 
   // If true then 'addr' is a pointer to a pointer, so deref it.

@@ -126,7 +126,7 @@ module ChapelProgramRegistration {
       return ret;
     }
 
-    inline proc dump(showAddresses: bool=true) {
+    proc dump(showAddresses: bool=true) {
       extern 'chpl_rt_prginfo_dump_data_entries'
       proc fn(const ref prg: chpl_rt_prginfo, show_addresses: c_int): void;
       fn(prg=_info, show_addresses=showAddresses);
