@@ -47,12 +47,13 @@ assert num_locales >= 1
 
 
 expected_value_map = {
-    "mainHasArgs" : 0,
-    "mainPreserveDelimiter" : 0,
-    "warnUnstable" : 0,
-    "CHPL_INTERLEAVE_MEM" : 0,
-    "CHPL_STACK_CHECKS" : 1
+    "mainHasArgs": 0,
+    "mainPreserveDelimiter": 0,
+    "warnUnstable": 0,
+    "CHPL_INTERLEAVE_MEM": 0,
+    "CHPL_STACK_CHECKS": 1,
 }
+
 
 class ProgramField(object):
     def __init__(self, name, c_type, val):
@@ -116,8 +117,8 @@ class ProgramField(object):
         # Verify fields that should have a known, specific value.
         name = self._name
         if name in expected_value_map:
-          val = expected_value_map[name]
-          passed = self._expect_val(out, val) and passed
+            val = expected_value_map[name]
+            passed = self._expect_val(out, val) and passed
         return passed
 
 
