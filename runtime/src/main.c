@@ -41,16 +41,11 @@ int main(int argc, char* argv[]) {
 
   // It should match what we gave 'chpl_rt_init'.
   if (got_root_prg && our_root_prg != got_root_prg) {
-    fprintf(stderr, "Unexpected error: a Chapel program tried to initialize "
-                    "the Chapel runtime, but it was already initialized");
-    // Call 'exit_all' since the runtime is likely initialized (how? weird!).
-    chpl_exit_all(1);
-    return 1;
+    chpl_internal_error("a Chapel program tried to initialize the Chapel "
+                        "runtime, but the root program was already bound");
+
   } else if (!got_root_prg) {
-    // In this path, we kind of have to assume the runtime is not initialized.
-    fprintf(stderr, "Unexpected error: the Chapel runtime does not "
-                    "return a root program");
-    exit(1);
+    chpl_internal_error("the Chapel runtime has not bound a root program");
   }
 
   // Run the main function for this node.

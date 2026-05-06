@@ -210,8 +210,11 @@ void chpl_rt_init(chpl_rt_prginfo* root_prg, int argc, char** argv) {
   int runInLLDB = 0;
 
   // First thing: bind the root program so that other code can function.
-  int is_root_program_bound = chpl_rt_prginfo_register_root_here(root_prg);
-  assert(is_root_program_bound);
+  int is_root_prg_bound = chpl_rt_prginfo_register_root_here(root_prg);
+
+  // Realistically, this should never fire.
+  assert(is_root_prg_bound);
+  (void) is_root_prg_bound;
 
   // Check that we can get the page size.
   assert( sys_page_size() > 0 );
