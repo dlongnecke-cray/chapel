@@ -128,6 +128,10 @@ typedef struct qio_channel_s qio_channel_t;
   CHPL_RT_CONCAT3__(CHPL_RT_PRGINFO_DATA_ENTRY_TYPE_PREFIX, name__, \
                     CHPL_RT_PRGINFO_DATA_ENTRY_TYPE_SUFFIX)
 
+/** Get the C type of a callback. */
+#define CHPL_RT_PRGINFO_CALLBACK_TYPE(name__, ret_type__, ...) \
+  ret_type__ (*)(__VA_ARGS__)
+
 // Expand out unique typedefs for each data entry.
 #define E_CONSTANT(name__, type__) \
   typedef type__ CHPL_RT_PRGINFO_DATA_ENTRY_TYPE(name__);
@@ -162,20 +166,20 @@ typedef uint64_t chpl_rt_prg_id;
 /** Retrieve a program's info on the current locale given an ID. */
 #define CHPL_RT_PRGINFO_FETCH(id__) (chpl_rt_prginfo_from_id_here(id__))
 
-/** Retrieve data from a program. */
+/** Materialize the value of a program data entry. */
 #if !defined(CHPL_RT_DEBUG_PRGINFO_ACCESS) || \
              CHPL_RT_DEBUG_PRGINFO_ACCESS <= 0
   #define CHPL_RT_PRGINFO_DATA(prg__, data_name__) (prg__->data.data_name__)
 #else
-  #define CHPL_RT_PRGINFO_DATA(prg__, data_name__)                          \
-    (*((CHPL_RT_PRGINFO_DATA_ENTRY_TYPE(data_name__))                       \
-      chpl_rt_prginfo_data_debug_print_hook(CHPL_RT_DEBUG_PRGINFO_ACCESS,   \
-                                            prg__,                          \
-                                            &(prg__->data.data_name__),     \
-                                            #data_name__,                   \
-                                            __FILE__,                       \
-                                            __FUNCTION__,                   \
-                                            __LINE__)))
+  #define CHPL_RT_PRGINFO_DATA(prg__, data_name__)                         \
+    (chpl_rt_prginfo_data_debug_print_hook(CHPL_RT_DEBUG_PRGINFO_ACCESS,   \
+                                           prg__,                          \
+                                           &(prg__->data.data_name__),     \
+                                           #data_name__,                   \
+                                           __FILE__,                       \
+                                           __FUNCTION__,                   \
+                                           __LINE__),                      \
+                                           (prg__->data.data_name__))
 #endif
 
 /** Declares a local that is a copy of a program data, with the same name. */
