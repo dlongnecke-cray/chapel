@@ -16,6 +16,7 @@ int addTwoReturn(int a, int b) { return a + b; }
 void printFoobar(foobar f) {
   printf("{ %lf, %lf, %lf, %lf, %lf, %lf, %lf, %lf, { %d, %d, %d, %d } }\n",
          f.a, f.b, f.c, f.d, f.e, f.f, f.g, f.h, f.x.a, f.x.b, f.x.c, f.x.d);
+  fflush(stdout);
 }
 
 foobar createFoobar(double a, double b, double c,
@@ -34,6 +35,7 @@ foobar createFoobar(double a, double b, double c,
 int main(int argc, char** argv) {
   int x = addTwoReturn(2, 2);
   printf("%d\n", x);
+  fflush(stdout);
   baz b = { 8, 9, 10, 11 };
   foobar y = createFoobar(0, 1, 2, 3, 4, 5, 6, 7, b);
   printFoobar(y);

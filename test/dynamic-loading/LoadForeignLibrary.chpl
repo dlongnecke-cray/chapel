@@ -11,6 +11,7 @@
 
 use ChapelDynamicLoading;
 use CTypes;
+use IO;
 use Reflection;
 
 require "TestTypeOnlyHeader.h";
@@ -41,6 +42,16 @@ extern record foobar {
   var h: c_double;
   var x: baz;
   var padding: c_array(c_int, FOOBAR_PADDING);
+}
+
+proc writeFlush(args...) {
+  writeln((...args));
+  stdout.flush();
+}
+
+proc writeFlush() {
+  writeln();
+  stdout.flush();
 }
 
 /** Define a "user facing" wrapper around the internal dynamic library. */
@@ -112,7 +123,7 @@ record dynamicLibrary {
 }
 
 proc test0() {
-  writeln(getRoutineName());
+  writeFlush(getRoutineName());
 
   var bin = new dynamicLibrary("./TestCLibraryToLoad.so");
 
@@ -120,20 +131,20 @@ proc test0() {
 
   const addTwoReturn = try! bin.load("addTwoReturn", P1);
 
-  writeln(addTwoReturn.type:string);
-  writeln();
+  writeFlush(addTwoReturn.type:string);
+  writeFlush();
 
   for loc in Locales do on loc {
     const n = (here.id : c_int);
     const x = addTwoReturn(n, n);
-    writeln(here, ' got: ', x);
-    writeln('---');
+    writeFlush(here, ' got: ', x);
+    writeFlush('---');
   }
-  writeln();
+  writeFlush();
 }
 
 proc test1() {
-  writeln(getRoutineName());
+  writeFlush(getRoutineName());
 
   var bin = new dynamicLibrary("./TestCLibraryToLoad.so");
 
@@ -148,12 +159,12 @@ proc test1() {
   const createFoobar = bin.load("createFoobar", P1);
   const printFoobar = bin.load("printFoobar", P2);
 
-  writeln(createFoobar.type:string);
-  writeln(printFoobar.type:string);
-  writeln();
+  writeFlush(createFoobar.type:string);
+  writeFlush(printFoobar.type:string);
+  writeFlush();
 
   for loc in Locales do on loc {
-    writeln(here);
+    writeFlush(here);
 
     // Create the arguments.
     const n = (here.id : c_int);
@@ -166,14 +177,14 @@ proc test1() {
     printFoobar(x);
 
     // Confirm things look the same on Chapel's end.
-    writeln('writeln: ', x);
+    writeFlush('writeFlush: ', x);
 
-    writeln('---');
+    writeFlush('---');
   }
 }
 
 proc test2() {
-  writeln(getRoutineName());
+  writeFlush(getRoutineName());
 
   // Here neither the library or procedure exist.
   var bin = new dynamicLibrary("SOME_FILE_THAT_DOES_NOT_EXIST");
@@ -183,14 +194,14 @@ proc test2() {
     const p = bin.load("SOME_SYMBOL_THAT_DOES_NOT_EXIST", P);
     assert(p == nil);
   } catch e {
-    writeln('Caught error!');
+    writeFlush('Caught error!');
     // TODO: Sanitize the dynamic linker output to be platform-independent.
-    // writeln(e.message());
+    // writeFlush(e.message());
   }
 }
 
 proc test3() {
-  writeln(getRoutineName());
+  writeFlush(getRoutineName());
 
   // Here the library exists but the procedure does not.
   var bin = new dynamicLibrary("./TestCLibraryToLoad.so");
@@ -199,9 +210,9 @@ proc test3() {
     const p = bin.load("SOME_SYMBOL_THAT_DOES_NOT_EXIST", P);
     assert(p == nil);
   } catch e {
-    writeln('Caught error!');
+    writeFlush('Caught error!');
     // TODO: Sanitize the dynamic linker output to be platform-independent.
-    // writeln(e.message());
+    // writeFlush(e.message());
   }
 }
 
@@ -209,7 +220,7 @@ proc test3() {
 // As well, there should be no problems retrieving the same symbol
 // multiple times regardless of locale.
 proc test4() {
-  writeln(getRoutineName());
+  writeFlush(getRoutineName());
 
   var bin = new dynamicLibrary("./TestCLibraryToLoad.so");
 
