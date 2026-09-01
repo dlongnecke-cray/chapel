@@ -2318,7 +2318,8 @@ static Expr* modifyPartiallyGenericArrayReturnRecurse(FnSymbol* fn,
   auto retCall = toCallExpr(retExpr);
   if (typeCall && typeCall->isNamed("_build_tuple")) {
     if (!(retCall && retCall->isNamed("_build_tuple"))) {
-      USR_FATAL(fn, "return type is a tuple, but return value is not");
+      USR_WARN(fn, "return type is a tuple, but return value is not a literal tuple - no return type checking will be performed");
+      return retExpr;
     }
     int nTypeArgs = typeCall->numActuals();
     int nRetArgs = retCall->numActuals();
