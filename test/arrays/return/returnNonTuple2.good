@@ -1,0 +1,2 @@
+returnNonTuple2.chpl:1: warning: return type is a tuple, but return value is not a literal tuple - no return type checking will be performed
+(0 0 0 0 0 0 0 0 0 0, 0 0 0 0 0 0 0 0 0 0)
