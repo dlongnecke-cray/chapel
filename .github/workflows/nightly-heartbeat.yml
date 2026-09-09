@@ -22,7 +22,6 @@ defaults:
 jobs:
   ensure-recent-nightly-run:
     runs-on: ubuntu-slim
-    needs:
     env:
       GH_TOKEN: ${{ github.token }}
       EMAIL_BODY_FILENAME: email.md
