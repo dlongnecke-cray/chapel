@@ -25,6 +25,9 @@ jobs:
       packages: read
       actions: write
     uses: $/.github/workflows/extended-ci-checks.yml
+    secrets:
+      DOCKERHUB_USER: ${{ secrets.DOCKERHUB_USER }}
+      DOCKERHUB_PAT: ${{ secrets.DOCKERHUB_PAT }}
 
   full-checks:
     permissions:
