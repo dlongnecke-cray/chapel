@@ -3,6 +3,17 @@ name: Core CI Checks
 
 on:
   workflow_call:
+    secrets:
+      WEBSITE_KEY:
+        required: false
+      WEBSITE_KNOWN_HOSTS:
+        required: false
+      WEBSITE_USER:
+        required: false
+      WEBSITE_URL:
+        required: false
+      WEBSITE_PATH:
+        required: false
 
 permissions:
   contents: read
