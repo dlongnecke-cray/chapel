@@ -67,9 +67,9 @@ Compile and run a test program:
 
 .. code-block:: bash
 
-    chpl --comm=gasnet --comm-substrate=udp \\
-      `chpl --print-chpl-home`/examples/hello6-taskpar-dist.chpl
-    chplrun-udp ./hello6-taskpar-dist -nl 4
+   chpl --comm=gasnet --comm-substrate=udp \\
+     `chpl --print-chpl-home`/examples/hello6-taskpar-dist.chpl
+   chplrun-udp ./hello6-taskpar-dist -nl 4
 
 .. note::
 
