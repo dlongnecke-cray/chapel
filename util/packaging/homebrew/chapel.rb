@@ -44,6 +44,8 @@ class Chapel < Formula
 
   def install
     # Always detect Python used as dependency rather than needing aliased Python formula
+    python = "python3.14"
+    # It should be noted that this will expand to: 'for cmd in python3.14 python3 python python2; do'
     inreplace "util/config/find-python.sh", /^(for cmd in )(python3 )/, "\\1#{python} \\2"
 
     # We link jemalloc dynamically, so its `Libs.private` only adds a duplicate C++ runtime
