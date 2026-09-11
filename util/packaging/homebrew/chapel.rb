@@ -44,7 +44,7 @@ class Chapel < Formula
 
   def install
     # Always detect Python used as dependency rather than needing aliased Python formula
-    inreplace "util/config/find-python.sh", /^(for cmd in )(python3 )/, "\\1#{python3} \\2"
+    inreplace "util/config/find-python.sh", /^(for cmd in )(python3 )/, "\\1#{python} \\2"
 
     # We link jemalloc dynamically, so its `Libs.private` only adds a duplicate C++ runtime
     inreplace "util/chplenv/chpl_jemalloc.py",
@@ -63,7 +63,7 @@ class Chapel < Formula
 
     # This ENV avoids a problem where cmake cache is invalidated by subsequent make calls
     ENV["CHPL_CMAKE_USE_CC_CXX"] = "1"
-    ENV["CHPL_CMAKE_PYTHON"] = python3
+    ENV["CHPL_CMAKE_PYTHON"] = python
 
     # This ENV avoids issues with GASNet picking up the wrong linker
     ENV["CHPL_IGNORE_GASNET_LD"] = "1"
