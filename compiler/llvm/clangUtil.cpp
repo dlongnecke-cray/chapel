@@ -1716,6 +1716,8 @@ void setupClang(GenInfo* info, std::string mainFile)
     for( size_t i = 0; i < args.size(); i++ ) {
       if (args[i].find("runtime/include/gen") != std::string::npos) {
         runtimeIncludeGenPath = args[i];
+        assert(runtimeIncludeGenPath[0] == '-');
+        assert(runtimeIncludeGenPath[1] == 'I');
         runtimeIncludeGenPath.erase(0, 2);
       }
       printf("%s ", args[i].c_str());
@@ -1723,12 +1725,16 @@ void setupClang(GenInfo* info, std::string mainFile)
     printf("\n");
   }
 
-  const bool targetExists = llvm::sys::fs::exists(runtimeIncludeGenPath);
+  if (!runtimeIncludeGenPath.empty()) {
+    const bool targetExists = llvm::sys::fs::exists(runtimeIncludeGenPath);
 
-  if (targetExists) {
-    printf("\n%s EXISTS\n", runtimeIncludeGenPath.c_str());
+    if (targetExists) {
+      printf("\nPATH EXISTS: %s\n", runtimeIncludeGenPath.c_str());
+    } else {
+      printf("\nPATH DOES NOT EXIST: %s\n", runtimeIncludeGenPath.c_str());
+    }
   } else {
-    printf("\n%s DOES NOT EXIST\n", runtimeIncludeGenPath.c_str());
+    printf("\nDID NOT FIND -I PATH!\n");
   }
 
   // Initialize LLVM targets so that the clang commands can know if the
